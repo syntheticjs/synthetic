@@ -1,0 +1,23 @@
+{
+  "name": "inherit",
+  "description": "Inherit class by class",
+  "version": "0.1.0",
+  "keywords": [
+    "inherit"
+  ],
+  "dependencies": {
+    "abstudio/mixin": "0.1.0"
+  },
+  "scripts": [
+    "src/inherit.js"
+  ],
+  "license": "MIT",
+  "remotes": [
+    "github"
+  ],
+  "tags": [
+    "function"
+  ],
+  "repository": "abstudio/inherit",
+  "resolved": "d352ebee384b8cca71d0ab653ad187911b048a85"
+}

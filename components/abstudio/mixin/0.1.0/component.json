@@ -1,0 +1,21 @@
+{
+  "name": "mixin",
+  "description": "Simple object mixin",
+  "version": "0.1.0",
+  "keywords": [
+    "mixin"
+  ],
+  "dependencies": {},
+  "scripts": [
+    "src/mixin.js"
+  ],
+  "license": "MIT",
+  "remotes": [
+    "github"
+  ],
+  "tags": [
+    "function"
+  ],
+  "repository": "abstudio/mixin",
+  "resolved": "37387554f657ccb85cd1b381d3cffb596b3aae59"
+}

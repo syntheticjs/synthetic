@@ -1,0 +1,24 @@
+{
+  "name": "synthet",
+  "repository": "abstudio/synthet",
+  "description": "Web-components without DOM shadow",
+  "version": "0.1.0",
+  "keywords": ["synthet"],
+  "dependencies": {
+    "abstudio/mutagen": "0.1.0",
+    "abstudio/inherit": "0.1.0",
+    "abstudio/classEvents": "0.1.0"
+  },
+  "scripts": [
+    "src/synthet.js",
+    "src/d3party/WebReflection/document-register-element.amd.js"
+  ],
+  "license": "MIT",
+  "remotes": [
+    "github"
+  ],
+  "tags": [
+    "module",
+    "framework"
+  ]
+}

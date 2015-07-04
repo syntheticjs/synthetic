@@ -1,0 +1,24 @@
+{
+  "name": "mutagen",
+  "repository": "abstudio/mutagen",
+  "description": "Mutate HTML by another HTML",
+  "version": "0.1.0",
+  "keywords": [
+    "amd",
+    "module",
+    "parser",
+    "webcomponents"
+  ],
+  "dependencies": {},
+  "scripts": [
+    "src/mutagen.js"
+  ],
+  "license": "MIT",
+  "remotes": [
+    "github"
+  ],
+  "tags": [
+    "module"
+  ],
+  "resolved": "b88c8d602e877d4c426f7b2d7d9a0c2368eb3b38"
+}
