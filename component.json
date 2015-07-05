@@ -5,7 +5,7 @@
   "version": "0.0.3",
   "keywords": ["synthet"],
   "dependencies": {
-    "abstudio/mutagen": "0.1.1",
+    "abstudio/mutagen": "0.1.2",
     "abstudio/inherit": "0.1.1",
     "abstudio/classEvents": "0.1.0"
   },
