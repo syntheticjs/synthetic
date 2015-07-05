@@ -3,8 +3,7 @@ AMD Synthet
 */
 (function(name, depends, factory) {
 	if (window && window.define && "function"===typeof define) define(name, depends, factory)
-	else {
-		
+	else {		
 		window.Synthet = factory();
 	}
 })
@@ -17,7 +16,7 @@ AMD Synthet
 
 	var Component = inherit(function(name) {
 		this.name = name;
-		this.element = null;
+		this.$ = null;
 		this.template = '';
 	}, eventsClass);
 	/*
@@ -37,10 +36,21 @@ AMD Synthet
 		/*
 		Регистрируем касмотный элемент через полифил
 		*/
-		this.element = document.registerElement(this.name, {
+		document.registerElement(this.name, {
 		    prototype: Object.create(
 		      HTMLElement.prototype, {
+		      query: {
+		      	value: function(queryString) {
+		      		var nodeList = mutagen.query(queryString, this);
+		      		if (nodeList instanceof NodeList) {
+		      			return Array.prototype.slice.apply(nodeList);
+		      		} else {
+		      			return [];
+		      		}
+		      	}
+		      },
 		      createdCallback: {value: function() {
+		      	component.$ = this;
 		      	component.trigger('created',[this]);
 		      }},
 		      attachedCallback: {value: function() {
