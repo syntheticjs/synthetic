@@ -8,7 +8,7 @@ AMD Synthet
 	}
 })
 ("synthet", [
-	"abstudio~mutagen@0.1.1",
+	"abstudio~mutagen@0.1.2",
 	"abstudio~inherit@0.1.1",
 	"abstudio~classEvents@0.1.0",
 	"./d3party/WebReflection/document-register-element.amd.js"
