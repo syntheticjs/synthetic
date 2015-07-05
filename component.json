@@ -5,8 +5,8 @@
   "version": "0.0.1",
   "keywords": ["synthet"],
   "dependencies": {
-    "abstudio/mutagen": "0.1.0",
-    "abstudio/inherit": "0.1.0",
+    "abstudio/mutagen": "0.1.1",
+    "abstudio/inherit": "0.1.1",
     "abstudio/classEvents": "0.1.0"
   },
   "scripts": [
