@@ -13,33 +13,31 @@ AMD Synthet
 	"abstudio~inherit@0.1.1",
 	"abstudio~classEvents@0.1.0",
 	"./d3party/WebReflection/document-register-element.amd.js"
-], function(subZero, inherit, eventsClass) {
+], function(mutagen, inherit, eventsClass) {
 
-	var Component = inherit(function() {
-
+	var Component = inherit(function(name) {
+		this.name = name;
+		this.element = null;
+		this.template = '';
 	}, eventsClass);
-
-	var Synthet = function() {
-
-	};
-
-	Synthet.prototype = {
-		construct: Synthet
+	/*
+	Устанавливает шаблон для элемента
+	*/
+	Component.prototype.setTemplate = function(template) {
+		this.template = template;
+		this.on('created', function(element) {
+			mutagen.call(this.template, element);
+		});
 	}
-
-	Synthet.registerComponent = function(name, template, config) {
-		/*
-		Сбрасываем ошибку, если в имени нету деффиса
-		*/
-		if (name.indexOf('-')<0) throw 'Component name must have `-` symbol';
-		/*
-		Создаем новый компонент
-		*/
-		var component = new Component();
+	/*
+	Регистриует элемент в документе
+	*/
+	Component.prototype.register = function() {
+		var component = this;
 		/*
 		Регистрируем касмотный элемент через полифил
 		*/
-		var prototype = {
+		this.element = document.registerElement(this.name, {
 		    prototype: Object.create(
 		      HTMLElement.prototype, {
 		      createdCallback: {value: function() {
@@ -57,8 +55,27 @@ AMD Synthet
 		      	component.trigger('attributeChanged',[name, previousValue, value]);
 		      }}
 		    })
-		};
-		component.element = document.registerElement(name, prototype);
+		});
+	}
+
+	var Synthet = function() {
+
+	};
+
+	Synthet.prototype = {
+		construct: Synthet
+	}
+
+	Synthet.newComponent = function(name, template) {
+		/*
+		Сбрасываем ошибку, если в имени нету деффиса
+		*/
+		if (name.indexOf('-')<0) throw 'Component name must have `-` symbol';
+		/*
+		Создаем новый компонент
+		*/
+		var component = new Component(name);
+		component.setTemplate(template);
 
 		return component;
 	}
