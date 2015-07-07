@@ -2,8 +2,9 @@
   "name": "synthet",
   "repository": "abstudio/synthet",
   "description": "Web-components without DOM shadow",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "keywords": ["synthet"],
+  "main": ["dist/synthet.js"],
   "dependencies": {
     "abstudio/mutagen": "0.1.2",
     "abstudio/inherit": "0.1.2",
