@@ -2,10 +2,8 @@
 AMD Synthet
 */
 (function(name, depends, factory) {
-	if (window && window.define && "function"===typeof define) define(name, depends, factory)
-	else {		
-		window.Synthet = factory();
-	}
+	if (define && "function"===typeof define) define(name, depends, factory);
+	
 })
 ("synthet", [
 	"abstudio~mutagen@0.1.2",
@@ -90,6 +88,7 @@ AMD Synthet
 		return component;
 	}
 
+	if (window) window.Synthet = Synthet;
 	return Synthet;
 
 });
