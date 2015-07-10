@@ -6,7 +6,7 @@ AMD Synthet
 	
 })
 ("synthet", [
-	"abstudio~mutagen@0.1.4",
+	"abstudio~mutagen@0.1.5",
 	"abstudio~inherit@0.1.4",
 	"abstudio~classEvents@0.1.0",
 	"polyvitamins~polyscope@master/gist/convert/camelize.js",
