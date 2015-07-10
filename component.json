@@ -2,13 +2,18 @@
   "name": "synthet",
   "repository": "abstudio/synthet",
   "description": "Web-components without DOM shadow",
-  "version": "0.0.7",
-  "keywords": ["synthet"],
-  "main": ["dist/synthet.js"],
+  "version": "0.0.8",
+  "keywords": [
+    "synthet"
+  ],
+  "main": [
+    "dist/synthet.js"
+  ],
   "dependencies": {
-    "abstudio/mutagen": "0.1.3",
-    "abstudio/inherit": "0.1.2",
-    "abstudio/classEvents": "0.1.0"
+    "abstudio/mutagen": "0.1.4",
+    "abstudio/inherit": "0.1.4",
+    "abstudio/classEvents": "0.1.0",
+    "polyvitamins/polyscope": "master"
   },
   "scripts": [
     "src/synthet.js",
