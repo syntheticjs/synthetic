@@ -1,2 +1,777 @@
-/*! (C) WebReflection Mit Style License */
-define(function(){"use strict";function et(e,t){for(var n=0,r=e.length;n<r;n++)ct(e[n],t)}function tt(e){for(var t=0,n=e.length,r;t<n;t++)r=e[t],Z(r,m[rt(r)])}function nt(e){return function(t){P(t)&&(ct(t,e),et(t.querySelectorAll(g),e))}}function rt(e){var t=e.getAttribute("is"),n=e.nodeName.toUpperCase(),r=b.call(v,t?h+t.toUpperCase():c+n);return t&&-1<r&&!it(n,t)?-1:r}function it(e,t){return-1<g.indexOf(e+'[is="'+t+'"]')}function st(e){var t=e.currentTarget,n=e.attrChange,r=e.prevValue,i=e.newValue;$&&t.attributeChangedCallback&&e.attrName!=="style"&&t.attributeChangedCallback(e.attrName,n===e[s]?null:r,n===e[u]?null:i)}function ot(e){var t=nt(e);return function(e){U.push(t,e.target)}}function ut(e){V&&(V=!1,e.currentTarget.removeEventListener(f,ut)),et((e.target||document).querySelectorAll(g),e.detail===r?r:n),D&&lt()}function at(e,t){var n=this;j.call(n,e,t),J.call(n,{target:n})}function ft(e,n){O(e,n),G?G.observe(e,q):(X&&(e.setAttribute=at,e[t]=Q(e),e.addEventListener(l,J)),e.addEventListener(a,st)),e.createdCallback&&$&&(e.created=!0,e.createdCallback(),e.created=!1)}function lt(){for(var e,t=0,n=H.length;t<n;t++)e=H[t],y.contains(e)||(H.splice(t,1),ct(e,r))}function ct(e,t){var i,s=rt(e);-1<s&&(Y(e,m[s]),s=0,t===n&&!e[n]?(e[r]=!1,e[n]=!0,s=1,D&&b.call(H,e)<0&&H.push(e)):t===r&&!e[r]&&(e[n]=!1,e[r]=!0,s=1),s&&(i=e[t+"Callback"])&&i.call(e))}var e="registerElement";if(e in document)return;var t="__"+e+(Math.random()*1e5>>0),n="attached",r="detached",i="extends",s="ADDITION",o="MODIFICATION",u="REMOVAL",a="DOMAttrModified",f="DOMContentLoaded",l="DOMSubtreeModified",c="<",h="=",p=/^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$/,d=["ANNOTATION-XML","COLOR-PROFILE","FONT-FACE","FONT-FACE-SRC","FONT-FACE-URI","FONT-FACE-FORMAT","FONT-FACE-NAME","MISSING-GLYPH"],v=[],m=[],g="",y=document.documentElement,b=v.indexOf||function(e){for(var t=this.length;t--&&this[t]!==e;);return t},w=Object.prototype,E=w.hasOwnProperty,S=w.isPrototypeOf,x=Object.defineProperty,T=Object.getOwnPropertyDescriptor,N=Object.getOwnPropertyNames,C=Object.getPrototypeOf,k=Object.setPrototypeOf,L=!!Object.__proto__,A=Object.create||function ht(e){return e?(ht.prototype=e,new ht):this},O=k||(L?function(e,t){return e.__proto__=t,e}:N&&T?function(){function e(e,t){for(var n,r=N(t),i=0,s=r.length;i<s;i++)n=r[i],E.call(e,n)||x(e,n,T(t,n))}return function(t,n){do e(t,n);while((n=C(n))&&!S.call(n,t));return t}}():function(e,t){for(var n in t)e[n]=t[n];return e}),M=window.MutationObserver||window.WebKitMutationObserver,_=(window.HTMLElement||window.Element||window.Node).prototype,D=!S.call(_,y),P=D?function(e){return e.nodeType===1}:function(e){return S.call(_,e)},H=D&&[],B=_.cloneNode,j=_.setAttribute,F=_.removeAttribute,I=document.createElement,q=M&&{attributes:!0,characterData:!0,attributeOldValue:!0},R=M||function(e){X=!1,y.removeEventListener(a,R)},U,z=window.requestAnimationFrame||window.webkitRequestAnimationFrame||window.mozRequestAnimationFrame||window.msRequestAnimationFrame||function(e){setTimeout(e,10)},W=!1,X=!0,V=!0,$=!0,J,K,Q,G,Y,Z;k||L?(Y=function(e,t){S.call(t,e)||ft(e,t)},Z=ft):(Y=function(e,n){e[t]||(e[t]=Object(!0),ft(e,n))},Z=Y),D?(X=!1,function(){var e=T(_,"addEventListener"),n=e.value,r=function(e){var t=new CustomEvent(a,{bubbles:!0});t.attrName=e,t.prevValue=this.getAttribute(e),t.newValue=null,t[u]=t.attrChange=2,F.call(this,e),this.dispatchEvent(t)},i=function(e,t){var n=this.hasAttribute(e),r=n&&this.getAttribute(e),i=new CustomEvent(a,{bubbles:!0});j.call(this,e,t),i.attrName=e,i.prevValue=n?r:null,i.newValue=t,n?i[o]=i.attrChange=1:i[s]=i.attrChange=0,this.dispatchEvent(i)},f=function(e){var n=e.currentTarget,r=n[t],i=e.propertyName,u;r.hasOwnProperty(i)&&(r=r[i],u=new CustomEvent(a,{bubbles:!0}),u.attrName=r.name,u.prevValue=r.value||null,u.newValue=r.value=n[i]||null,u.prevValue==null?u[s]=u.attrChange=0:u[o]=u.attrChange=1,n.dispatchEvent(u))};e.value=function(e,s,o){e===a&&this.attributeChangedCallback&&this.setAttribute!==i&&(this[t]={className:{name:"class",value:this.className}},this.setAttribute=i,this.removeAttribute=r,n.call(this,"propertychange",f)),n.call(this,e,s,o)},x(_,"addEventListener",e)}()):M||(y.addEventListener(a,R),y.setAttribute(t,1),y.removeAttribute(t),X&&(J=function(e){var n=this,r,i,a;if(n===e.target){r=n[t],n[t]=i=Q(n);for(a in i){if(!(a in r))return K(0,n,a,r[a],i[a],s);if(i[a]!==r[a])return K(1,n,a,r[a],i[a],o)}for(a in r)if(!(a in i))return K(2,n,a,r[a],i[a],u)}},K=function(e,t,n,r,i,s){var o={attrChange:e,currentTarget:t,attrName:n,prevValue:r,newValue:i};o[s]=e,st(o)},Q=function(e){for(var t,n,r={},i=e.attributes,s=0,o=i.length;s<o;s++)t=i[s],n=t.name,n!=="setAttribute"&&(r[n]=t.value);return r})),document[e]=function(t,s){S=t.toUpperCase(),W||(W=!0,M?(G=function(e,t){function n(e,t){for(var n=0,r=e.length;n<r;t(e[n++]));}return new M(function(r){for(var i,s,o=0,u=r.length;o<u;o++)i=r[o],i.type==="childList"?(n(i.addedNodes,e),n(i.removedNodes,t)):(s=i.target,$&&s.attributeChangedCallback&&i.attributeName!=="style"&&s.attributeChangedCallback(i.attributeName,i.oldValue,s.getAttribute(i.attributeName)))})}(nt(n),nt(r)),G.observe(document,{childList:!0,subtree:!0})):(U=[],z(function x(){while(U.length)U.shift().call(null,U.shift());z(x)}),document.addEventListener("DOMNodeInserted",ot(n)),document.addEventListener("DOMNodeRemoved",ot(r))),document.addEventListener(f,ut),document.addEventListener("readystatechange",ut),document.createElement=function(e,t){var n=I.apply(document,arguments),r=""+e,i=b.call(v,(t?h:c)+(t||r).toUpperCase()),s=-1<i;return t&&(n.setAttribute("is",t=t.toLowerCase()),s&&(s=it(r.toUpperCase(),t))),$=!document.createElement.innerHTMLHelper,s&&Z(n,m[i]),n},_.cloneNode=function(e){var t=B.call(this,!!e),n=rt(t);return-1<n&&Z(t,m[n]),e&&tt(t.querySelectorAll(g)),t});if(-2<b.call(v,h+S)+b.call(v,c+S))throw new Error("A "+t+" type is already registered");if(!p.test(S)||-1<b.call(d,S))throw new Error("The type "+t+" is invalid");var o=function(){return a?document.createElement(l,S):document.createElement(l)},u=s||w,a=E.call(u,i),l=a?s[i].toUpperCase():S,y=v.push((a?h:c)+S)-1,S;return g=g.concat(g.length?",":"",a?l+'[is="'+t.toLowerCase()+'"]':l),o.prototype=m[y]=E.call(u,"prototype")?u.prototype:A(_),et(document.querySelectorAll(g),n),o}});
+/*!
+    Copyright (C) 2014-2015 by WebReflection
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE.
+
+    */
+    (function(window, document, Object, REGISTER_ELEMENT){'use strict';
+
+    // in case it's there or already patched
+    if (REGISTER_ELEMENT in document) return;
+
+    // DO NOT USE THIS FILE DIRECTLY, IT WON'T WORK
+    // THIS IS A PROJECT BASED ON A BUILD SYSTEM
+    // THIS FILE IS JUST WRAPPED UP RESULTING IN
+    // build/document-register-element.js
+    // and its .max.js counter part
+
+    var
+      // IE < 11 only + old WebKit for attributes + feature detection
+      EXPANDO_UID = '__' + REGISTER_ELEMENT + (Math.random() * 10e4 >> 0),
+
+      // shortcuts and costants
+      ATTACHED = 'attached',
+      DETACHED = 'detached',
+      EXTENDS = 'extends',
+      ADDITION = 'ADDITION',
+      MODIFICATION = 'MODIFICATION',
+      REMOVAL = 'REMOVAL',
+      DOM_ATTR_MODIFIED = 'DOMAttrModified',
+      DOM_CONTENT_LOADED = 'DOMContentLoaded',
+      DOM_SUBTREE_MODIFIED = 'DOMSubtreeModified',
+      PREFIX_TAG = '<',
+      PREFIX_IS = '=',
+
+      // valid and invalid node names
+      validName = /^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$/,
+      invalidNames = [
+        'ANNOTATION-XML',
+        'COLOR-PROFILE',
+        'FONT-FACE',
+        'FONT-FACE-SRC',
+        'FONT-FACE-URI',
+        'FONT-FACE-FORMAT',
+        'FONT-FACE-NAME',
+        'MISSING-GLYPH'
+      ],
+
+      // registered types and their prototypes
+      types = [],
+      protos = [],
+
+      // to query subnodes
+      query = '',
+
+      // html shortcut used to feature detect
+      documentElement = document.documentElement,
+
+      // ES5 inline helpers || basic patches
+      indexOf = types.indexOf || function (v) {
+        for(var i = this.length; i-- && this[i] !== v;){}
+        return i;
+      },
+
+      // other helpers / shortcuts
+      OP = Object.prototype,
+      hOP = OP.hasOwnProperty,
+      iPO = OP.isPrototypeOf,
+
+      defineProperty = Object.defineProperty,
+      gOPD = Object.getOwnPropertyDescriptor,
+      gOPN = Object.getOwnPropertyNames,
+      gPO = Object.getPrototypeOf,
+      sPO = Object.setPrototypeOf,
+
+      // jshint proto: true
+      hasProto = !!Object.__proto__,
+
+      // used to create unique instances
+      create = Object.create || function Bridge(proto) {
+        // silly broken polyfill probably ever used but short enough to work
+        return proto ? ((Bridge.prototype = proto), new Bridge()) : this;
+      },
+
+      // will set the prototype if possible
+      // or copy over all properties
+      setPrototype = sPO || (
+        hasProto ?
+          function (o, p) {
+            o.__proto__ = p;
+            return o;
+          } : (
+        (gOPN && gOPD) ?
+          (function(){
+            function setProperties(o, p) {
+              for (var
+                key,
+                names = gOPN(p),
+                i = 0, length = names.length;
+                i < length; i++
+              ) {
+                key = names[i];
+                if (!hOP.call(o, key)) {
+                  defineProperty(o, key, gOPD(p, key));
+                }
+              }
+            }
+            return function (o, p) {
+              do {
+                setProperties(o, p);
+              } while ((p = gPO(p)) && !iPO.call(p, o));
+              return o;
+            };
+          }()) :
+          function (o, p) {
+            for (var key in p) {
+              o[key] = p[key];
+            }
+            return o;
+          }
+      )),
+
+      // DOM shortcuts and helpers, if any
+
+      MutationObserver = window.MutationObserver ||
+                         window.WebKitMutationObserver,
+
+      HTMLElementPrototype = (
+        window.HTMLElement ||
+        window.Element ||
+        window.Node
+      ).prototype,
+
+      IE8 = !iPO.call(HTMLElementPrototype, documentElement),
+
+      isValidNode = IE8 ?
+        function (node) {
+          return node.nodeType === 1;
+        } :
+        function (node) {
+          return iPO.call(HTMLElementPrototype, node);
+        },
+
+      targets = IE8 && [],
+
+      cloneNode = HTMLElementPrototype.cloneNode,
+      setAttribute = HTMLElementPrototype.setAttribute,
+      removeAttribute = HTMLElementPrototype.removeAttribute,
+
+      // replaced later on
+      createElement = document.createElement,
+
+      // shared observer for all attributes
+      attributesObserver = MutationObserver && {
+        attributes: true,
+        characterData: true,
+        attributeOldValue: true
+      },
+
+      // useful to detect only if there's no MutationObserver
+      DOMAttrModified = MutationObserver || function(e) {
+        doesNotSupportDOMAttrModified = false;
+        documentElement.removeEventListener(
+          DOM_ATTR_MODIFIED,
+          DOMAttrModified
+        );
+      },
+
+      // will both be used to make DOMNodeInserted asynchronous
+      asapQueue,
+      rAF = window.requestAnimationFrame ||
+            window.webkitRequestAnimationFrame ||
+            window.mozRequestAnimationFrame ||
+            window.msRequestAnimationFrame ||
+            function (fn) { setTimeout(fn, 10); },
+
+      // internal flags
+      setListener = false,
+      doesNotSupportDOMAttrModified = true,
+      dropDomContentLoaded = true,
+
+      // needed for the innerHTML helper
+      notFromInnerHTMLHelper = true,
+
+      // optionally defined later on
+      onSubtreeModified,
+      callDOMAttrModified,
+      getAttributesMirror,
+      observer,
+
+      // based on setting prototype capability
+      // will check proto or the expando attribute
+      // in order to setup the node once
+      patchIfNotAlready,
+      patch
+    ;
+
+    if (sPO || hasProto) {
+        patchIfNotAlready = function (node, proto) {
+          if (!iPO.call(proto, node)) {
+            setupNode(node, proto);
+          }
+        };
+        patch = setupNode;
+    } else {
+        patchIfNotAlready = function (node, proto) {
+          if (!node[EXPANDO_UID]) {
+            node[EXPANDO_UID] = Object(true);
+            setupNode(node, proto);
+          }
+        };
+        patch = patchIfNotAlready;
+    }
+    if (IE8) {
+      doesNotSupportDOMAttrModified = false;
+      (function (){
+        var
+          descriptor = gOPD(HTMLElementPrototype, 'addEventListener'),
+          addEventListener = descriptor.value,
+          patchedRemoveAttribute = function (name) {
+            var e = new CustomEvent(DOM_ATTR_MODIFIED, {bubbles: true});
+            e.attrName = name;
+            e.prevValue = this.getAttribute(name);
+            e.newValue = null;
+            e[REMOVAL] = e.attrChange = 2;
+            removeAttribute.call(this, name);
+            this.dispatchEvent(e);
+          },
+          patchedSetAttribute = function (name, value) {
+            var
+              had = this.hasAttribute(name),
+              old = had && this.getAttribute(name),
+              e = new CustomEvent(DOM_ATTR_MODIFIED, {bubbles: true})
+            ;
+            setAttribute.call(this, name, value);
+            e.attrName = name;
+            e.prevValue = had ? old : null;
+            e.newValue = value;
+            if (had) {
+              e[MODIFICATION] = e.attrChange = 1;
+            } else {
+              e[ADDITION] = e.attrChange = 0;
+            }
+            this.dispatchEvent(e);
+          },
+          onPropertyChange = function (e) {
+            // jshint eqnull:true
+            var
+              node = e.currentTarget,
+              superSecret = node[EXPANDO_UID],
+              propertyName = e.propertyName,
+              event
+            ;
+            if (superSecret.hasOwnProperty(propertyName)) {
+              superSecret = superSecret[propertyName];
+              event = new CustomEvent(DOM_ATTR_MODIFIED, {bubbles: true});
+              event.attrName = superSecret.name;
+              event.prevValue = superSecret.value || null;
+              event.newValue = (superSecret.value = node[propertyName] || null);
+              if (event.prevValue == null) {
+                event[ADDITION] = event.attrChange = 0;
+              } else {
+                event[MODIFICATION] = event.attrChange = 1;
+              }
+              node.dispatchEvent(event);
+            }
+          }
+        ;
+        descriptor.value = function (type, handler, capture) {
+          if (
+            type === DOM_ATTR_MODIFIED &&
+            this.attributeChangedCallback &&
+            this.setAttribute !== patchedSetAttribute
+          ) {
+            this[EXPANDO_UID] = {
+              className: {
+                name: 'class',
+                value: this.className
+              }
+            };
+            this.setAttribute = patchedSetAttribute;
+            this.removeAttribute = patchedRemoveAttribute;
+            addEventListener.call(this, 'propertychange', onPropertyChange);
+          }
+          addEventListener.call(this, type, handler, capture);
+        };
+        defineProperty(HTMLElementPrototype, 'addEventListener', descriptor);
+      }());
+    } else if (!MutationObserver) {
+      documentElement.addEventListener(DOM_ATTR_MODIFIED, DOMAttrModified);
+      documentElement.setAttribute(EXPANDO_UID, 1);
+      documentElement.removeAttribute(EXPANDO_UID);
+      if (doesNotSupportDOMAttrModified) {
+        onSubtreeModified = function (e) {
+          var
+            node = this,
+            oldAttributes,
+            newAttributes,
+            key
+          ;
+          if (node === e.target) {
+            oldAttributes = node[EXPANDO_UID];
+            node[EXPANDO_UID] = (newAttributes = getAttributesMirror(node));
+            for (key in newAttributes) {
+              if (!(key in oldAttributes)) {
+                // attribute was added
+                return callDOMAttrModified(
+                  0,
+                  node,
+                  key,
+                  oldAttributes[key],
+                  newAttributes[key],
+                  ADDITION
+                );
+              } else if (newAttributes[key] !== oldAttributes[key]) {
+                // attribute was changed
+                return callDOMAttrModified(
+                  1,
+                  node,
+                  key,
+                  oldAttributes[key],
+                  newAttributes[key],
+                  MODIFICATION
+                );
+              }
+            }
+            // checking if it has been removed
+            for (key in oldAttributes) {
+              if (!(key in newAttributes)) {
+                // attribute removed
+                return callDOMAttrModified(
+                  2,
+                  node,
+                  key,
+                  oldAttributes[key],
+                  newAttributes[key],
+                  REMOVAL
+                );
+              }
+            }
+          }
+        };
+        callDOMAttrModified = function (
+          attrChange,
+          currentTarget,
+          attrName,
+          prevValue,
+          newValue,
+          action
+        ) {
+          var e = {
+            attrChange: attrChange,
+            currentTarget: currentTarget,
+            attrName: attrName,
+            prevValue: prevValue,
+            newValue: newValue
+          };
+          e[action] = attrChange;
+          onDOMAttrModified(e);
+        };
+        getAttributesMirror = function (node) {
+          for (var
+            attr, name,
+            result = {},
+            attributes = node.attributes,
+            i = 0, length = attributes.length;
+            i < length; i++
+          ) {
+            attr = attributes[i];
+            name = attr.name;
+            if (name !== 'setAttribute') {
+              result[name] = attr.value;
+            }
+          }
+          return result;
+        };
+      }
+    }
+
+    function loopAndVerify(list, action) {
+      for (var i = 0, length = list.length; i < length; i++) {
+        verifyAndSetupAndAction(list[i], action);
+      }
+    }
+
+    function loopAndSetup(list) {
+      for (var i = 0, length = list.length, node; i < length; i++) {
+        node = list[i];
+        patch(node, protos[getTypeIndex(node)]);
+      }
+    }
+
+    function executeAction(action) {
+      return function (node) {
+        if (isValidNode(node)) {
+          verifyAndSetupAndAction(node, action);
+          loopAndVerify(
+            node.querySelectorAll(query),
+            action
+          );
+        }
+      };
+    }
+
+    function getTypeIndex(target) {
+      var
+        is = target.getAttribute('is'),
+        nodeName = target.nodeName.toUpperCase(),
+        i = indexOf.call(
+          types,
+          is ?
+              PREFIX_IS + is.toUpperCase() :
+              PREFIX_TAG + nodeName
+        )
+      ;
+      return is && -1 < i && !isInQSA(nodeName, is) ? -1 : i;
+    }
+
+    function isInQSA(name, type) {
+      return -1 < query.indexOf(name + '[is="' + type + '"]');
+    }
+
+    function onDOMAttrModified(e) {
+      var
+        node = e.currentTarget,
+        attrChange = e.attrChange,
+        prevValue = e.prevValue,
+        newValue = e.newValue
+      ;
+      if (notFromInnerHTMLHelper &&
+          node.attributeChangedCallback &&
+          e.attrName !== 'style') {
+        node.attributeChangedCallback(
+          e.attrName,
+          attrChange === e[ADDITION] ? null : prevValue,
+          attrChange === e[REMOVAL] ? null : newValue
+        );
+      }
+    }
+
+    function onDOMNode(action) {
+      var executor = executeAction(action);
+      return function (e) {
+        asapQueue.push(executor, e.target);
+      };
+    }
+
+    function onReadyStateChange(e) {
+      if (dropDomContentLoaded) {
+        dropDomContentLoaded = false;
+        e.currentTarget.removeEventListener(DOM_CONTENT_LOADED, onReadyStateChange);
+      }
+      loopAndVerify(
+        (e.target || document).querySelectorAll(query),
+        e.detail === DETACHED ? DETACHED : ATTACHED
+      );
+      if (IE8) purge();
+    }
+
+    function patchedSetAttribute(name, value) {
+      // jshint validthis:true
+      var self = this;
+      setAttribute.call(self, name, value);
+      onSubtreeModified.call(self, {target: self});
+    }
+
+    function setupNode(node, proto) {
+      setPrototype(node, proto);
+      if (observer) {
+        observer.observe(node, attributesObserver);
+      } else {
+        if (doesNotSupportDOMAttrModified) {
+          node.setAttribute = patchedSetAttribute;
+          node[EXPANDO_UID] = getAttributesMirror(node);
+          node.addEventListener(DOM_SUBTREE_MODIFIED, onSubtreeModified);
+        }
+        node.addEventListener(DOM_ATTR_MODIFIED, onDOMAttrModified);
+      }
+      if (node.createdCallback && notFromInnerHTMLHelper) {
+        node.created = true;
+        node.createdCallback();
+        node.created = false;
+      }
+    }
+
+    function purge() {
+      for (var
+        node,
+        i = 0,
+        length = targets.length;
+        i < length; i++
+      ) {
+        node = targets[i];
+        if (!documentElement.contains(node)) {
+          targets.splice(i, 1);
+          verifyAndSetupAndAction(node, DETACHED);
+        }
+      }
+    }
+
+    function verifyAndSetupAndAction(node, action) {
+      var
+        fn,
+        i = getTypeIndex(node)
+      ;
+      if (-1 < i) {
+        patchIfNotAlready(node, protos[i]);
+        i = 0;
+        if (action === ATTACHED && !node[ATTACHED]) {
+          node[DETACHED] = false;
+          node[ATTACHED] = true;
+          i = 1;
+          if (IE8 && indexOf.call(targets, node) < 0) {
+            targets.push(node);
+          }
+        } else if (action === DETACHED && !node[DETACHED]) {
+          node[ATTACHED] = false;
+          node[DETACHED] = true;
+          i = 1;
+        }
+        if (i && (fn = node[action + 'Callback'])) fn.call(node);
+      }
+    }
+
+    // set as enumerable, writable and configurable
+    document[REGISTER_ELEMENT] = function registerElement(type, options) {
+      upperType = type.toUpperCase();
+      if (!setListener) {
+        // only first time document.registerElement is used
+        // we need to set this listener
+        // setting it by default might slow down for no reason
+        setListener = true;
+        if (MutationObserver) {
+          observer = (function(attached, detached){
+            function checkEmAll(list, callback) {
+              for (var i = 0, length = list.length; i < length; callback(list[i++])){}
+            }
+            return new MutationObserver(function (records) {
+              for (var
+                current, node,
+                i = 0, length = records.length; i < length; i++
+              ) {
+                current = records[i];
+                if (current.type === 'childList') {
+                  checkEmAll(current.addedNodes, attached);
+                  checkEmAll(current.removedNodes, detached);
+                } else {
+                  node = current.target;
+                  if (notFromInnerHTMLHelper &&
+                      node.attributeChangedCallback &&
+                      current.attributeName !== 'style') {
+                    node.attributeChangedCallback(
+                      current.attributeName,
+                      current.oldValue,
+                      node.getAttribute(current.attributeName)
+                    );
+                  }
+                }
+              }
+            });
+          }(executeAction(ATTACHED), executeAction(DETACHED)));
+          observer.observe(
+            document,
+            {
+              childList: true,
+              subtree: true
+            }
+          );
+        } else {
+          asapQueue = [];
+          rAF(function ASAP() {
+            while (asapQueue.length) {
+              asapQueue.shift().call(
+                null, asapQueue.shift()
+              );
+            }
+            rAF(ASAP);
+          });
+          document.addEventListener('DOMNodeInserted', onDOMNode(ATTACHED));
+          document.addEventListener('DOMNodeRemoved', onDOMNode(DETACHED));
+        }
+
+        document.addEventListener(DOM_CONTENT_LOADED, onReadyStateChange);
+        document.addEventListener('readystatechange', onReadyStateChange);
+
+        document.createElement = function (localName, typeExtension) {
+          var
+            node = createElement.apply(document, arguments),
+            name = '' + localName,
+            i = indexOf.call(
+              types,
+              (typeExtension ? PREFIX_IS : PREFIX_TAG) +
+              (typeExtension || name).toUpperCase()
+            ),
+            setup = -1 < i
+          ;
+          if (typeExtension) {
+            node.setAttribute('is', typeExtension = typeExtension.toLowerCase());
+            if (setup) {
+              setup = isInQSA(name.toUpperCase(), typeExtension);
+            }
+          }
+          notFromInnerHTMLHelper = !document.createElement.innerHTMLHelper;
+          if (setup) patch(node, protos[i]);
+          return node;
+        };
+
+        HTMLElementPrototype.cloneNode = function (deep) {
+          var
+            node = cloneNode.call(this, !!deep),
+            i = getTypeIndex(node)
+          ;
+          if (-1 < i) patch(node, protos[i]);
+          if (deep) loopAndSetup(node.querySelectorAll(query));
+          return node;
+        };
+      }
+
+      if (-2 < (
+        indexOf.call(types, PREFIX_IS + upperType) +
+        indexOf.call(types, PREFIX_TAG + upperType)
+      )) {
+        throw new Error('A ' + type + ' type is already registered');
+      }
+
+      if (!validName.test(upperType) || -1 < indexOf.call(invalidNames, upperType)) {
+        throw new Error('The type ' + type + ' is invalid');
+      }
+
+      var
+        constructor = function () {
+          return extending ?
+            document.createElement(nodeName, upperType) :
+            document.createElement(nodeName);
+        },
+        opt = options || OP,
+        extending = hOP.call(opt, EXTENDS),
+        nodeName = extending ? options[EXTENDS].toUpperCase() : upperType,
+        i = types.push((extending ? PREFIX_IS : PREFIX_TAG) + upperType) - 1,
+        upperType
+      ;
+
+      query = query.concat(
+        query.length ? ',' : '',
+        extending ? nodeName + '[is="' + type.toLowerCase() + '"]' : nodeName
+      );
+
+      constructor.prototype = (
+        protos[i] = hOP.call(opt, 'prototype') ?
+          opt.prototype :
+          create(HTMLElementPrototype)
+      );
+
+      loopAndVerify(
+        document.querySelectorAll(query),
+        ATTACHED
+      );
+
+      return constructor;
+    };
+
+    }(window, document, Object, 'registerElement'));
+
+    /*!
+    Copyright (C) 2014-2015 by WebReflection
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+    The above copyright notice and this permission notice shall be included in
+    all copies or substantial portions of the Software.
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+    THE SOFTWARE.
+    */
+    (function(window, Object, HTMLElement){
+
+        if (HTMLElement in window) return;
+
+        var
+          timer = 0,
+          clearTimeout = window.clearTimeout,
+          setTimeout = window.setTimeout,
+          ElementPrototype = Element.prototype,
+          gOPD = Object.getOwnPropertyDescriptor,
+          defineProperty = Object.defineProperty,
+          notifyChanges = function () {
+            document.dispatchEvent(new CustomEvent('readystatechange'));
+          },
+          scheduleNotification = function (target, name) {
+            clearTimeout(timer);
+            timer = setTimeout(notifyChanges, 10);
+          },
+          wrapSetter = function (name) {
+            var
+              descriptor = gOPD(ElementPrototype, name),
+              // why not just overwrite the setter?
+              // BECAUSE IE8, THAT'S WHY!
+              substitute = {
+                configurable: descriptor.configurable,
+                enumerable: descriptor.enumerable,
+                get: function () {
+                  return descriptor.get.call(this);
+                },
+                set: function asd(value) {
+                  // caveat, this slows down innerHTML
+                  // "just a tiny bit" ...
+                  delete ElementPrototype[name];
+                  // AHHAHAHAHAAHAHAHAAHAHAHHAHAHHAHAHHAHHAHAHHAHHAHAH
+                  this[name] = value;
+                  // needed for the next call
+                  defineProperty(ElementPrototype, name, substitute);
+                  scheduleNotification(this);
+                }
+              }
+            ;
+            defineProperty(ElementPrototype, name, substitute);
+          },
+          wrapMethod = function (name) {
+            var
+              descriptor = gOPD(ElementPrototype, name),
+              value = descriptor.value
+            ;
+            descriptor.value = function () {
+              var result = value.apply(this, arguments);
+              scheduleNotification(this);
+              return result;
+            };
+            defineProperty(
+              ElementPrototype,
+              name,
+              descriptor
+            );
+          }
+        ;
+
+        wrapSetter('innerHTML');
+        wrapSetter('innerText');
+        wrapSetter('outerHTML');
+        wrapSetter('outerText');
+        wrapSetter('textContent');
+
+        wrapMethod('appendChild');
+        wrapMethod('applyElement');
+        wrapMethod('insertAdjacentElement');
+        wrapMethod('insertAdjacentHTML');
+        wrapMethod('insertAdjacentText');
+        wrapMethod('insertBefore');
+        wrapMethod('insertData');
+        wrapMethod('replaceAdjacentText');
+        wrapMethod('replaceChild');
+        wrapMethod('removeChild');
+
+        window[HTMLElement] = Element;
+
+    }(window, Object, 'HTMLElement'));
