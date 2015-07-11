@@ -1,3 +1,4 @@
+define(function() {
 /*!
     Copyright (C) 2014-2015 by WebReflection
 
@@ -775,3 +776,4 @@
         window[HTMLElement] = Element;
 
     }(window, Object, 'HTMLElement'));
+});
