@@ -6,7 +6,7 @@ AMD Synthet
 	
 })
 ("synthet", [
-	"abstudio~mutagen@0.1.8",
+	"abstudio~mutagen@0.1.9",
 	"abstudio~inherit@0.1.4",
 	"abstudio~classEvents@0.1.0",
 	"polyvitamins~polyscope@master/gist/convert/camelize.js",
@@ -34,34 +34,45 @@ AMD Synthet
         }
         var Module = inherit(function(name) {
             this.name = name;
-            this.template = "";
+            this._template = "";
             this.elementPrototype = {};
         }, eventsClass);
+        /* Depricated method */
         Module.prototype.setTemplate = function(template) {
-            this.template = template;
+            this._template = template;
             this.on("created", function(module) {
-                mutagen.call(this.template, module.$);
+                mutagen.call(this._template, module.$);
             });
+        };
+        /*
+        Set/get template
+        */
+        Module.prototype.template = function(template, defaultPlaceholders) {
+            this._template = [template, defaultPlaceholders||{}];
+            this.on("created", function(module) {
+                mutagen.call(this._template[0], module.$, function(replacings) {
+                    for (var prop in defaultPlaceholders) {
+                        if (defaultPlaceholders.hasOwnProperty(prop)) replacings['{{'+prop+'}}'] = defaultPlaceholders[prop];
+                    }
+                });
+            });
+            return this;
         };
         Module.prototype.setElementPrototype = function(proto) {
             this.elementPrototype = proto;
         };
         Module.prototype.register = function() {
             var component = this;
-           
             document.registerElement(this.name, {
                 prototype: Object.create(HTMLElement.prototype, {
-                    
                     createdCallback: {
                         value: function() {
                             var WebModule = function() {};
-                            
                             WebModule.prototype = component.elementPrototype;
                             WebModule.prototype.constructor = WebModule;
                             WebModule = inherit(WebModule, customeElement);
                             var ce = new WebModule(this, component);
                             this.module = ce;
-                            
                             component.trigger("created", [ ce ]);
                         }
                     },
@@ -75,17 +86,16 @@ AMD Synthet
                             component.trigger("detached", [ this.module ]);
                         }
                     },
-                    attributeChangedCallback: {     
-                        configurable: true,         
+                    attributeChangedCallback: {
+                        configurable: true,
                         writable: true,
-                        enumerable: true,         
+                        enumerable: true,
                         value: function(name, previousValue, value) {
-                            this.module.attributes[name]=value;
+                            this.module.attributes[name] = value;
                             component.trigger("attributeChanged", [ this.module, name, previousValue, value ]);
                         }
                     }
                 })
-                
             });
         };
         var Synthet = function() {};
@@ -94,15 +104,20 @@ AMD Synthet
         };
         Synthet.newComponent = function(name, template, elementPrototype) {
             if (name.indexOf("-") < 0) throw "Module name must have `-` symbol";
-            /*var WebModule = function() {};
-            WebModule.prototype = prototype || {};
-            WebModule.prototype.constructor = WebModule;
-            WebModule = inherit(WebModule, Module);*/
             var component = new Module(name);
             component.setTemplate(template);
-            component.setElementPrototype(elementPrototype||{});
+            component.setElementPrototype(elementPrototype || {});
             return component;
         };
+        /*
+        Создает новый компонент. Метод newComponent является устаревшим и не должен использоваться.
+        */
+        Synthet.createComponent = function(name) {
+             if (name.indexOf("-") < 0) throw "Module name must have `-` symbol";
+             var component = new Module(name);
+             return component;
+        }
+
         if (window) window.Synthet = Synthet;
         return Synthet;
 
