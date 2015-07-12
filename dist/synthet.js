@@ -182,26 +182,27 @@
                 }
             }
         }, regPlaceholder = /\{\{([^\} \.]+)([\.a-zA-Z0-9_]*)\}\}/gi;
-        var Mutagen = function(htmlElement, preProcessor) {
+        var Mutagen = function(htmlElement, preProcessor, postProcessor) {
             var template = this, matches = template.match(regPlaceholder), replacings = {};
-            matches.forEach(function(dph) {
+            if ("function" === typeof preProcessor) preProcessor.call(htmlElement, replacings);
+            if (matches !== null) matches.forEach(function(dph) {
                 regPlaceholder.lastIndex = 0;
                 var placeholderData = regPlaceholder.exec(dph), placeholder = placeholderData[1], keyname = placeholderData[2] !== "" ? placeholderData[2].substr(1) : "innerHTML";
                 if ("undefined" !== typeof replacings[placeholder]) return true;
-                replacings[dph] = "";
+                replacings[dph] = replacings[dph] || "";
                 if (placeholder === "content") {
                     replacings[dph] = htmlElement.innerHTML;
                 } else {
                     var elements = extendedQuerySelector(placeholder, htmlElement);
                     if (elements) {
-                        replacings[dph] = "undefined" !== typeof elements[0] ? elements[0][keyname] : "";
+                        replacings[dph] = "undefined" !== typeof elements[0] ? elements[0][keyname] : replacings[dph] || "";
                     }
                 }
             });
-            if ("function" === typeof preProcessor) preProcessor.call(htmlElement, replacings);
             each(replacings, function(content, ph) {
                 template = template.replace(ph, content);
             });
+            if ("function" === typeof postProcessor) postProcessor.call(htmlElement, template);
             htmlElement.innerHTML = template;
             return template;
         };
@@ -746,14 +747,25 @@
         };
         var Module = inherit(function(name) {
             this.name = name;
-            this.template = "";
+            this._template = "";
             this.elementPrototype = {};
         }, eventsClass);
         Module.prototype.setTemplate = function(template) {
-            this.template = template;
+            this._template = template;
             this.on("created", function(module) {
-                mutagen.call(this.template, module.$);
+                mutagen.call(this._template, module.$);
             });
+        };
+        Module.prototype.template = function(template, defaultPlaceholders) {
+            this._template = [ template, defaultPlaceholders || {} ];
+            this.on("created", function(module) {
+                mutagen.call(this._template[0], module.$, function(replacings) {
+                    for (var prop in defaultPlaceholders) {
+                        if (defaultPlaceholders.hasOwnProperty(prop)) replacings["{{" + prop + "}}"] = defaultPlaceholders[prop];
+                    }
+                });
+            });
+            return this;
         };
         Module.prototype.setElementPrototype = function(proto) {
             this.elementPrototype = proto;
@@ -804,6 +816,11 @@
             var component = new Module(name);
             component.setTemplate(template);
             component.setElementPrototype(elementPrototype || {});
+            return component;
+        };
+        Synthet.createComponent = function(name) {
+            if (name.indexOf("-") < 0) throw "Module name must have `-` symbol";
+            var component = new Module(name);
             return component;
         };
         if (window) window.Synthet = Synthet;
