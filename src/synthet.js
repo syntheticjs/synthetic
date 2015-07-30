@@ -6,10 +6,10 @@ AMD Synthet
 	
 })
 ("synthet", [
-	"abstudio~mutagen@0.1.9",
+	"abstudio~mutagen@0.1.10",
 	"abstudio~inherit@0.1.4",
 	"abstudio~classEvents@0.1.0",
-	"polyvitamins~polyscope@master/gist/convert/camelize.js",
+	"polyvitamins~polychrome@master/gist/convert/camelize.js",
 	"./d3party/WebReflection/document-register-element.amd.js"
 ], function(mutagen, inherit, eventsClass, camelize) {
 	var customeElement = inherit(function(element, component) {
