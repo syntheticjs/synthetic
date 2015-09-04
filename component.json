@@ -1,13 +1,14 @@
 {
-  "name": "synthet",
-  "repository": "syntetjs/synthet",
-  "description": "Web-components without shadow DOM",
-  "version": "0.1",
+  "name": "synthetic",
+  "repository": "synteticjs/synthetic",
+  "description": "Lite web-components tool",
+  "version": "0.2.0",
   "keywords": [
-    "synthet"
+    "synthetic",
+    "web-components"
   ],
   "main": [
-    "dist/synthet.js"
+    "dist/synthetic.js"
   ],
   "dependencies": {
     "abstudio/mutagen": "0.1.10",
@@ -16,7 +17,7 @@
     "polyvitamins/polychrome": "master"
   },
   "scripts": [
-    "src/synthet.js",
+    "src/synthetic.js",
     "src/d3party/WebReflection/document-register-element.amd.js"
   ],
   "license": "MIT",
