@@ -1,9 +1,0 @@
-{
-	"aliases": {
-		"abstudio": "/Volumes/LOCAL SERVER/mahabra/components",
-		"polyvitamins": "/Volumes/LOCAL SERVER/mahabra/polyvitamins"
-	},
-	"apps": {
-		"./dist/": "./component.json"
-	}
-}
