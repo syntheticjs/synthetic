@@ -1,0 +1,24 @@
+{
+  "name": "synthetic",
+  "homepage": "https://github.com/syntheticjs/synthetic",
+  "authors": [
+    "Morulus <vladimirmorulus@gmail.com>"
+  ],
+  "description": "Library for creating web-components",
+  "main": "dist/syntehtic.js",
+  "moduleType": [
+    "globals"
+  ],
+  "keywords": [
+    "web-component"
+  ],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
