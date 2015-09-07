@@ -4,9 +4,10 @@ define([
 	"./smartCallback.js",
 	"./classEvents.js",	
     './templaters/min.js', // Must lite templater
+    './templaters/angular.js', // Angular templater
     "polyvitamins~polyinherit@master",
 ],
-function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate) {
+function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, angularTemplate) {
 	/*
 	Модифицируем стандартный classEvents
 	*/
@@ -49,46 +50,44 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate) {
 			var watchFabric = function(rprops, wobject, prop) {
 				
 				if ("undefined"===typeof wobject[prop]) wobject[prop] = false;
-				watchJS.watch(
-					wobject, 
-					prop, 
-					getDatas(requiredProperties, rprops)
-				)
+				if (self.__config__.angulared) {
+					angular.element(self.synthetic.__selfie__.$element).scope().$watch(rprops, function(newValue) {
+						getDatas(requiredProperties, rprops)(false, false, newValue);
+					});
+				} else {
+					watchJS.watch(
+						wobject, 
+						prop, 
+						getDatas(requiredProperties, rprops)
+					)
+				};
 			};
 			for (var i = 0;i<requiredProperties.length;++i) {
 				
 				watchFabric(requiredProperties[i], getObjectByXPath(this.__selfie__.$scope, requiredProperties[i].slice(0, requiredProperties[i].length-1)), requiredProperties[i][requiredProperties[i].length-1]);
 			}
 		},
-		query : function(queryString) {
-            var nodeList = mutagen.query(queryString, this.__selfie__.$element);
-            if (nodeList instanceof NodeList || nodeList instanceof Array) {
-                return Array.prototype.slice.apply(nodeList);
-            } else {
-                return [];
-            }
-        },
-        template : function(template, defaultPlaceholders) {
-            this.template = [template, defaultPlaceholders||{}];
-            this.on("created", function(module) {
-                mutagen.call(this.template[0], module.__selfie__.$element, function(replacings) {
-                    for (var prop in defaultPlaceholders) {
-                        if (defaultPlaceholders.hasOwnProperty(prop)) replacings['{{'+prop+'}}'] = defaultPlaceholders[prop];
-                    }
-                });
-            });
-            return this;
-        },
+		template: function(source, engine, buildOn) {
+			this.__config__.generator = {
+				template: source,
+				engine: engine||'min',
+				buildOn: buildOn||['created']
+			}
+			this.__generateHtml__();
+		},
         /*
 		Эта функция генерирует HTML
         */
         __generateHtml__ : function() {
-
+        	console.log('generate html', this.__config__.generator);
         	if (this.__config__.generator) {
         		switch(this.__config__.generator.engine) {
+        			case 'angular':
+        				this.__selfie__.$element.innerHTML = this.__config__.generator.template;
+        				
+        			break;
         			case "min":
         			default:
-        				
         				this.__selfie__.$element.innerHTML = minTemplate(this.__config__.generator.template, this.__selfie__.$scope);
         			break;
         		}

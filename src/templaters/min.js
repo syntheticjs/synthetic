@@ -15,9 +15,6 @@ define([
 		return function(tpl, data, preProcessor, postProcessor) {
 
 			var template=tpl, matches = template.match(regPlaceholder);
-			
-            
-			console.log('data', data);
 
             if (matches!==null)
             matches.forEach(function(dph) {

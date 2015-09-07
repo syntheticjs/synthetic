@@ -61,8 +61,6 @@ define([
 			
 			var response = false;
 
-			console.log('trigger', e, this.eventListners);
-
 			if (typeof this.eventListners[e] == 'object' && this.eventListners[e].length>0) {
 				var todelete = [];
 				for (var i = 0; i<this.eventListners[e].length; i++) {

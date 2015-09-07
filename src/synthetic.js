@@ -55,9 +55,10 @@ AMD Synthet
                 prototype: Object.create(HTMLElement.prototype, {
                     createdCallback: {
                         value: function() {
+                            if (this.synthetic) return false;
                             
                             var WebElementFactory = function(element, component) {
-                                
+
                                 Object.defineProperty(element, 'synthetic', {
                                     enumerable: false,
                                     writable: false,
@@ -65,30 +66,56 @@ AMD Synthet
                                     value: this
                                 });
 
+                                Object.defineProperty(this, '__config__', {
+                                    enumerable: false,
+                                    writable: false,
+                                    configurable: true,
+                                    value: {
+                                        generator: false,
+                                        angulared: false
+                                    }
+                                });
+
+                                var $$scope= {
+                                    attributes: {}, // Содержит все аттрибуты элемента
+                                    properties: {}, // Содержит все аттрибуты data-*
+                                    html: {} 
+                                }
+                                /*
+                                Если обнаружен angular, то мы создаем новое приложение для него
+                                */
                                 Object.defineProperty(this, '__selfie__', {
                                     enumerable: false,
                                     writable: false,
                                     configurable: true,
                                     value: {
-                                        $scope: {
-                                            attributes: {}, // Содержит все аттрибуты элемента
-                                            properties: {}, // Содержит все аттрибуты data-*
-                                            html: {} 
-                                        },
+                                        $scope: $$scope,
                                         $element: element,
                                         $self: this,
                                         $component: component
                                     }
                                 });
 
-                                Object.defineProperty(this, '__config__', {
-                                    enumerable: false,
-                                    writable: false,
-                                    configurable: true,
-                                    value: {
-                                        generator: false
-                                    }
-                                });
+                                if (angular&&angular.bootstrap) {
+                                    var $self = this;
+                                    this.$$angularModuleName = 'singular'+(new Date()).getTime();
+                                    var $$app = angular.module(this.$$angularModuleName, [])
+                                    .controller(this.$$angularModuleName+'Controller', function ($scope) {
+                                        
+                                        $self.__config__.angulared = true;
+                                        angular.extend($scope, $$scope);
+                                        $self.__selfie__.$scope = $scope;
+
+                                    });
+                                    element.setAttribute('ng-controller', this.$$angularModuleName+'Controller');
+                                   
+                                    Object.defineProperty(this, '$$angular', {
+                                        enumerable: false,
+                                        writable: false,
+                                        configurable: false,
+                                        value: $$app
+                                    });
+                                }
 
                                 /*
                                 Собираем дерево элементов в $scope
@@ -129,8 +156,8 @@ AMD Synthet
                                 /*
                                 Проверяем наличие генератора
                                 */
-
                                 if ("object"===typeof component.generator) {
+
                                     this.__config__.generator = mixin({
                                         "template": "",
                                         "engine": "min",
@@ -177,10 +204,15 @@ AMD Synthet
                             for (var i = 0;i<componentFactory.onAttributeChangedCallbacks.length;++i) {
                                 WebElement.on("attributeChanged", componentFactory.onAttributeChangedCallbacks[i]);
                             }
+                            
                         }
                     },
                     attachedCallback: {
                         value: function() {
+                            
+                            angular.element(this.synthetic.__selfie__.$element).ready(function() {
+                              angular.bootstrap(this.synthetic.__selfie__.$element, [this.synthetic.$$angularModuleName]);
+                            }.bind(this));
                             this.synthetic.__generateHtml__();
                             this.synthetic.trigger("attached", [ this.synthetic ]);
                         }
@@ -195,12 +227,30 @@ AMD Synthet
                         writable: true,
                         enumerable: true,
                         value: function(name, previousValue, value) {
-                            if (previousValue !== value) {
-                                this.synthetic.__selfie__.$scope.attributes[camelize(name)] = value;
-                                if (name.substr(0,5)==='data-') {
-                                    this.synthetic.__selfie__.$scope.properties[camelize(name.substr(5))] = value;
+                            
+                            if (this.synthetic.__config__.angulared) {
+                                if (previousValue !== value) {
+                                    angular.element(this.synthetic.__selfie__.$element).scope().$apply(function() {
+                                        this.synthetic.__selfie__.$scope.attributes[camelize(name)] = value;
+                                        if (name.substr(0,5)==='data-') {
+                                           
+                                                this.synthetic.__selfie__.$scope.properties[camelize(name.substr(5))] = value;
+                                           
+                                        }
+                                        this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
+                                    }.bind(this));
                                 }
-                                this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
+                            } else {
+                                if (previousValue !== value) {
+                                    
+                                    this.synthetic.__selfie__.$scope.attributes[camelize(name)] = value;
+                                    if (name.substr(0,5)==='data-') {
+                                       
+                                            this.synthetic.__selfie__.$scope.properties[camelize(name.substr(5))] = value;
+                                       
+                                    }
+                                    this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
+                                }
                             }
                         }
                     }
