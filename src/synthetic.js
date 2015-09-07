@@ -8,93 +8,147 @@ AMD Synthet
 ("synthet", [
 	"abstudio~mutagen@0.1.10",
 	"abstudio~inherit@0.1.4",
-	"abstudio~classEvents@0.1.0",
+	"./classEvents.js",
+    "./WebElementPrototype.js",
+    "./d3party/watchJS/watch.js",
 	"polyvitamins~polychrome@master/gist/convert/camelize.js",
+    "./smartCallback.js",
+    "./preFactory.js",
+    "polyvitamins~polyinherit@master",
 	"./d3party/WebReflection/document-register-element.amd.js"
-], function(mutagen, inherit, eventsClass, camelize) {
-	var customeElement = inherit(function(element, component) {
-            this.$ = element;
-            this.component = component;
-            this.attributes = {};
-            this.cultAttrs();
-        }, eventsClass);
-        customeElement.prototype.query = function(queryString) {
-            var nodeList = mutagen.query(queryString, this.$);
-            if (nodeList instanceof NodeList || nodeList instanceof Array) {
-                return Array.prototype.slice.apply(nodeList);
-            } else {
-                return [];
+], function(mutagen, inherit, eventsClass, WebElementPrototype, WatchJS, camelize, smartCallback, ComponentPreFactory) {
+        var Synthet = function(element) {
+            if ("object"!==typeof element.synthetic) {
+                return null;
             }
+            return element.synthetic;
+        };
+
+        Synthet.prototype = {
+            construct: Synthet
+        };
+
+        Synthet.hasPropertySubKey = function(property, subkey) {
+            if (!("string"===typeof property||property instanceof Array)) return false;
+            return !!~("string"===typeof property?property.replace(' ','').split(','):property).indexOf(subkey);
         }
-        customeElement.prototype.cultAttrs = function() {
-           this.attributes = {};
-            this.properties = {};
-            for (var z = 0; z < this.$.attributes.length; z++) {
-                this.attributes[camelize(this.$.attributes[z].name)] = this.$.attributes[z].value;
-                if (this.$.attributes[z].name.substr(0,5)==='data-')
-                this.properties[this.$.attributes[z].name.substr(5)] = this.$.attributes[z].value;
+
+        Synthet.createComponent = function(componentName, constructor) {
+            if (componentName.indexOf("-") < 0) throw "Module name must have `-` symbol";
+
+            var componentFactory = new ComponentPreFactory({
+                constructor: constructor
+            }),
+            prototype = smartCallback.call({
+                $component: componentFactory
+            }, constructor)();
+
+            if ("object"===typeof prototype) {
+                componentFactory.proto(prototype);
+            } else if ("function"===typeof prototype) {
+                componentFactory.construct(prototype);
             }
-        }
-        var Module = inherit(function(name) {
-            this.name = name;
-            this._template = "";
-            this.elementPrototype = {};
-        }, eventsClass);
-        /* Depricated method */
-        Module.prototype.setTemplate = function(template) {
-            this._template = template;
-            this.on("created", function(module) {
-                if (this._template!==false)
-                mutagen.call(this._template, module.$);
-            });
-        };
-        /*
-        Set/get template
-        */
-        Module.prototype.template = function(template, defaultPlaceholders) {
-            this._template = [template, defaultPlaceholders||{}];
-            this.on("created", function(module) {
-                mutagen.call(this._template[0], module.$, function(replacings) {
-                    for (var prop in defaultPlaceholders) {
-                        if (defaultPlaceholders.hasOwnProperty(prop)) replacings['{{'+prop+'}}'] = defaultPlaceholders[prop];
-                    }
-                });
-            });
-            return this;
-        };
-        Module.prototype.setElementPrototype = function(proto) {
-            this.elementPrototype = proto;
-        };
-        Module.prototype.register = function() {
-            var component = this;
-            document.registerElement(this.name, {
+
+            document.registerElement(componentName, {
                 prototype: Object.create(HTMLElement.prototype, {
                     createdCallback: {
                         value: function() {
-                            var WebModule = function() {};
-                            WebModule.prototype = component.elementPrototype;
-                            WebModule.prototype.constructor = WebModule;
-                            WebModule = inherit(WebModule, customeElement);
-                            var ce = new WebModule(this, component);
                             
-                            Object.defineProperty(this, 'synthetic', {
-                                enumerable: false,
-                                writable: false,
-                                configurable: false,
-                                value: ce
-                            })
+                            var WebElementFactory = function(element, component) {
+                                
+                                Object.defineProperty(element, 'synthetic', {
+                                    enumerable: false,
+                                    writable: false,
+                                    configurable: false,
+                                    value: this
+                                });
+
+                                this.operands = {
+                                    $scope: {
+                                        attributes: {}, // Содержит все аттрибуты элемента
+                                        properties: {} // Содержит все аттрибуты data-*
+                                    },
+                                    $element: element,
+                                    $self: this,
+                                    $component: component
+                                }
+                                /*
+                                Культивируем аттрибуты
+                                */
+                                for (var z = 0; z < element.attributes.length; z++) {
+                                    this.operands.$scope.attributes[camelize(element.attributes[z].name)] = element.attributes[z].value;
+                                    if (element.attributes[z].name.substr(0,5)==='data-')
+                                    this.operands.$scope.properties[camelize(element.attributes[z].name.substr(5))] = element.attributes[z].value;
+                                }
+                                /*
+                                Преобраузем пользователський прототип
+                                */
+                                for (var i = 0;i<component.prototypes.length;++i) {
+                                    for (var p in component.prototypes[i]) {
+                                        if (component.prototypes[i].hasOwnProperty(p)) {
+                                            this.__proto__[p] = smartCallback.call(this.operands, component.prototypes[i][p]);
+                                        }
+                                    }
+                                }
+
+                                /*
+                                Переносим callback для created
+                                */
+                                for (var i = 0;i<component.onCreatedCallbacks.length;++i) {
+
+                                    this.on("created", component.onCreatedCallbacks[i]);
+                                }
+
+                                this.trigger("created", [ WebElement ]);
+
+                                /*
+                                Переносим наблюдение за аттрибутами
+                                */
+                                
+                                for (var i = 0;i<component.watchers.length;++i) {
+                                    this.watch.apply(this, component.watchers[i]);
+                                }
+                            }.inherit(WebElementPrototype);
+
+                            // inherit constructors
+                            for (var i = 0;i<componentFactory.constructors.length;++i) {
+                                WebElementFactory.inherit(componentFactory.constructors[i]);
+                            }
+
+                            WebElementFactory.inherit(WebElementPrototype);
+                            var WebElement = new WebElementFactory(this, componentFactory);
                             
-                            component.trigger("created", [ ce ]);
+                            /*
+                            Переносим callback для attached
+                            */
+                            for (var i = 0;i<componentFactory.onAttachedCallbacks.length;++i) {
+                                WebElement.on("attached", componentFactory.onAttachedCallbacks[i]);
+                            }
+                            /*
+                            Переносим callback для detached
+                            */
+                            for (var i = 0;i<componentFactory.onDetachedCallbacks.length;++i) {
+                                WebElement.on("detached", componentFactory.onDetachedCallbacks[i]);
+                            }
+                            /*
+                            Переносим callback для detached
+                            */
+                            for (var i = 0;i<componentFactory.onAttributeChangedCallbacks.length;++i) {
+                                WebElement.on("attributeChanged", componentFactory.onAttributeChangedCallbacks[i]);
+                            }
+                            
+                            
+                           
                         }
                     },
                     attachedCallback: {
                         value: function() {
-                            component.trigger("attached", [ this.synthetic ]);
+                            this.synthetic.trigger("attached", [ this.synthetic ]);
                         }
                     },
                     detachedCallback: {
                         value: function() {
-                            component.trigger("detached", [ this.synthetic ]);
+                            this.synthetic.trigger("detached", [ this.synthetic ]);
                         }
                     },
                     attributeChangedCallback: {
@@ -103,35 +157,21 @@ AMD Synthet
                         enumerable: true,
                         value: function(name, previousValue, value) {
                             if (previousValue !== value) {
-                                this.synthetic.attributes[camelize(name)] = value;
+                                this.synthetic.operands.$scope.attributes[camelize(name)] = value;
                                 if (name.substr(0,5)==='data-') {
-                                    this.synthetic.properties[camelize(name.substr(5))] = value;
+                                    this.synthetic.operands.$scope.properties[camelize(name.substr(5))] = value;
                                 }
-                                component.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
+                                this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
                             }
                         }
                     }
                 })
             });
-        };
-        var Synthet = function(element) {
-            if ("object"!==typeof element.synthetic) {
-                return null;
-            }
-            return element.synthetic;
-        };
-        Synthet.prototype = {
-            construct: Synthet
-        };
-        Synthet.newComponent = function(name, template, elementPrototype) {
-            if (name.indexOf("-") < 0) throw "Module name must have `-` symbol";
-            var component = new Module(name);
-            component.setTemplate(template);
-            component.setElementPrototype(elementPrototype || {});
-            return component;
-        };
 
-        if (window) window.Synthet = Synthet;
+            return componentFactory;
+        }
+
+        if (window) window.Synthet = window.Synthetic = Synthet;
         return Synthet;
 
 });
