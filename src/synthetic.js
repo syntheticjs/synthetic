@@ -7,8 +7,10 @@ AMD Synthet
 })
 ("synthet", [
 	"abstudio~mutagen@0.1.10",
-	"abstudio~inherit@0.1.4",
+    "abstudio~inherit@0.1.4",
+	"abstudio~mixin@0.1.0",
 	"./classEvents.js",
+    './templateManager.js',
     "./WebElementPrototype.js",
     "./d3party/watchJS/watch.js",
 	"polyvitamins~polychrome@master/gist/convert/camelize.js",
@@ -16,7 +18,7 @@ AMD Synthet
     "./preFactory.js",
     "polyvitamins~polyinherit@master",
 	"./d3party/WebReflection/document-register-element.amd.js"
-], function(mutagen, inherit, eventsClass, WebElementPrototype, WatchJS, camelize, smartCallback, ComponentPreFactory) {
+], function(mutagen, inherit, mixin, eventsClass, templateManager, WebElementPrototype, WatchJS, camelize, smartCallback, ComponentPreFactory) {
         var Synthet = function(element) {
             if ("object"!==typeof element.synthetic) {
                 return null;
@@ -63,30 +65,56 @@ AMD Synthet
                                     value: this
                                 });
 
-                                this.operands = {
-                                    $scope: {
-                                        attributes: {}, // Содержит все аттрибуты элемента
-                                        properties: {} // Содержит все аттрибуты data-*
-                                    },
-                                    $element: element,
-                                    $self: this,
-                                    $component: component
+                                Object.defineProperty(this, '__selfie__', {
+                                    enumerable: false,
+                                    writable: false,
+                                    configurable: true,
+                                    value: {
+                                        $scope: {
+                                            attributes: {}, // Содержит все аттрибуты элемента
+                                            properties: {}, // Содержит все аттрибуты data-*
+                                            html: {} 
+                                        },
+                                        $element: element,
+                                        $self: this,
+                                        $component: component
+                                    }
+                                });
+
+                                Object.defineProperty(this, '__config__', {
+                                    enumerable: false,
+                                    writable: false,
+                                    configurable: true,
+                                    value: {
+                                        generator: false
+                                    }
+                                });
+
+                                /*
+                                Собираем дерево элементов в $scope
+                                */
+                                for (var i = 0;i<element.childNodes.length;++i) {
+                                    if (element.childNodes[i].nodeType===1) {
+                                        this.__selfie__.$scope.html[camelize(element.childNodes[i].tagName.toLowerCase())] = element.childNodes[i].innerHTML;
+                                    }
                                 }
+
                                 /*
                                 Культивируем аттрибуты
                                 */
                                 for (var z = 0; z < element.attributes.length; z++) {
-                                    this.operands.$scope.attributes[camelize(element.attributes[z].name)] = element.attributes[z].value;
+                                    this.__selfie__.$scope.attributes[camelize(element.attributes[z].name)] = element.attributes[z].value;
                                     if (element.attributes[z].name.substr(0,5)==='data-')
-                                    this.operands.$scope.properties[camelize(element.attributes[z].name.substr(5))] = element.attributes[z].value;
+                                    this.__selfie__.$scope.properties[camelize(element.attributes[z].name.substr(5))] = element.attributes[z].value;
                                 }
+
                                 /*
-                                Преобраузем пользователський прототип
+                                Преобраузем пользователський прототип c внедрением селфи аргументов
                                 */
                                 for (var i = 0;i<component.prototypes.length;++i) {
                                     for (var p in component.prototypes[i]) {
                                         if (component.prototypes[i].hasOwnProperty(p)) {
-                                            this.__proto__[p] = smartCallback.call(this.operands, component.prototypes[i][p]);
+                                            this.__proto__[p] = smartCallback.call(this.__selfie__, component.prototypes[i][p]);
                                         }
                                     }
                                 }
@@ -95,19 +123,32 @@ AMD Synthet
                                 Переносим callback для created
                                 */
                                 for (var i = 0;i<component.onCreatedCallbacks.length;++i) {
-
                                     this.on("created", component.onCreatedCallbacks[i]);
                                 }
+
+                                /*
+                                Проверяем наличие генератора
+                                */
+
+                                if ("object"===typeof component.generator) {
+                                    this.__config__.generator = mixin({
+                                        "template": "",
+                                        "engine": "min",
+                                        "buildOn": ["create"]
+                                    }, component.generator);
+                                }
+
+                                this.__generateHtml__();
 
                                 this.trigger("created", [ WebElement ]);
 
                                 /*
-                                Переносим наблюдение за аттрибутами
-                                */
-                                
+                                Переносим наблюдение за scope
+                                */                                
                                 for (var i = 0;i<component.watchers.length;++i) {
                                     this.watch.apply(this, component.watchers[i]);
                                 }
+
                             }.inherit(WebElementPrototype);
 
                             // inherit constructors
@@ -136,13 +177,11 @@ AMD Synthet
                             for (var i = 0;i<componentFactory.onAttributeChangedCallbacks.length;++i) {
                                 WebElement.on("attributeChanged", componentFactory.onAttributeChangedCallbacks[i]);
                             }
-                            
-                            
-                           
                         }
                     },
                     attachedCallback: {
                         value: function() {
+                            this.synthetic.__generateHtml__();
                             this.synthetic.trigger("attached", [ this.synthetic ]);
                         }
                     },
@@ -157,9 +196,9 @@ AMD Synthet
                         enumerable: true,
                         value: function(name, previousValue, value) {
                             if (previousValue !== value) {
-                                this.synthetic.operands.$scope.attributes[camelize(name)] = value;
+                                this.synthetic.__selfie__.$scope.attributes[camelize(name)] = value;
                                 if (name.substr(0,5)==='data-') {
-                                    this.synthetic.operands.$scope.properties[camelize(name.substr(5))] = value;
+                                    this.synthetic.__selfie__.$scope.properties[camelize(name.substr(5))] = value;
                                 }
                                 this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
                             }

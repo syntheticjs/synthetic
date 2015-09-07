@@ -2,11 +2,11 @@ define([
 	"./getObjectByXPath.js",
 	"./d3party/watchJS/watch.js",
 	"./smartCallback.js",
-	"abstudio~mutagen@0.1.10",
-	"./classEvents.js",
+	"./classEvents.js",	
+    './templaters/min.js', // Must lite templater
     "polyvitamins~polyinherit@master",
 ],
-function(getObjectByXPath, watchJS, smartCallback, mutagen, classEvents) {
+function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate) {
 	/*
 	Модифицируем стандартный classEvents
 	*/
@@ -30,28 +30,38 @@ function(getObjectByXPath, watchJS, smartCallback, mutagen, classEvents) {
 			/*
 			Начинаем наблюдение за переменной
 			*/
-			var getDatas = function() {
-				var alldata = [];
-				for (var x = 0;x<requiredProperties.length;++x) {
-					alldata.push(getObjectByXPath(self.operands.$scope, requiredProperties[x]));
-				}
+			var getDatas = function(requiredProperties, rprops) {
+				return function(prop, action, newValue) {
 
-				smartCallback.call(self.operands, callback).apply(self, alldata);
+					var alldata = [];
+					for (var x = 0;x<requiredProperties.length;++x) {
+						if (rprops===requiredProperties[x])
+						alldata.push(newValue);
+						else
+						alldata.push(getObjectByXPath(self.__selfie__.$scope, requiredProperties[x]));
+					}
+
+					smartCallback.call(self.__selfie__, callback).apply(self, alldata);
+				}
 			};
 
-			getDatas.call(self);
-
+			getDatas.call(self, requiredProperties, false).call(self);
+			var watchFabric = function(rprops, wobject, prop) {
+				
+				if ("undefined"===typeof wobject[prop]) wobject[prop] = false;
+				watchJS.watch(
+					wobject, 
+					prop, 
+					getDatas(requiredProperties, rprops)
+				)
+			};
 			for (var i = 0;i<requiredProperties.length;++i) {
 				
-				watchJS.watch(
-					getObjectByXPath(this.operands.$scope, requiredProperties[i].slice(0, requiredProperties.length-1)), 
-					requiredProperties[i][requiredProperties[i].length-1], 
-					getDatas
-				)
+				watchFabric(requiredProperties[i], getObjectByXPath(this.__selfie__.$scope, requiredProperties[i].slice(0, requiredProperties[i].length-1)), requiredProperties[i][requiredProperties[i].length-1]);
 			}
 		},
 		query : function(queryString) {
-            var nodeList = mutagen.query(queryString, this.operands.$element);
+            var nodeList = mutagen.query(queryString, this.__selfie__.$element);
             if (nodeList instanceof NodeList || nodeList instanceof Array) {
                 return Array.prototype.slice.apply(nodeList);
             } else {
@@ -61,13 +71,28 @@ function(getObjectByXPath, watchJS, smartCallback, mutagen, classEvents) {
         template : function(template, defaultPlaceholders) {
             this.template = [template, defaultPlaceholders||{}];
             this.on("created", function(module) {
-                mutagen.call(this.template[0], module.operands.$element, function(replacings) {
+                mutagen.call(this.template[0], module.__selfie__.$element, function(replacings) {
                     for (var prop in defaultPlaceholders) {
                         if (defaultPlaceholders.hasOwnProperty(prop)) replacings['{{'+prop+'}}'] = defaultPlaceholders[prop];
                     }
                 });
             });
             return this;
+        },
+        /*
+		Эта функция генерирует HTML
+        */
+        __generateHtml__ : function() {
+
+        	if (this.__config__.generator) {
+        		switch(this.__config__.generator.engine) {
+        			case "min":
+        			default:
+        				
+        				this.__selfie__.$element.innerHTML = minTemplate(this.__config__.generator.template, this.__selfie__.$scope);
+        			break;
+        		}
+        	}
         }
 	});
 });

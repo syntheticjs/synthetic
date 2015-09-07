@@ -5,7 +5,7 @@ define(function() {
 	getFunctionArguments = function(code) {
 		if (funcarguments.test(code)) {
 			var match = funcarguments.exec(code);
-			return match[1].replace(' ','').split(',');
+			return match[1].replace(/ /g,'').split(',');
 		}
 		return [];
 	};
@@ -15,12 +15,12 @@ define(function() {
 		requiredArguments = getFunctionArguments(callback.toString());
 
 		for (var i = 0;i<requiredArguments.length;++i) {
+
 			if (this.hasOwnProperty(requiredArguments[i])&&"object"===typeof this[requiredArguments[i]]) {
+
 				prefixedArguments[i] = this[requiredArguments[i]];
 			}
 		}
-
-
 		
 		return function() {
 			return callback.apply(this, prefixedArguments.concat(Array.prototype.slice.call(arguments)));

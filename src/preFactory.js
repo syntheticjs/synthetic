@@ -4,6 +4,7 @@ define(function() {
 		this.onAttachedCallbacks = [];
 		this.onDetachedCallbacks = [];
 		this.onAttributeChangedCallbacks = [];
+		this.generator = false;
 		this.prototypes = [];
 		this.constructors = [];
 		this.watchers = [];
@@ -35,6 +36,13 @@ define(function() {
 		},
 		construct: function(c) {
 			this.constructors.push(c);
+		},
+		template: function(source,engine,buildOn) {
+			this.generator = {
+				template: source,
+				engine: engine||false,
+				buildOn: buildOn||['created']
+			}
 		}
 	}
 
