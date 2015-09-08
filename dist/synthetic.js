@@ -1,4 +1,805 @@
 (function(m, o, r, u, l, u, s) {
+    var mixin = function() {
+        var mixinup = function(a, b) {
+            for (var i in b) {
+                if (b.hasOwnProperty(i)) {
+                    a[i] = b[i];
+                }
+            }
+            return a;
+        };
+        return function(a) {
+            var i = 1;
+            for (;i < arguments.length; i++) {
+                if ("object" === typeof arguments[i]) {
+                    mixinup(a, arguments[i]);
+                }
+            }
+            return a;
+        };
+    }();
+    var smartCallback = function() {
+        var funcarguments = new RegExp(/[\d\t]*function[ ]?\(([^\)]*)\)/i), scopesregex = /({[^{}}]*[\n\r]*})/g, funcarguments = new RegExp(/[\d\t]*function[ ]?\(([^\)]*)\)/i), getFunctionArguments = function(code) {
+            if (funcarguments.test(code)) {
+                var match = funcarguments.exec(code);
+                return match[1].replace(/ /g, "").split(",");
+            }
+            return [];
+        };
+        return function(callback) {
+            var prefixedArguments = [], requiredArguments = getFunctionArguments(callback.toString());
+            for (var i = 0; i < requiredArguments.length; ++i) {
+                if (this.hasOwnProperty(requiredArguments[i]) && "object" === typeof this[requiredArguments[i]]) {
+                    prefixedArguments[i] = this[requiredArguments[i]];
+                }
+            }
+            return function() {
+                return callback.apply(this, prefixedArguments.concat(Array.prototype.slice.call(arguments)));
+            };
+        };
+    }();
+    var inherit = function(mixin) {
+        return function(aClass, classes) {
+            if (!(classes instanceof Array)) classes = [ classes ];
+            var cl = classes.length;
+            var superconstructor = function() {
+                var args = Array.prototype.slice.apply(arguments);
+                if ("object" !== typeof this.constructors) Object.defineProperty(this, "constructors", {
+                    configurable: false,
+                    enumerable: false,
+                    writable: false,
+                    value: []
+                });
+                for (var i = 0; i < cl; ++i) {
+                    if (this.constructors.indexOf(classes[i]) >= 0) continue;
+                    this.constructors.push(classes[i]);
+                    classes[i].apply(this, args);
+                }
+            }, superprototype = superconstructor.prototype = {};
+            if (aClass.prototype && aClass.prototype !== null && aClass.prototype.__super__) mixin(superprototype, aClass.prototype.__super__);
+            for (var i = 0; i < cl; ++i) {
+                if (classes[i].prototype) {
+                    if (classes[i].prototype.__super__) superprototype = mixin(superprototype, classes[i].prototype.__super__);
+                    superprototype = mixin(superprototype, classes[i].prototype);
+                }
+            }
+            superprototype.constructor = superconstructor;
+            var Mixin = function() {
+                if (this.constructor && this.constructor.__disableContructor__) {
+                    console.log("ESCAPE CONSTRUCTOR");
+                    this.constructor.__disableContructor__ = false;
+                    return false;
+                }
+                var args = Array.prototype.slice.apply(arguments);
+                if (!(this === window)) {
+                    superconstructor.apply(this, args);
+                }
+                aClass.apply(this, args);
+            };
+            Mixin.prototype = Object.create(superprototype, {
+                __super__: {
+                    configurable: false,
+                    enumerable: false,
+                    writable: false,
+                    value: superprototype
+                }
+            });
+            if (aClass.prototype) mixin(Mixin.prototype, aClass.prototype);
+            for (var prop in aClass) {
+                if (aClass.hasOwnProperty(prop)) Mixin[prop] = aClass[prop];
+            }
+            Object.defineProperty(Mixin.prototype, "constructor", {
+                configurable: false,
+                enumerable: false,
+                writable: false,
+                value: Mixin
+            });
+            if (!Mixin.prototype.__proto__) {
+                Mixin.prototype.__proto__ = Mixin.prototype;
+            }
+            return Mixin;
+        };
+    }(mixin);
+    Function.prototype.inherit = function() {
+        var classes = Array.prototype.slice.apply(arguments);
+        return inherit(this, classes);
+    };
+    Function.prototype.proto = function(proto) {
+        if ("object" !== typeof this.prototype) this.prototype = {
+            constructor: this
+        };
+        mixin(this.prototype, proto);
+        return this;
+    };
+    var getObjectByXPath = function() {
+        return function(start, xpath) {
+            for (var i = 0; i < xpath.length; ++i) {
+                if ("object" !== typeof start) return false;
+                if ("undefined" === typeof start[xpath[i]]) return false;
+                start = start[xpath[i]];
+            }
+            return start;
+        };
+    }();
+    var mixin2 = function() {
+        var mixinup = function(a, b) {
+            for (var i in b) {
+                if (b.hasOwnProperty(i)) {
+                    a[i] = b[i];
+                }
+            }
+            return a;
+        };
+        return function(a) {
+            var i = 1;
+            for (;i < arguments.length; i++) {
+                if ("object" === typeof arguments[i]) {
+                    mixinup(a, arguments[i]);
+                }
+            }
+            return a;
+        };
+    }();
+    var classEvents = function(smartCallback) {
+        var Events = function() {
+            this.eventListners = {};
+        };
+        var eventListner = function(own, event, i) {
+            this.owner = own;
+            this.event = event;
+            this.index = i;
+        };
+        eventListner.prototype = {
+            constructor: eventListner,
+            destroy: function() {
+                this.owner.eventListners[this.event][this.index] = null;
+                this.owner = null;
+                this.event = null;
+                this.index = null;
+            }
+        };
+        Events.prototype = {
+            constructor: Events,
+            bind: function(e, callback, once) {
+                if (typeof this.eventListners[e] != "object") this.eventListners[e] = [];
+                this.eventListners[e].push({
+                    callback: callback,
+                    once: once
+                });
+                return this;
+            },
+            on: function(e, callback, once) {
+                if (typeof this.eventListners[e] != "object") this.eventListners[e] = [];
+                this.eventListners[e].push({
+                    callback: this.$inject(callback),
+                    once: once || false
+                });
+                return new eventListner(this, e, this.eventListners[e].length - 1);
+            },
+            once: function(e, callback) {
+                this.bind(e, callback, true);
+                return this;
+            },
+            trigger: function() {
+                if (typeof arguments[0] == "integer") {
+                    var uin = arguments[0];
+                    var e = arguments[1];
+                    var args = arguments.length > 2 ? arguments[2] : [];
+                } else {
+                    var uin = false;
+                    var e = arguments[0];
+                    var args = arguments.length > 1 ? arguments[1] : [];
+                }
+                var response = false;
+                if (typeof this.eventListners[e] == "object" && this.eventListners[e].length > 0) {
+                    var todelete = [];
+                    for (var i = 0; i < this.eventListners[e].length; i++) {
+                        if (this.eventListners[e][i] !== null) {
+                            if (typeof this.eventListners[e][i].callback === "function") response = this.eventListners[e][i].callback.apply(this, args);
+                            if (this.eventListners[e][i].once) {
+                                todelete.push(i);
+                            }
+                        }
+                    }
+                    if (todelete.length > 0) for (var i in todelete) {
+                        this.eventListners[e][todelete[i]] = null;
+                    }
+                }
+                return response;
+            }
+        };
+        return Events;
+    }(smartCallback);
+    var watch = function() {
+        "use strict";
+        var WatchJS = {
+            noMore: false,
+            useDirtyCheck: false
+        }, lengthsubjects = [];
+        var dirtyChecklist = [];
+        var pendingChanges = [];
+        var supportDefineProperty = false;
+        try {
+            supportDefineProperty = Object.defineProperty && Object.defineProperty({}, "x", {});
+        } catch (ex) {}
+        var isFunction = function(functionToCheck) {
+            var getType = {};
+            return functionToCheck && getType.toString.call(functionToCheck) == "[object Function]";
+        };
+        var isInt = function(x) {
+            return x % 1 === 0;
+        };
+        var isArray = function(obj) {
+            return Object.prototype.toString.call(obj) === "[object Array]";
+        };
+        var isObject = function(obj) {
+            return {}.toString.apply(obj) === "[object Object]";
+        };
+        var getObjDiff = function(a, b) {
+            var aplus = [], bplus = [];
+            if (!(typeof a == "string") && !(typeof b == "string")) {
+                if (isArray(a)) {
+                    for (var i = 0; i < a.length; i++) {
+                        if (b[i] === undefined) aplus.push(i);
+                    }
+                } else {
+                    for (var i in a) {
+                        if (a.hasOwnProperty(i)) {
+                            if (b[i] === undefined) {
+                                aplus.push(i);
+                            }
+                        }
+                    }
+                }
+                if (isArray(b)) {
+                    for (var j = 0; j < b.length; j++) {
+                        if (a[j] === undefined) bplus.push(j);
+                    }
+                } else {
+                    for (var j in b) {
+                        if (b.hasOwnProperty(j)) {
+                            if (a[j] === undefined) {
+                                bplus.push(j);
+                            }
+                        }
+                    }
+                }
+            }
+            return {
+                added: aplus,
+                removed: bplus
+            };
+        };
+        var clone = function(obj) {
+            if (null == obj || "object" != typeof obj) {
+                return obj;
+            }
+            var copy = obj.constructor();
+            for (var attr in obj) {
+                copy[attr] = obj[attr];
+            }
+            return copy;
+        };
+        var defineGetAndSet = function(obj, propName, getter, setter) {
+            try {
+                Object.observe(obj, function(changes) {
+                    changes.forEach(function(change) {
+                        if (change.name === propName) {
+                            setter(change.object[change.name]);
+                        }
+                    });
+                });
+            } catch (e) {
+                try {
+                    Object.defineProperty(obj, propName, {
+                        get: getter,
+                        set: function(value) {
+                            setter.call(this, value, true);
+                        },
+                        enumerable: true,
+                        configurable: true
+                    });
+                } catch (e2) {
+                    try {
+                        Object.prototype.__defineGetter__.call(obj, propName, getter);
+                        Object.prototype.__defineSetter__.call(obj, propName, function(value) {
+                            setter.call(this, value, true);
+                        });
+                    } catch (e3) {
+                        observeDirtyChanges(obj, propName, setter);
+                    }
+                }
+            }
+        };
+        var defineProp = function(obj, propName, value) {
+            try {
+                Object.defineProperty(obj, propName, {
+                    enumerable: false,
+                    configurable: true,
+                    writable: false,
+                    value: value
+                });
+            } catch (error) {
+                obj[propName] = value;
+            }
+        };
+        var observeDirtyChanges = function(obj, propName, setter) {
+            dirtyChecklist[dirtyChecklist.length] = {
+                prop: propName,
+                object: obj,
+                orig: clone(obj[propName]),
+                callback: setter
+            };
+        };
+        var watch = function() {
+            if (isFunction(arguments[1])) {
+                watchAll.apply(this, arguments);
+            } else if (isArray(arguments[1])) {
+                watchMany.apply(this, arguments);
+            } else {
+                watchOne.apply(this, arguments);
+            }
+        };
+        var watchAll = function(obj, watcher, level, addNRemove) {
+            if (typeof obj == "string" || !(obj instanceof Object) && !isArray(obj)) {
+                return;
+            }
+            if (isArray(obj)) {
+                defineWatcher(obj, "__watchall__", watcher, level);
+                if (level === undefined || level > 0) {
+                    for (var prop = 0; prop < obj.length; prop++) {
+                        watchAll(obj[prop], watcher, level, addNRemove);
+                    }
+                }
+            } else {
+                var prop, props = [];
+                for (prop in obj) {
+                    if (prop == "$val" || !supportDefineProperty && prop === "watchers") {
+                        continue;
+                    }
+                    if (Object.prototype.hasOwnProperty.call(obj, prop)) {
+                        props.push(prop);
+                    }
+                }
+                watchMany(obj, props, watcher, level, addNRemove);
+            }
+            if (addNRemove) {
+                pushToLengthSubjects(obj, "$$watchlengthsubjectroot", watcher, level);
+            }
+        };
+        var watchMany = function(obj, props, watcher, level, addNRemove) {
+            if (typeof obj == "string" || !(obj instanceof Object) && !isArray(obj)) {
+                return;
+            }
+            for (var i = 0; i < props.length; i++) {
+                var prop = props[i];
+                watchOne(obj, prop, watcher, level, addNRemove);
+            }
+        };
+        var watchOne = function(obj, prop, watcher, level, addNRemove) {
+            if (typeof obj == "string" || !(obj instanceof Object) && !isArray(obj)) {
+                return;
+            }
+            if (isFunction(obj[prop])) {
+                return;
+            }
+            if (obj[prop] != null && (level === undefined || level > 0)) {
+                watchAll(obj[prop], watcher, level !== undefined ? level - 1 : level);
+            }
+            defineWatcher(obj, prop, watcher, level);
+            if (addNRemove && (level === undefined || level > 0)) {
+                pushToLengthSubjects(obj, prop, watcher, level);
+            }
+        };
+        var unwatch = function() {
+            if (isFunction(arguments[1])) {
+                unwatchAll.apply(this, arguments);
+            } else if (isArray(arguments[1])) {
+                unwatchMany.apply(this, arguments);
+            } else {
+                unwatchOne.apply(this, arguments);
+            }
+        };
+        var unwatchAll = function(obj, watcher) {
+            if (obj instanceof String || !(obj instanceof Object) && !isArray(obj)) {
+                return;
+            }
+            if (isArray(obj)) {
+                var props = [ "__watchall__" ];
+                for (var prop = 0; prop < obj.length; prop++) {
+                    props.push(prop);
+                }
+                unwatchMany(obj, props, watcher);
+            } else {
+                var unwatchPropsInObject = function(obj2) {
+                    var props = [];
+                    for (var prop2 in obj2) {
+                        if (obj2.hasOwnProperty(prop2)) {
+                            if (obj2[prop2] instanceof Object) {
+                                unwatchPropsInObject(obj2[prop2]);
+                            } else {
+                                props.push(prop2);
+                            }
+                        }
+                    }
+                    unwatchMany(obj2, props, watcher);
+                };
+                unwatchPropsInObject(obj);
+            }
+        };
+        var unwatchMany = function(obj, props, watcher) {
+            for (var prop2 in props) {
+                if (props.hasOwnProperty(prop2)) {
+                    unwatchOne(obj, props[prop2], watcher);
+                }
+            }
+        };
+        var timeouts = [], timerID = null;
+        function clearTimerID() {
+            timerID = null;
+            for (var i = 0; i < timeouts.length; i++) {
+                timeouts[i]();
+            }
+            timeouts.length = 0;
+        }
+        var getTimerID = function() {
+            if (!timerID) {
+                timerID = setTimeout(clearTimerID);
+            }
+            return timerID;
+        };
+        var registerTimeout = function(fn) {
+            if (timerID == null) getTimerID();
+            timeouts[timeouts.length] = fn;
+        };
+        var trackChange = function() {
+            var fn = isFunction(arguments[2]) ? trackProperty : trackObject;
+            fn.apply(this, arguments);
+        };
+        var trackObject = function(obj, callback, recursive, addNRemove) {
+            var change = null, lastTimerID = -1;
+            var isArr = isArray(obj);
+            var level, fn = function(prop, action, newValue, oldValue) {
+                var timerID = getTimerID();
+                if (lastTimerID !== timerID) {
+                    lastTimerID = timerID;
+                    change = {
+                        type: "update"
+                    };
+                    change["value"] = obj;
+                    change["splices"] = null;
+                    registerTimeout(function() {
+                        callback.call(this, change);
+                        change = null;
+                    });
+                }
+                if (isArr && obj === this && change !== null) {
+                    if (action === "pop" || action === "shift") {
+                        newValue = [];
+                        oldValue = [ oldValue ];
+                    } else if (action === "push" || action === "unshift") {
+                        newValue = [ newValue ];
+                        oldValue = [];
+                    } else if (action !== "splice") {
+                        return;
+                    }
+                    if (!change.splices) change.splices = [];
+                    change.splices[change.splices.length] = {
+                        index: prop,
+                        deleteCount: oldValue ? oldValue.length : 0,
+                        addedCount: newValue ? newValue.length : 0,
+                        added: newValue,
+                        deleted: oldValue
+                    };
+                }
+            };
+            level = recursive == true ? undefined : 0;
+            watchAll(obj, fn, level, addNRemove);
+        };
+        var trackProperty = function(obj, prop, callback, recursive, addNRemove) {
+            if (obj && prop) {
+                watchOne(obj, prop, function(prop, action, newvalue, oldvalue) {
+                    var change = {
+                        type: "update"
+                    };
+                    change["value"] = newvalue;
+                    change["oldvalue"] = oldvalue;
+                    if (recursive && isObject(newvalue) || isArray(newvalue)) {
+                        trackObject(newvalue, callback, recursive, addNRemove);
+                    }
+                    callback.call(this, change);
+                }, 0);
+                if (recursive && isObject(obj[prop]) || isArray(obj[prop])) {
+                    trackObject(obj[prop], callback, recursive, addNRemove);
+                }
+            }
+        };
+        var defineWatcher = function(obj, prop, watcher, level) {
+            var newWatcher = false;
+            var isArr = isArray(obj);
+            if (!obj.watchers) {
+                defineProp(obj, "watchers", {});
+                if (isArr) {
+                    watchFunctions(obj, function(index, action, newValue, oldValue) {
+                        addPendingChange(obj, index, action, newValue, oldValue);
+                        if (level !== 0 && newValue && (isObject(newValue) || isArray(newValue))) {
+                            var i, n, ln, wAll, watchList = obj.watchers[prop];
+                            if (wAll = obj.watchers["__watchall__"]) {
+                                watchList = watchList ? watchList.concat(wAll) : wAll;
+                            }
+                            ln = watchList ? watchList.length : 0;
+                            for (i = 0; i < ln; i++) {
+                                if (action !== "splice") {
+                                    watchAll(newValue, watchList[i], level === undefined ? level : level - 1);
+                                } else {
+                                    for (n = 0; n < newValue.length; n++) {
+                                        watchAll(newValue[n], watchList[i], level === undefined ? level : level - 1);
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+            if (!obj.watchers[prop]) {
+                obj.watchers[prop] = [];
+                if (!isArr) newWatcher = true;
+            }
+            for (var i = 0; i < obj.watchers[prop].length; i++) {
+                if (obj.watchers[prop][i] === watcher) {
+                    return;
+                }
+            }
+            obj.watchers[prop].push(watcher);
+            if (newWatcher) {
+                var val = obj[prop];
+                var getter = function() {
+                    return val;
+                };
+                var setter = function(newval, delayWatcher) {
+                    var oldval = val;
+                    val = newval;
+                    if (level !== 0 && obj[prop] && (isObject(obj[prop]) || isArray(obj[prop])) && !obj[prop].watchers) {
+                        var i, ln = obj.watchers[prop].length;
+                        for (i = 0; i < ln; i++) {
+                            watchAll(obj[prop], obj.watchers[prop][i], level === undefined ? level : level - 1);
+                        }
+                    }
+                    if (isSuspended(obj, prop)) {
+                        resume(obj, prop);
+                        return;
+                    }
+                    if (!WatchJS.noMore) {
+                        if (oldval !== newval) {
+                            if (!delayWatcher) {
+                                callWatchers(obj, prop, "set", newval, oldval);
+                            } else {
+                                addPendingChange(obj, prop, "set", newval, oldval);
+                            }
+                            WatchJS.noMore = false;
+                        }
+                    }
+                };
+                if (WatchJS.useDirtyCheck) {
+                    observeDirtyChanges(obj, prop, setter);
+                } else {
+                    defineGetAndSet(obj, prop, getter, setter);
+                }
+            }
+        };
+        var callWatchers = function(obj, prop, action, newval, oldval) {
+            if (prop !== undefined) {
+                var ln, wl, watchList = obj.watchers[prop];
+                if (wl = obj.watchers["__watchall__"]) {
+                    watchList = watchList ? watchList.concat(wl) : wl;
+                }
+                ln = watchList ? watchList.length : 0;
+                for (var wr = 0; wr < ln; wr++) {
+                    watchList[wr].call(obj, prop, action, newval, oldval);
+                }
+            } else {
+                for (var prop in obj) {
+                    if (obj.hasOwnProperty(prop)) {
+                        callWatchers(obj, prop, action, newval, oldval);
+                    }
+                }
+            }
+        };
+        var methodNames = [ "pop", "push", "reverse", "shift", "sort", "slice", "unshift", "splice" ];
+        var defineArrayMethodWatcher = function(obj, original, methodName, callback) {
+            defineProp(obj, methodName, function() {
+                var index = 0;
+                var i, newValue, oldValue, response;
+                if (methodName === "splice") {
+                    var start = arguments[0];
+                    var end = start + arguments[1];
+                    oldValue = obj.slice(start, end);
+                    newValue = [];
+                    for (i = 2; i < arguments.length; i++) {
+                        newValue[i - 2] = arguments[i];
+                    }
+                    index = start;
+                } else {
+                    newValue = arguments.length > 0 ? arguments[0] : undefined;
+                }
+                response = original.apply(obj, arguments);
+                if (methodName !== "slice") {
+                    if (methodName === "pop") {
+                        oldValue = response;
+                        index = obj.length;
+                    } else if (methodName === "push") {
+                        index = obj.length - 1;
+                    } else if (methodName === "shift") {
+                        oldValue = response;
+                    } else if (methodName !== "unshift" && newValue === undefined) {
+                        newValue = response;
+                    }
+                    callback.call(obj, index, methodName, newValue, oldValue);
+                }
+                return response;
+            });
+        };
+        var watchFunctions = function(obj, callback) {
+            if (!isFunction(callback) || !obj || obj instanceof String || !isArray(obj)) {
+                return;
+            }
+            for (var i = methodNames.length, methodName; i--; ) {
+                methodName = methodNames[i];
+                defineArrayMethodWatcher(obj, obj[methodName], methodName, callback);
+            }
+        };
+        var unwatchOne = function(obj, prop, watcher) {
+            if (obj.watchers[prop]) {
+                if (watcher === undefined) {
+                    delete obj.watchers[prop];
+                } else {
+                    for (var i = 0; i < obj.watchers[prop].length; i++) {
+                        var w = obj.watchers[prop][i];
+                        if (w == watcher) {
+                            obj.watchers[prop].splice(i, 1);
+                        }
+                    }
+                }
+            }
+            removeFromLengthSubjects(obj, prop, watcher);
+            removeFromDirtyChecklist(obj, prop);
+        };
+        var suspend = function(obj, prop) {
+            if (obj.watchers) {
+                var name = "__wjs_suspend__" + (prop !== undefined ? prop : "");
+                obj.watchers[name] = true;
+            }
+        };
+        var isSuspended = function(obj, prop) {
+            return obj.watchers && (obj.watchers["__wjs_suspend__"] || obj.watchers["__wjs_suspend__" + prop]);
+        };
+        var resume = function(obj, prop) {
+            registerTimeout(function() {
+                delete obj.watchers["__wjs_suspend__"];
+                delete obj.watchers["__wjs_suspend__" + prop];
+            });
+        };
+        var pendingTimerID = null;
+        var addPendingChange = function(obj, prop, mode, newval, oldval) {
+            pendingChanges[pendingChanges.length] = {
+                obj: obj,
+                prop: prop,
+                mode: mode,
+                newval: newval,
+                oldval: oldval
+            };
+            if (pendingTimerID === null) {
+                pendingTimerID = setTimeout(applyPendingChanges);
+            }
+        };
+        var applyPendingChanges = function() {
+            var change = null;
+            pendingTimerID = null;
+            for (var i = 0; i < pendingChanges.length; i++) {
+                change = pendingChanges[i];
+                callWatchers(change.obj, change.prop, change.mode, change.newval, change.oldval);
+            }
+            if (change) {
+                pendingChanges = [];
+                change = null;
+            }
+        };
+        var loop = function() {
+            for (var i = 0; i < lengthsubjects.length; i++) {
+                var subj = lengthsubjects[i];
+                if (subj.prop === "$$watchlengthsubjectroot") {
+                    var difference = getObjDiff(subj.obj, subj.actual);
+                    if (difference.added.length || difference.removed.length) {
+                        if (difference.added.length) {
+                            watchMany(subj.obj, difference.added, subj.watcher, subj.level - 1, true);
+                        }
+                        subj.watcher.call(subj.obj, "root", "differentattr", difference, subj.actual);
+                    }
+                    subj.actual = clone(subj.obj);
+                } else {
+                    var difference = getObjDiff(subj.obj[subj.prop], subj.actual);
+                    if (difference.added.length || difference.removed.length) {
+                        if (difference.added.length) {
+                            for (var j = 0; j < subj.obj.watchers[subj.prop].length; j++) {
+                                watchMany(subj.obj[subj.prop], difference.added, subj.obj.watchers[subj.prop][j], subj.level - 1, true);
+                            }
+                        }
+                        callWatchers(subj.obj, subj.prop, "differentattr", difference, subj.actual);
+                    }
+                    subj.actual = clone(subj.obj[subj.prop]);
+                }
+            }
+            var n, value;
+            if (dirtyChecklist.length > 0) {
+                for (var i = 0; i < dirtyChecklist.length; i++) {
+                    n = dirtyChecklist[i];
+                    value = n.object[n.prop];
+                    if (!compareValues(n.orig, value)) {
+                        n.orig = clone(value);
+                        n.callback(value);
+                    }
+                }
+            }
+        };
+        var compareValues = function(a, b) {
+            var i, state = true;
+            if (a !== b) {
+                if (isObject(a)) {
+                    for (i in a) {
+                        if (!supportDefineProperty && i === "watchers") continue;
+                        if (a[i] !== b[i]) {
+                            state = false;
+                            break;
+                        }
+                    }
+                } else {
+                    state = false;
+                }
+            }
+            return state;
+        };
+        var pushToLengthSubjects = function(obj, prop, watcher, level) {
+            var actual;
+            if (prop === "$$watchlengthsubjectroot") {
+                actual = clone(obj);
+            } else {
+                actual = clone(obj[prop]);
+            }
+            lengthsubjects.push({
+                obj: obj,
+                prop: prop,
+                actual: actual,
+                watcher: watcher,
+                level: level
+            });
+        };
+        var removeFromLengthSubjects = function(obj, prop, watcher) {
+            for (var i = 0; i < lengthsubjects.length; i++) {
+                var subj = lengthsubjects[i];
+                if (subj.obj == obj && subj.prop == prop && subj.watcher == watcher) {
+                    lengthsubjects.splice(i, 1);
+                }
+            }
+        };
+        var removeFromDirtyChecklist = function(obj, prop) {
+            var notInUse;
+            for (var i = 0; i < dirtyChecklist.length; i++) {
+                var n = dirtyChecklist[i];
+                var watchers = n.object.watchers;
+                notInUse = n.object == obj && n.prop == prop && watchers && (!watchers[prop] || watchers[prop].length == 0);
+                if (notInUse) {
+                    dirtyChecklist.splice(i, 1);
+                }
+            }
+        };
+        setInterval(loop, 50);
+        WatchJS.watch = watch;
+        WatchJS.unwatch = unwatch;
+        WatchJS.callWatchers = callWatchers;
+        WatchJS.suspend = suspend;
+        WatchJS.onChange = trackChange;
+        return WatchJS;
+    }();
     var querySelector = function() {
         (function() {
             if (!HTMLElement.prototype.querySelectorAll) {
@@ -155,23 +956,33 @@
             return stack;
         };
     }();
-    var mixin = function() {
-        var mixinup = function(a, b) {
-            for (var i in b) {
-                if (b.hasOwnProperty(i)) {
-                    a[i] = b[i];
+    var min = function(getObjectByXPath) {
+        var each = function(subject, fn) {
+            for (var prop in subject) {
+                if (subject.hasOwnProperty(prop)) {
+                    fn.call(subject, subject[prop], prop);
                 }
             }
-            return a;
+        }, regPlaceholder = /\{\{([^\} ]*)\}\}/gi;
+        return function(tpl, data, preProcessor, postProcessor) {
+            var template = tpl, matches = template.match(regPlaceholder);
+            if (matches !== null) matches.forEach(function(dph) {
+                regPlaceholder.lastIndex = 0;
+                var placeholderData = regPlaceholder.exec(dph), placeholder = placeholderData[1];
+                template = template.replace(dph, getObjectByXPath(data, placeholder.split(".")));
+            });
+            return template;
         };
-        return function(a) {
-            var i = 1;
-            for (;i < arguments.length; i++) {
-                if ("object" === typeof arguments[i]) {
-                    mixinup(a, arguments[i]);
-                }
+    }(getObjectByXPath);
+    var angular = function() {
+        return function() {
+            if ("undefined" === typeof angular) {
+                console.error("Synthetic: Connect angularjs to work with");
+                return false;
             }
-            return a;
+            angular.element(this.__selfie__.$element).ready(function() {
+                angular.bootstrap(this.__selfie__.$element, [ this.$$angularModuleName ]);
+            }.bind(this));
         };
     }();
     var mutagen = function(extendedQuerySelector) {
@@ -226,7 +1037,7 @@
         Mutagen.query = extendedQuerySelector;
         return Mutagen;
     }(querySelector);
-    var inherit = function(mixin) {
+    var inherit2 = function(mixin) {
         return function(aClass, classes) {
             if (!(classes instanceof Array)) classes = [ classes ];
             var cl = classes.length;
@@ -287,65 +1098,160 @@
             }
             return Mixin;
         };
-    }(mixin);
-    var events = function() {
-        var Events = function() {
-            this.eventListners = {};
-        };
-        Events.prototype = {
-            constructor: Events,
-            bind: function(e, callback, once) {
-                if (typeof this.eventListners[e] != "object") this.eventListners[e] = [];
-                this.eventListners[e].push({
-                    callback: callback,
-                    once: once
-                });
-                return this;
-            },
-            on: function() {
-                this.bind.apply(this, arguments);
-                return this;
-            },
-            once: function(e, callback) {
-                this.bind(e, callback, true);
-                return this;
-            },
-            trigger: function() {
-                if (typeof arguments[0] == "integer") {
-                    var uin = arguments[0];
-                    var e = arguments[1];
-                    var args = arguments.length > 2 ? arguments[2] : [];
-                } else {
-                    var uin = false;
-                    var e = arguments[0];
-                    var args = arguments.length > 1 ? arguments[1] : [];
+    }(mixin2);
+    var templateManager = function() {}.proto({});
+    var WebElementPrototype = function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, angularTemplate) {
+        return function() {}.inherit(classEvents).proto({
+            watch: function() {
+                if (this.__config__.allWaitingForResolve) {
+                    this.bind(this.__config__.allWaitingForResolve, function(args) {
+                        this.watch.apply(this, args);
+                    }.bind(this, arguments));
+                    return;
                 }
-                var response = false;
-                if (typeof this.eventListners[e] == "object" && this.eventListners[e].length > 0) {
-                    var todelete = [];
-                    for (var i = 0; i < this.eventListners[e].length; i++) {
-                        if (typeof this.eventListners[e][i] === "object") {
-                            if (typeof this.eventListners[e][i].callback === "function") response = this.eventListners[e][i].callback.apply(this, args);
-                            if (this.eventListners[e][i].once) {
-                                todelete.push(i);
-                            }
+                var self = this, objectXPath = false, properties, callback;
+                arguments.length > 2 ? (objectXPath = arguments[0], 
+                properties = arguments[1], callback = arguments[2]) : (properties = arguments[0], 
+                callback = arguments[1]);
+                var xpath = objectXPath ? objectXPath.split(".") : [];
+                requiredProperties = [];
+                for (var i = 0; i < properties.length; ++i) {
+                    requiredProperties.push(xpath.concat(properties[i].split(".")));
+                }
+                var getDatas = function(requiredProperties, rprops) {
+                    return function(prop, action, newValue) {
+                        var alldata = [];
+                        for (var x = 0; x < requiredProperties.length; ++x) {
+                            if (rprops === requiredProperties[x]) alldata.push(newValue); else alldata.push(getObjectByXPath(self.__selfie__.$scope, requiredProperties[x]));
                         }
+                        self.$inject(callback).apply(self, alldata);
+                    };
+                };
+                getDatas.call(self, requiredProperties, false).call(self);
+                var watchFabric = function(rprops, wobject, prop) {
+                    if ("undefined" === typeof wobject[prop]) wobject[prop] = false;
+                    if (self.__config__.angulared) {
+                        angular.element(self.__selfie__.$element).scope().$watch(rprops.join("."), function(newValue) {
+                            this.call(self, false, "set", newValue);
+                        }.bind(getDatas(requiredProperties, rprops)));
+                    } else {
+                        watchJS.watch(wobject, prop, getDatas(requiredProperties, rprops));
                     }
-                    if (todelete.length > 0) for (var i in todelete) {
-                        this.eventListners[e].splice(todelete[i], 1);
+                };
+                for (var i = 0; i < requiredProperties.length; ++i) {
+                    watchFabric(requiredProperties[i], getObjectByXPath(this.__selfie__.$scope, requiredProperties[i].slice(0, requiredProperties[i].length - 1)), requiredProperties[i][requiredProperties[i].length - 1]);
+                }
+            },
+            $inject: function(callback) {
+                if (this.__config__.angulared && this.__config__.$$angularScope) {
+                    var self = this;
+                    return function() {
+                        var nargs = Array.prototype.slice.apply(arguments), context = this;
+                        self.__config__.$$angularTimeout(function() {
+                            smartCallback.call(self.__selfie__, callback).apply(context, nargs);
+                        });
+                    };
+                } else {
+                    return smartCallback.call(this.__selfie__, callback);
+                }
+            },
+            $queue: function(callback) {
+                if (this.__config__.allWaitingForResolve) {
+                    this.bind(this.__config__.allWaitingForResolve, callback);
+                } else {
+                    callback.apply(this);
+                }
+                return this;
+            },
+            template: function(source, engine, buildOn) {
+                console.log("WTF");
+                this.__config__.generator = {
+                    template: source,
+                    engine: engine || "min",
+                    buildOn: buildOn || [ "created" ]
+                };
+                this.__generateHtml__();
+            },
+            __generateHtml__: function() {
+                if (this.__config__.generator) {
+                    switch (this.__config__.generator.engine) {
+                      case "angular":
+                        if (this.__config__.angularInitialedStage > 1) {
+                            this.$inject(function($self) {
+                                var test = $self.__config__.$$angularCompile($self.__config__.generator.template)($self.__config__.$$angularScope);
+                                console.log("Heeeeelp!!!");
+                                $self.__config__.$$angularElement.append(test);
+                            })();
+                            console.log("injected");
+                        } else {
+                            this.__selfie__.$element.innerHTML = this.__config__.generator.template;
+                        }
+                        break;
+
+                      case "min":
+                      default:
+                        this.__selfie__.$element.innerHTML = minTemplate(this.__config__.generator.template, this.__selfie__.$scope);
+                        break;
                     }
                 }
-                return response;
             }
-        };
-        return Events;
-    }();
+        });
+    }(getObjectByXPath, watch, smartCallback, classEvents, min, angular);
     var camelize = function() {
         return function(text) {
             return text.replace(/-([\da-z])/gi, function(all, letter) {
                 return letter.toUpperCase();
             });
         };
+    }();
+    var preFactory = function() {
+        var preFactory = function() {
+            this.onCreatedCallbacks = [];
+            this.onAttachedCallbacks = [];
+            this.onDetachedCallbacks = [];
+            this.onAttributeChangedCallbacks = [];
+            this.generator = false;
+            this.prototypes = [];
+            this.constructors = [];
+            this.watchers = [];
+        };
+        preFactory.prototype = {
+            constructor: preFactory,
+            created: function(callback) {
+                this.onCreatedCallbacks.push(callback);
+                return this;
+            },
+            attached: function(callback) {
+                this.onAttachedCallbacks.push(callback);
+                return this;
+            },
+            dettached: function(callback) {
+                this.onDetachedCallbacks.push(callback);
+                return this;
+            },
+            attributeChanged: function() {
+                this.onAttributeChangedCallbacks.push(callback);
+                return this;
+            },
+            watch: function() {
+                this.watchers.push(Array.prototype.slice.apply(arguments));
+                return this;
+            },
+            proto: function(proto) {
+                this.prototypes.push(proto);
+            },
+            construct: function(c) {
+                this.constructors.push(c);
+            },
+            template: function(source, engine, buildOn) {
+                this.generator = {
+                    template: source,
+                    engine: engine || false,
+                    buildOn: buildOn || [ "created" ]
+                };
+            }
+        };
+        return preFactory;
     }();
     (function() {
         (function(window, document, Object, REGISTER_ELEMENT) {
@@ -741,101 +1647,7 @@
             window[HTMLElement] = Element;
         })(window, Object, "HTMLElement");
     })();
-    (function(mutagen, inherit, eventsClass, camelize) {
-        var customeElement = inherit(function(element, component) {
-            this.$ = element;
-            this.component = component;
-            this.attributes = {};
-            this.cultAttrs();
-        }, eventsClass);
-        customeElement.prototype.query = function(queryString) {
-            var nodeList = mutagen.query(queryString, this.$);
-            if (nodeList instanceof NodeList || nodeList instanceof Array) {
-                return Array.prototype.slice.apply(nodeList);
-            } else {
-                return [];
-            }
-        };
-        customeElement.prototype.cultAttrs = function() {
-            this.attributes = {};
-            this.properties = {};
-            for (var z = 0; z < this.$.attributes.length; z++) {
-                this.attributes[camelize(this.$.attributes[z].name)] = this.$.attributes[z].value;
-                if (this.$.attributes[z].name.substr(0, 5) === "data-") this.properties[this.$.attributes[z].name.substr(5)] = this.$.attributes[z].value;
-            }
-        };
-        var Module = inherit(function(name) {
-            this.name = name;
-            this._template = "";
-            this.elementPrototype = {};
-        }, eventsClass);
-        Module.prototype.setTemplate = function(template) {
-            this._template = template;
-            this.on("created", function(module) {
-                if (this._template !== false) mutagen.call(this._template, module.$);
-            });
-        };
-        Module.prototype.template = function(template, defaultPlaceholders) {
-            this._template = [ template, defaultPlaceholders || {} ];
-            this.on("created", function(module) {
-                mutagen.call(this._template[0], module.$, function(replacings) {
-                    for (var prop in defaultPlaceholders) {
-                        if (defaultPlaceholders.hasOwnProperty(prop)) replacings["{{" + prop + "}}"] = defaultPlaceholders[prop];
-                    }
-                });
-            });
-            return this;
-        };
-        Module.prototype.setElementPrototype = function(proto) {
-            this.elementPrototype = proto;
-        };
-        Module.prototype.register = function() {
-            var component = this;
-            document.registerElement(this.name, {
-                prototype: Object.create(HTMLElement.prototype, {
-                    createdCallback: {
-                        value: function() {
-                            var WebModule = function() {};
-                            WebModule.prototype = component.elementPrototype;
-                            WebModule.prototype.constructor = WebModule;
-                            WebModule = inherit(WebModule, customeElement);
-                            var ce = new WebModule(this, component);
-                            Object.defineProperty(this, "synthetic", {
-                                enumerable: false,
-                                writable: false,
-                                configurable: false,
-                                value: ce
-                            });
-                            component.trigger("created", [ ce ]);
-                        }
-                    },
-                    attachedCallback: {
-                        value: function() {
-                            component.trigger("attached", [ this.synthetic ]);
-                        }
-                    },
-                    detachedCallback: {
-                        value: function() {
-                            component.trigger("detached", [ this.synthetic ]);
-                        }
-                    },
-                    attributeChangedCallback: {
-                        configurable: true,
-                        writable: true,
-                        enumerable: true,
-                        value: function(name, previousValue, value) {
-                            if (previousValue !== value) {
-                                this.synthetic.attributes[camelize(name)] = value;
-                                if (name.substr(0, 5) === "data-") {
-                                    this.synthetic.properties[camelize(name.substr(5))] = value;
-                                }
-                                component.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
-                            }
-                        }
-                    }
-                })
-            });
-        };
+    (function(mutagen, inherit, mixin, eventsClass, templateManager, WebElementPrototype, WatchJS, camelize, smartCallback, ComponentPreFactory) {
         var Synthet = function(element) {
             if ("object" !== typeof element.synthetic) {
                 return null;
@@ -845,14 +1657,198 @@
         Synthet.prototype = {
             construct: Synthet
         };
-        Synthet.newComponent = function(name, template, elementPrototype) {
-            if (name.indexOf("-") < 0) throw "Module name must have `-` symbol";
-            var component = new Module(name);
-            component.setTemplate(template);
-            component.setElementPrototype(elementPrototype || {});
-            return component;
+        Synthet.hasPropertySubKey = function(property, subkey) {
+            if (!("string" === typeof property || property instanceof Array)) return false;
+            return !!~("string" === typeof property ? property.replace(" ", "").split(",") : property).indexOf(subkey);
         };
-        if (window) window.Synthet = Synthet;
+        Synthet.createComponent = function(componentName, constructor) {
+            if (componentName.indexOf("-") < 0) throw "Module name must have `-` symbol";
+            var componentFactory = new ComponentPreFactory({
+                constructor: constructor
+            }), prototype = smartCallback.call({
+                $component: componentFactory
+            }, constructor)();
+            if ("object" === typeof prototype) {
+                componentFactory.proto(prototype);
+            } else if ("function" === typeof prototype) {
+                componentFactory.construct(prototype);
+            }
+            document.registerElement(componentName, {
+                prototype: Object.create(HTMLElement.prototype, {
+                    createdCallback: {
+                        value: function() {
+                            if (this.synthetic) return false;
+                            var WebElementFactory = function(element, component) {
+                                Object.defineProperty(element, "synthetic", {
+                                    enumerable: false,
+                                    writable: false,
+                                    configurable: false,
+                                    value: this
+                                });
+                                Object.defineProperty(this, "__config__", {
+                                    enumerable: false,
+                                    writable: false,
+                                    configurable: true,
+                                    value: {
+                                        generator: false,
+                                        angulared: false,
+                                        allWaitingForResolve: false,
+                                        $$angularScope: false,
+                                        createdEventFires: false,
+                                        attachedEventFires: false
+                                    }
+                                });
+                                var $$scope = {
+                                    attributes: {},
+                                    properties: {},
+                                    html: {}
+                                };
+                                Object.defineProperty(this, "__selfie__", {
+                                    enumerable: false,
+                                    writable: false,
+                                    configurable: true,
+                                    value: {
+                                        $scope: $$scope,
+                                        $element: element,
+                                        $self: this,
+                                        $component: component
+                                    }
+                                });
+                                if (angular && angular.bootstrap) {
+                                    var $self = this;
+                                    this.__config__.angularInitialedStage = 1;
+                                    this.__config__.allWaitingForResolve = "angularResolved";
+                                    this.$$angularModuleName = "singular" + new Date().getTime();
+                                    var $$app = angular.module(this.$$angularModuleName, []).controller(this.$$angularModuleName + "Controller", function($element, $scope, $timeout, $compile, $element) {
+                                        $self.__config__.angulared = true;
+                                        angular.extend($scope, $$scope);
+                                        $self.__selfie__.$scope = $scope;
+                                        $self.__config__.angularInitialedStage = 2;
+                                        $self.__config__.allWaitingForResolve = false;
+                                        $self.__config__.$$angularScope = angular.element($self.__selfie__.$element).scope();
+                                        $self.__config__.$$angularTimeout = $timeout;
+                                        $self.__config__.$$angularCompile = $compile;
+                                        $self.__config__.$$angularElement = $element;
+                                        $self.trigger("angularResolved");
+                                    });
+                                    element.setAttribute("ng-controller", this.$$angularModuleName + "Controller");
+                                    Object.defineProperty(this, "$$angular", {
+                                        enumerable: false,
+                                        writable: false,
+                                        configurable: false,
+                                        value: $$app
+                                    });
+                                }
+                                for (var i = 0; i < element.childNodes.length; ++i) {
+                                    if (element.childNodes[i].nodeType === 1) {
+                                        this.__selfie__.$scope.html[camelize(element.childNodes[i].tagName.toLowerCase())] = element.childNodes[i].innerHTML;
+                                    }
+                                }
+                                for (var z = 0; z < element.attributes.length; z++) {
+                                    this.__selfie__.$scope.attributes[camelize(element.attributes[z].name)] = element.attributes[z].value;
+                                    if (element.attributes[z].name.substr(0, 5) === "data-") this.__selfie__.$scope.properties[camelize(element.attributes[z].name.substr(5))] = element.attributes[z].value;
+                                }
+                                this.$queue(function() {
+                                    for (var i = 0; i < component.prototypes.length; ++i) {
+                                        for (var p in component.prototypes[i]) {
+                                            if (component.prototypes[i].hasOwnProperty(p)) {
+                                                this.__proto__[p] = this.$inject(component.prototypes[i][p]);
+                                            }
+                                        }
+                                    }
+                                    if (this.__config__.createdEventFires) {
+                                        for (var i = 0; i < component.onCreatedCallbacks.length; ++i) {
+                                            this.$inject(component.onCreatedCallbacks[i])();
+                                        }
+                                    } else {
+                                        for (var i = 0; i < component.onCreatedCallbacks.length; ++i) {
+                                            this.on("created", component.onCreatedCallbacks[i]);
+                                        }
+                                    }
+                                    if (this.__config__.attachedEventFires) {
+                                        for (var i = 0; i < component.onAttachedCallbacks.length; ++i) {
+                                            this.$inject(component.onAttachedCallbacks[i])();
+                                        }
+                                    } else {
+                                        for (var i = 0; i < component.onAttachedCallbacks.length; ++i) {
+                                            this.on("attached", component.onAttachedCallbacks[i]);
+                                        }
+                                    }
+                                    for (var i = 0; i < component.onDetachedCallbacks.length; ++i) {
+                                        this.on("detached", component.onDetachedCallbacks[i]);
+                                    }
+                                    for (var i = 0; i < component.onAttributeChangedCallbacks.length; ++i) {
+                                        this.on("attributeChanged", component.onAttributeChangedCallbacks[i]);
+                                    }
+                                });
+                                if ("object" === typeof component.generator) {
+                                    this.__config__.generator = mixin({
+                                        template: "",
+                                        engine: "min",
+                                        buildOn: [ "create" ]
+                                    }, component.generator);
+                                }
+                                this.trigger("created", [ WebElement ]);
+                                this.__config__.createdEventFires = true;
+                                for (var i = 0; i < component.watchers.length; ++i) {
+                                    this.watch.apply(this, component.watchers[i]);
+                                }
+                            }.inherit(WebElementPrototype);
+                            for (var i = 0; i < componentFactory.constructors.length; ++i) {
+                                WebElementFactory.inherit(componentFactory.constructors[i]);
+                            }
+                            WebElementFactory.inherit(WebElementPrototype);
+                            var WebElement = new WebElementFactory(this, componentFactory);
+                        }
+                    },
+                    attachedCallback: {
+                        value: function() {
+                            if (this.synthetic.__config__.angularInitialedStage === 1) {
+                                angular.element(this.synthetic.__selfie__.$element).ready(function() {
+                                    angular.bootstrap(this.synthetic.__selfie__.$element, [ this.synthetic.$$angularModuleName ]);
+                                }.bind(this));
+                                this.synthetic.__generateHtml__();
+                            }
+                            this.synthetic.trigger("attached", [ this.synthetic ]);
+                            this.synthetic.__config__.attachedEventFires = true;
+                        }
+                    },
+                    detachedCallback: {
+                        value: function() {
+                            this.synthetic.trigger("detached", [ this.synthetic ]);
+                        }
+                    },
+                    attributeChangedCallback: {
+                        configurable: true,
+                        writable: true,
+                        enumerable: true,
+                        value: function(name, previousValue, value) {
+                            if (this.synthetic.__config__.angulared) {
+                                if (previousValue !== value) {
+                                    angular.element(this.synthetic.__selfie__.$element).scope().$apply(function() {
+                                        this.synthetic.__selfie__.$scope.attributes[camelize(name)] = value;
+                                        if (name.substr(0, 5) === "data-") {
+                                            this.synthetic.__selfie__.$scope.properties[camelize(name.substr(5))] = value;
+                                        }
+                                        this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
+                                    }.bind(this));
+                                }
+                            } else {
+                                if (previousValue !== value) {
+                                    this.synthetic.__selfie__.$scope.attributes[camelize(name)] = value;
+                                    if (name.substr(0, 5) === "data-") {
+                                        this.synthetic.__selfie__.$scope.properties[camelize(name.substr(5))] = value;
+                                    }
+                                    this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
+                                }
+                            }
+                        }
+                    }
+                })
+            });
+            return componentFactory;
+        };
+        if (window) window.Synthet = window.Synthetic = Synthet;
         return Synthet;
-    })(mutagen, inherit, events, camelize);
+    })(mutagen, inherit2, mixin2, classEvents, null, WebElementPrototype, watch, camelize, smartCallback, preFactory);
 })();

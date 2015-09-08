@@ -72,7 +72,11 @@ AMD Synthet
                                     configurable: true,
                                     value: {
                                         generator: false,
-                                        angulared: false
+                                        angulared: false,
+                                        allWaitingForResolve: false,
+                                        $$angularScope: false,
+                                        createdEventFires: false,
+                                        attachedEventFires: false
                                     }
                                 });
 
@@ -81,9 +85,7 @@ AMD Synthet
                                     properties: {}, // Содержит все аттрибуты data-*
                                     html: {} 
                                 }
-                                /*
-                                Если обнаружен angular, то мы создаем новое приложение для него
-                                */
+
                                 Object.defineProperty(this, '__selfie__', {
                                     enumerable: false,
                                     writable: false,
@@ -95,19 +97,69 @@ AMD Synthet
                                         $component: component
                                     }
                                 });
+                                /*
+                                Если обнаружен angular, то мы создаем новое приложение для него
+                                и размещаем контроллер на компоненте.
+                                Имя приложения и контроллера создаются рандомно. Для каждого
+                                нового экземпляра компонента создается свой экземпляр
+                                приложения angular.
+                                Имя приложения >> this.$$angularModuleName
+                                Имя контроллера >> this.$$angularModuleName+'Controller'
 
-                                if (angular&&angular.bootstrap) {
+                                Когда происходит инициализация экземпляр получается состояние
+                                __config__.angularInitialedStage = 1 и 
+                                __config__.allWaitingForResolve = 'angularResolved';
+
+                                При этом все слушатели событий будут задержаны до 
+                                инициализации $scope от angular, а произойдет это при 
+                                attached.
+                                Когда инициализация $scope от angular произойдет состояние
+                                __config__.angularInitialedStage станет 2 и будет вызвано
+                                событие 'angularResolved', все watchers пройдут инициализацию
+                                */
+                                if (angular&&angular.bootstrap&&element.getAttribute("noangular")===null) {
                                     var $self = this;
-                                    this.$$angularModuleName = 'singular'+(new Date()).getTime();
-                                    var $$app = angular.module(this.$$angularModuleName, [])
-                                    .controller(this.$$angularModuleName+'Controller', function ($scope) {
-                                        
+                                    this.__config__.angularInitialedStage = 1;
+                                    this.__config__.allWaitingForResolve = 'angularResolved';
+                                    this.$$angularControllerName = 'singular'+(new Date()).getTime()+Math.round(Math.random()*10000);
+
+                                    /* Creates angular app if not exists. Why i'm speaking english??? */
+                                    
+                                    if ("undefined"===typeof Synthetic.$$angularApp) {
+                                        console.log('$$configure angular app');
+                                        Synthetic.$$angularApp = angular.module('syntheticApp', [], function($compile) {
+                                            console.log('$$init angular app', $compile);
+                                            this.__config__.angularInitialedStage = 3;
+                                            
+                                            
+                                        }.bind(this));
+                                    }
+                                    
+                                    var $$app = Synthetic.$$angularApp;
+                                    console.log('$$controller registred', $self.$$angularControllerName);
+                                    $$app.controller(this.$$angularControllerName, 
+                                        function ($element, $scope, $timeout, $compile, $element) {
+                                        console.log('$$controller initialed', $self.$$angularControllerName);
                                         $self.__config__.angulared = true;
                                         angular.extend($scope, $$scope);
                                         $self.__selfie__.$scope = $scope;
 
+                                        $self.__config__.angularInitialedStage = 2;
+                                        $self.__config__.allWaitingForResolve = false;
+                                        
+
+                                        $self.__config__.$$angularScope = angular.element($self.__selfie__.$element).scope();
+                                        $self.__config__.$$angularTimeout = $timeout;
+                                        $self.__config__.$$angularCompile = $compile;
+                                        $self.__config__.$$angularElement = $element;
+                                        
+                                        $self.trigger('angularResolved');
                                     });
-                                    element.setAttribute('ng-controller', this.$$angularModuleName+'Controller');
+                                    
+                                    
+                                    setTimeout(function() {
+                                        element.setAttribute('ng-controller', this.$$angularControllerName);
+                                    }.bind(this), 0);
                                    
                                     Object.defineProperty(this, '$$angular', {
                                         enumerable: false,
@@ -135,29 +187,65 @@ AMD Synthet
                                     this.__selfie__.$scope.properties[camelize(element.attributes[z].name.substr(5))] = element.attributes[z].value;
                                 }
 
-                                /*
-                                Преобраузем пользователський прототип c внедрением селфи аргументов
-                                */
-                                for (var i = 0;i<component.prototypes.length;++i) {
-                                    for (var p in component.prototypes[i]) {
-                                        if (component.prototypes[i].hasOwnProperty(p)) {
-                                            this.__proto__[p] = smartCallback.call(this.__selfie__, component.prototypes[i][p]);
+                                this.$queue(function() {
+
+                                    /*
+                                    Преобраузем пользователський прототип c внедрением селфи аргументов
+                                    */
+                                    for (var i = 0;i<component.prototypes.length;++i) {
+                                        for (var p in component.prototypes[i]) {
+                                            if (component.prototypes[i].hasOwnProperty(p)) {
+                                                this.__proto__[p] = this.$inject(component.prototypes[i][p]);
+                                            }
                                         }
                                     }
-                                }
 
-                                /*
-                                Переносим callback для created
-                                */
-                                for (var i = 0;i<component.onCreatedCallbacks.length;++i) {
-                                    this.on("created", component.onCreatedCallbacks[i]);
-                                }
+                                    /*
+                                    Поочередно вызываем функции для события created (если created уже был)
+                                    */
+                                    if (this.__config__.createdEventFires) {
+
+                                        for (var i = 0;i<component.onCreatedCallbacks.length;++i) {
+                                            this.$inject(component.onCreatedCallbacks[i])();
+                                        }
+                                    } else {
+                                        for (var i = 0;i<component.onCreatedCallbacks.length;++i) {
+                                            this.on("created", component.onCreatedCallbacks[i]);
+                                        }
+                                    }
+
+                                    /*
+                                    Поочередно вызываем функции для события attached (если attached уже был)
+                                    */
+                                    if (this.__config__.attachedEventFires) {
+                                        for (var i = 0;i<component.onAttachedCallbacks.length;++i) {
+                                            this.$inject(component.onAttachedCallbacks[i])();
+                                        }
+                                    } else {
+                                        for (var i = 0;i<component.onAttachedCallbacks.length;++i) {
+                                            this.on("attached", component.onAttachedCallbacks[i]);
+                                        }
+                                    }
+                                    
+                                    /*
+                                    Переносим callback для detached
+                                    */
+                                    for (var i = 0;i<component.onDetachedCallbacks.length;++i) {
+                                        this.on("detached", component.onDetachedCallbacks[i]);
+                                    }
+
+                                    /*
+                                    Переносим callback для detached
+                                    */
+                                    for (var i = 0;i<component.onAttributeChangedCallbacks.length;++i) {
+                                        this.on("attributeChanged", component.onAttributeChangedCallbacks[i]);
+                                    }
+                                });
 
                                 /*
                                 Проверяем наличие генератора
                                 */
                                 if ("object"===typeof component.generator) {
-
                                     this.__config__.generator = mixin({
                                         "template": "",
                                         "engine": "min",
@@ -165,9 +253,8 @@ AMD Synthet
                                     }, component.generator);
                                 }
 
-                                this.__generateHtml__();
-
                                 this.trigger("created", [ WebElement ]);
+                                this.__config__.createdEventFires = true;
 
                                 /*
                                 Переносим наблюдение за scope
@@ -185,36 +272,33 @@ AMD Synthet
 
                             WebElementFactory.inherit(WebElementPrototype);
                             var WebElement = new WebElementFactory(this, componentFactory);
-                            
-                            /*
-                            Переносим callback для attached
-                            */
-                            for (var i = 0;i<componentFactory.onAttachedCallbacks.length;++i) {
-                                WebElement.on("attached", componentFactory.onAttachedCallbacks[i]);
-                            }
-                            /*
-                            Переносим callback для detached
-                            */
-                            for (var i = 0;i<componentFactory.onDetachedCallbacks.length;++i) {
-                                WebElement.on("detached", componentFactory.onDetachedCallbacks[i]);
-                            }
-                            /*
-                            Переносим callback для detached
-                            */
-                            for (var i = 0;i<componentFactory.onAttributeChangedCallbacks.length;++i) {
-                                WebElement.on("attributeChanged", componentFactory.onAttributeChangedCallbacks[i]);
-                            }
-                            
                         }
                     },
                     attachedCallback: {
                         value: function() {
-                            
-                            angular.element(this.synthetic.__selfie__.$element).ready(function() {
-                              angular.bootstrap(this.synthetic.__selfie__.$element, [this.synthetic.$$angularModuleName]);
-                            }.bind(this));
-                            this.synthetic.__generateHtml__();
+                            if (this.synthetic.__config__.angularInitialedStage===1) {
+                                /*
+                                Бутстрапинг для angularjs. При бутстрапинге angular
+                                состояние __config__.angularInitialedStage принимает значение 2,
+                                и вызывается событие anglarResolved, которое слушают все задержанные методы.
+                                
+                                Состояние __config__.allWaitingForResolve диактивируется.
+                                */
+                                if ("object"!==typeof angular.element(document.body).injector()) {
+                                    console.log('bootstrap angular');
+                                    angular.element(document.body).ready(function() {
+                                      angular.bootstrap(document.body, 
+                                        ['syntheticApp']);
+                                    }.bind(this));
+                                } else {
+                                    // To resove this faka staff, i found this 
+                                    // view-source:http://bennadel.github.io/JavaScript-Demos/demos/loading-angularjs-after-bootstrap/
+                                }
+
+                                this.synthetic.__generateHtml__();
+                            }
                             this.synthetic.trigger("attached", [ this.synthetic ]);
+                            this.synthetic.__config__.attachedEventFires = true;
                         }
                     },
                     detachedCallback: {

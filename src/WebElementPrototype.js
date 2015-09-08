@@ -16,7 +16,25 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, ang
 	}.inherit(classEvents)
 	.proto({
 		watch: function() {
+			/*
+			Проверка задержки
+			*/
+			if (this.__config__.allWaitingForResolve) {
 
+				/*
+				В случае, если система ожидает инициализации какого то приложения,
+				функции прослушивания переменных задерживаются до инициализации
+				*/
+				
+				this.bind(this.__config__.allWaitingForResolve, function(args) {
+
+					this.watch.apply(this, args);
+				}.bind(this, arguments));
+				return;
+			}
+			/*
+			Start watching ***
+			*/
 			var self=this,objectXPath=false, properties, callback;
 			;(arguments.length>2) ? (objectXPath=arguments[0],properties=arguments[1],callback=arguments[2]) : (properties=arguments[0],callback=arguments[1]);
 			
@@ -25,6 +43,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, ang
 			*/
 			var xpath = objectXPath?objectXPath.split('.'):[];
 			requiredProperties = [];
+			
 			for (var i = 0;i<properties.length;++i) {
 				requiredProperties.push(xpath.concat(properties[i].split('.')));
 			}
@@ -42,7 +61,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, ang
 						alldata.push(getObjectByXPath(self.__selfie__.$scope, requiredProperties[x]));
 					}
 
-					smartCallback.call(self.__selfie__, callback).apply(self, alldata);
+					self.$inject(callback).apply(self, alldata);
 				}
 			};
 
@@ -51,9 +70,11 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, ang
 				
 				if ("undefined"===typeof wobject[prop]) wobject[prop] = false;
 				if (self.__config__.angulared) {
-					angular.element(self.synthetic.__selfie__.$element).scope().$watch(rprops, function(newValue) {
-						getDatas(requiredProperties, rprops)(false, false, newValue);
-					});
+					
+					angular.element(self.__selfie__.$element).scope().$watch(rprops.join('.'), function(newValue) {
+						
+						this.call(self, false, 'set', newValue);						
+					}.bind(getDatas(requiredProperties, rprops)));
 				} else {
 					watchJS.watch(
 						wobject, 
@@ -67,24 +88,69 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, ang
 				watchFabric(requiredProperties[i], getObjectByXPath(this.__selfie__.$scope, requiredProperties[i].slice(0, requiredProperties[i].length-1)), requiredProperties[i][requiredProperties[i].length-1]);
 			}
 		},
+		/*
+		Анализирует пользовательскую функцию и внедряет в нее системные аргументы. Так например
+		function($scope) {} - передаст в функцию $scope компонента
+		Родные аргументы смещаются вправо
+		В случае интеграции с angularjs функция так же обертывается в $timeout
+		*/
+		$inject: function(callback) {
+			if (this.__config__.angulared&&this.__config__.$$angularScope) {
+				var self = this;
+				return function() {
+					var nargs = Array.prototype.slice.apply(arguments),context=this;
+					self.__config__.$$angularTimeout(function() {
+						smartCallback.call(self.__selfie__, callback).apply(context, nargs);
+					});
+				}				
+			} else {
+				return smartCallback.call(this.__selfie__, callback);
+			}
+			
+		},
+		/*
+		Добавляет функцию в очередь. Она будет выполнена когда компонент будет
+		готов принимать обработчики и вочеры.
+		*/
+		$queue: function(callback) {
+			if (this.__config__.allWaitingForResolve) {
+				this.bind(this.__config__.allWaitingForResolve, callback);
+			} else {
+				callback.apply(this);
+			}
+			return this;
+		},
 		template: function(source, engine, buildOn) {
+			console.log('WTF');
 			this.__config__.generator = {
 				template: source,
 				engine: engine||'min',
 				buildOn: buildOn||['created']
 			}
+			
 			this.__generateHtml__();
 		},
         /*
 		Эта функция генерирует HTML
         */
         __generateHtml__ : function() {
-        	console.log('generate html', this.__config__.generator);
+        	
         	if (this.__config__.generator) {
         		switch(this.__config__.generator.engine) {
         			case 'angular':
-        				this.__selfie__.$element.innerHTML = this.__config__.generator.template;
-        				
+
+        				if (this.__config__.angularInitialedStage>1) {
+        					this.$inject(function($self) {
+        						
+        						var test = $self.__config__.$$angularCompile($self.__config__.generator.template)($self.__config__.$$angularScope);
+        						$self.__config__.$$angularElement.append(test);
+        					})();
+
+        					console.log('injected');
+        					
+        				} else {
+        					this.__selfie__.$element.innerHTML = this.__config__.generator.template;
+        				}
         			break;
         			case "min":
         			default:
