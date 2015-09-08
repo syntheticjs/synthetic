@@ -1179,7 +1179,6 @@
                         if (this.__config__.angularInitialedStage > 1) {
                             this.$inject(function($self) {
                                 var test = $self.__config__.$$angularCompile($self.__config__.generator.template)($self.__config__.$$angularScope);
-                                console.log("Heeeeelp!!!");
                                 $self.__config__.$$angularElement.append(test);
                             })();
                             console.log("injected");
@@ -1714,12 +1713,22 @@
                                         $component: component
                                     }
                                 });
-                                if (angular && angular.bootstrap) {
+                                if ("object" === typeof angular && angular.bootstrap && element.getAttribute("noangular") === null) {
                                     var $self = this;
                                     this.__config__.angularInitialedStage = 1;
                                     this.__config__.allWaitingForResolve = "angularResolved";
-                                    this.$$angularModuleName = "singular" + new Date().getTime();
-                                    var $$app = angular.module(this.$$angularModuleName, []).controller(this.$$angularModuleName + "Controller", function($element, $scope, $timeout, $compile, $element) {
+                                    this.$$angularControllerName = "singular" + new Date().getTime() + Math.round(Math.random() * 1e4);
+                                    if ("undefined" === typeof Synthetic.$$angularApp) {
+                                        console.log("$$configure angular app");
+                                        Synthetic.$$angularApp = angular.module("syntheticApp", [], function($compile) {
+                                            console.log("$$init angular app", $compile);
+                                            this.__config__.angularInitialedStage = 3;
+                                        }.bind(this));
+                                    }
+                                    var $$app = Synthetic.$$angularApp;
+                                    console.log("$$controller registred", $self.$$angularControllerName);
+                                    $$app.controller(this.$$angularControllerName, function($element, $scope, $timeout, $compile, $element) {
+                                        console.log("$$controller initialed", $self.$$angularControllerName);
                                         $self.__config__.angulared = true;
                                         angular.extend($scope, $$scope);
                                         $self.__selfie__.$scope = $scope;
@@ -1731,7 +1740,9 @@
                                         $self.__config__.$$angularElement = $element;
                                         $self.trigger("angularResolved");
                                     });
-                                    element.setAttribute("ng-controller", this.$$angularModuleName + "Controller");
+                                    setTimeout(function() {
+                                        element.setAttribute("ng-controller", this.$$angularControllerName);
+                                    }.bind(this), 0);
                                     Object.defineProperty(this, "$$angular", {
                                         enumerable: false,
                                         writable: false,
@@ -1752,7 +1763,7 @@
                                     for (var i = 0; i < component.prototypes.length; ++i) {
                                         for (var p in component.prototypes[i]) {
                                             if (component.prototypes[i].hasOwnProperty(p)) {
-                                                this.__proto__[p] = this.$inject(component.prototypes[i][p]);
+                                                this[p] = this.$inject(component.prototypes[i][p]);
                                             }
                                         }
                                     }
@@ -1804,9 +1815,12 @@
                     attachedCallback: {
                         value: function() {
                             if (this.synthetic.__config__.angularInitialedStage === 1) {
-                                angular.element(this.synthetic.__selfie__.$element).ready(function() {
-                                    angular.bootstrap(this.synthetic.__selfie__.$element, [ this.synthetic.$$angularModuleName ]);
-                                }.bind(this));
+                                if ("object" !== typeof angular.element(document.body).injector()) {
+                                    console.log("bootstrap angular");
+                                    angular.element(document.body).ready(function() {
+                                        angular.bootstrap(document.body, [ "syntheticApp" ]);
+                                    }.bind(this));
+                                } else {}
                                 this.synthetic.__generateHtml__();
                             }
                             this.synthetic.trigger("attached", [ this.synthetic ]);
