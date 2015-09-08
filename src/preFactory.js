@@ -19,11 +19,11 @@ define(function() {
 			this.onAttachedCallbacks.push(callback);
 			return this;
 		},
-		dettached: function(callback) {
+		detached: function(callback) {
 			this.onDetachedCallbacks.push(callback);
 			return this;
 		},
-		attributeChanged: function() {
+		attributeChanged: function(callback) {
 			this.onAttributeChangedCallbacks.push(callback);
 			return this;
 		},

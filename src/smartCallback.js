@@ -11,6 +11,7 @@ define(function() {
 	};
 
 	return function(callback) {
+
 		var prefixedArguments = [],
 		requiredArguments = getFunctionArguments(callback.toString());
 

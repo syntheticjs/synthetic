@@ -11,25 +11,9 @@
  * https://github.com/melanke/Watch.JS
  */
 
-"use strict";
-(function (factory) {
-    if (typeof exports === 'object') {
-        // Node. Does not work with strict CommonJS, but
-        // only CommonJS-like enviroments that support module.exports,
-        // like Node.
-        module.exports = factory();
-    } else if (typeof define === 'function' && define.amd) {
-        // AMD. Register as an anonymous module.
-        define(factory);
-    } else {
-        // Browser globals
-        window.WatchJS = factory();
-        window.watch = window.WatchJS.watch;
-        window.unwatch = window.WatchJS.unwatch;
-        window.callWatchers = window.WatchJS.callWatchers;
-    }
-}(function () {
 
+define(function () {
+    "use strict";
     var WatchJS = {
         noMore: false,        // use WatchJS.suspend(obj) instead
         useDirtyCheck: false // use only dirty checking to track changes.
@@ -779,4 +763,4 @@
 
     return WatchJS;
 
-}));
+});

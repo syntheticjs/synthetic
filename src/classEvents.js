@@ -38,7 +38,7 @@ define([
 			if (typeof this.eventListners[e] != 'object') this.eventListners[e] = [];
 			
 			this.eventListners[e].push({
-				callback: smartCallback.call(this.__selfie__, callback),
+				callback: this.$inject(callback),
 				once: once||false
 			});
 
