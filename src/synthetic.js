@@ -117,7 +117,7 @@ AMD Synthet
                                 __config__.angularInitialedStage станет 2 и будет вызвано
                                 событие 'angularResolved', все watchers пройдут инициализацию
                                 */
-                                if (angular&&angular.bootstrap&&element.getAttribute("noangular")===null) {
+                                if ("object"===typeof angular&&angular.bootstrap&&element.getAttribute("noangular")===null) {
                                     var $self = this;
                                     this.__config__.angularInitialedStage = 1;
                                     this.__config__.allWaitingForResolve = 'angularResolved';
@@ -195,7 +195,7 @@ AMD Synthet
                                     for (var i = 0;i<component.prototypes.length;++i) {
                                         for (var p in component.prototypes[i]) {
                                             if (component.prototypes[i].hasOwnProperty(p)) {
-                                                this.__proto__[p] = this.$inject(component.prototypes[i][p]);
+                                                this[p] = this.$inject(component.prototypes[i][p]);
                                             }
                                         }
                                     }
