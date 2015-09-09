@@ -100,46 +100,6 @@
             return Mixin;
         };
     }(mixin);
-    Function.prototype.inherit = function() {
-        var classes = Array.prototype.slice.apply(arguments);
-        return inherit(this, classes);
-    };
-    Function.prototype.proto = function(proto) {
-        if ("object" !== typeof this.prototype) this.prototype = {
-            constructor: this
-        };
-        mixin(this.prototype, proto);
-        return this;
-    };
-    var getObjectByXPath = function() {
-        return function(start, xpath) {
-            for (var i = 0; i < xpath.length; ++i) {
-                if ("object" !== typeof start) return false;
-                if ("undefined" === typeof start[xpath[i]]) return false;
-                start = start[xpath[i]];
-            }
-            return start;
-        };
-    }();
-    var mixin2 = function() {
-        var mixinup = function(a, b) {
-            for (var i in b) {
-                if (b.hasOwnProperty(i)) {
-                    a[i] = b[i];
-                }
-            }
-            return a;
-        };
-        return function(a) {
-            var i = 1;
-            for (;i < arguments.length; i++) {
-                if ("object" === typeof arguments[i]) {
-                    mixinup(a, arguments[i]);
-                }
-            }
-            return a;
-        };
-    }();
     var classEvents = function(smartCallback) {
         var Events = function() {
             this.eventListners = {};
@@ -210,6 +170,46 @@
         };
         return Events;
     }(smartCallback);
+    Function.prototype.inherit = function() {
+        var classes = Array.prototype.slice.apply(arguments);
+        return inherit(this, classes);
+    };
+    Function.prototype.proto = function(proto) {
+        if ("object" !== typeof this.prototype) this.prototype = {
+            constructor: this
+        };
+        mixin(this.prototype, proto);
+        return this;
+    };
+    var getObjectByXPath = function() {
+        return function(start, xpath) {
+            for (var i = 0; i < xpath.length; ++i) {
+                if ("object" !== typeof start) return false;
+                if ("undefined" === typeof start[xpath[i]]) return false;
+                start = start[xpath[i]];
+            }
+            return start;
+        };
+    }();
+    var mixin2 = function() {
+        var mixinup = function(a, b) {
+            for (var i in b) {
+                if (b.hasOwnProperty(i)) {
+                    a[i] = b[i];
+                }
+            }
+            return a;
+        };
+        return function(a) {
+            var i = 1;
+            for (;i < arguments.length; i++) {
+                if ("object" === typeof arguments[i]) {
+                    mixinup(a, arguments[i]);
+                }
+            }
+            return a;
+        };
+    }();
     var watch = function() {
         "use strict";
         var WatchJS = {
@@ -974,17 +974,6 @@
             return template;
         };
     }(getObjectByXPath);
-    var angular = function() {
-        return function() {
-            if ("undefined" === typeof angular) {
-                console.error("Synthetic: Connect angularjs to work with");
-                return false;
-            }
-            angular.element(this.__selfie__.$element).ready(function() {
-                angular.bootstrap(this.__selfie__.$element, [ this.$$angularModuleName ]);
-            }.bind(this));
-        };
-    }();
     var mutagen = function(extendedQuerySelector) {
         var each = function(subject, fn) {
             for (var prop in subject) {
@@ -1100,6 +1089,22 @@
         };
     }(mixin2);
     var templateManager = function() {}.proto({});
+    var generator = function(classEvents) {
+        return function(synthet) {
+            this.synthet = synthet;
+            console.log("#bind angular resolved");
+            this.synthet.on("angularResolved", function() {
+                console.log("start wathcing dom");
+                angular.element(synthet.__selfie__.$element).scope().$watch(function() {
+                    console.log("DOM CHANGED!");
+                });
+            });
+        }.inherit(classEvents).proto({
+            $inject: function(callback) {
+                return this.synthet.$inject(callback);
+            }
+        });
+    }(classEvents);
     var WebElementPrototype = function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, angularTemplate) {
         return function() {}.inherit(classEvents).proto({
             watch: function() {
@@ -1155,6 +1160,9 @@
                     return smartCallback.call(this.__selfie__, callback);
                 }
             },
+            $apply: function(callback) {
+                return this.$inject(callback)();
+            },
             $queue: function(callback) {
                 if (this.__config__.allWaitingForResolve) {
                     this.bind(this.__config__.allWaitingForResolve, callback);
@@ -1163,26 +1171,29 @@
                 }
                 return this;
             },
-            template: function(source, engine, buildOn) {
-                console.log("WTF");
+            template: function(source, engine, moduleClass) {
                 this.__config__.generator = {
                     template: source,
                     engine: engine || "min",
-                    buildOn: buildOn || [ "created" ]
+                    buildOn: [ "created" ],
+                    moduleClass: moduleClass,
+                    module: false
                 };
                 this.__generateHtml__();
             },
             __generateHtml__: function() {
+                console.log("GENERATE HTML", this.__config__);
                 if (this.__config__.generator) {
                     switch (this.__config__.generator.engine) {
                       case "angular":
-                        if (this.__config__.angularInitialedStage > 1) {
-                            this.$inject(function($self) {
+                        if (this.__config__.$$angularInitialedStage > 1) {
+                            this.$inject(function($self, $generator) {
                                 var test = $self.__config__.$$angularCompile($self.__config__.generator.template)($self.__config__.$$angularScope);
-                                console.log("Heeeeelp!!!");
                                 $self.__config__.$$angularElement.append(test);
+                                if ($self.__config__.generator.moduleClass) {
+                                    $generator.module = new $self.__config__.generator.moduleClass($self);
+                                }
                             })();
-                            console.log("injected");
                         } else {
                             this.__selfie__.$element.innerHTML = this.__config__.generator.template;
                         }
@@ -1190,13 +1201,23 @@
 
                       case "min":
                       default:
-                        this.__selfie__.$element.innerHTML = minTemplate(this.__config__.generator.template, this.__selfie__.$scope);
+                        if (this.__config__.angularInitialedStage > 1) {
+                            this.$inject(function($self, $generator) {
+                                var test = $self.__config__.$$angularCompile($self.__config__.generator.template)($self.__config__.$$angularScope);
+                                $self.__config__.$$angularElement.append(test);
+                                if ($self.__config__.generator.moduleClass) {
+                                    $generator.module = new $self.__config__.generator.moduleClass($self);
+                                }
+                            })();
+                        } else {
+                            this.__selfie__.$element.innerHTML = this.__config__.generator.template;
+                        }
                         break;
                     }
                 }
             }
         });
-    }(getObjectByXPath, watch, smartCallback, classEvents, min, angular);
+    }(getObjectByXPath, watch, smartCallback, classEvents, min, null);
     var camelize = function() {
         return function(text) {
             return text.replace(/-([\da-z])/gi, function(all, letter) {
@@ -1647,7 +1668,7 @@
             window[HTMLElement] = Element;
         })(window, Object, "HTMLElement");
     })();
-    (function(mutagen, inherit, mixin, eventsClass, templateManager, WebElementPrototype, WatchJS, camelize, smartCallback, ComponentPreFactory) {
+    (function(mutagen, inherit, mixin, eventsClass, templateManager, GeneratorClass, WebElementPrototype, WatchJS, camelize, smartCallback, ComponentPreFactory) {
         var Synthet = function(element) {
             if ("object" !== typeof element.synthetic) {
                 return null;
@@ -1717,7 +1738,8 @@
                                         $scope: $$scope,
                                         $element: element,
                                         $self: this,
-                                        $component: component
+                                        $component: component,
+                                        $generator: new GeneratorClass(this)
                                     }
                                 });
                                 if (angular && angular.bootstrap) {
@@ -1758,7 +1780,7 @@
                                     for (var i = 0; i < component.prototypes.length; ++i) {
                                         for (var p in component.prototypes[i]) {
                                             if (component.prototypes[i].hasOwnProperty(p)) {
-                                                this.__proto__[p] = this.$inject(component.prototypes[i][p]);
+                                                this[p] = this.$inject(component.prototypes[i][p]);
                                             }
                                         }
                                     }
@@ -1855,5 +1877,5 @@
         };
         if (window) window.Synthet = window.Synthetic = Synthet;
         return Synthet;
-    })(mutagen, inherit2, mixin2, classEvents, null, WebElementPrototype, watch, camelize, smartCallback, preFactory);
+    })(mutagen, inherit2, mixin2, classEvents, null, generator, WebElementPrototype, watch, camelize, smartCallback, preFactory);
 })();

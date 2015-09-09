@@ -3,7 +3,7 @@ AMD Synthet
 */
 (function(name, depends, factory) {
 	if (define && "function"===typeof define) define(name, depends, factory);
-	
+
 })
 ("synthet", [
 	"abstudio~mutagen@0.1.10",
@@ -11,6 +11,7 @@ AMD Synthet
 	"abstudio~mixin@0.1.0",
 	"./classEvents.js",
     './templateManager.js',
+    './generator.js',
     "./WebElementPrototype.js",
     "./d3party/watchJS/watch.js",
 	"polyvitamins~polychrome@master/gist/convert/camelize.js",
@@ -18,7 +19,7 @@ AMD Synthet
     "./preFactory.js",
     "polyvitamins~polyinherit@master",
 	"./d3party/WebReflection/document-register-element.amd.js"
-], function(mutagen, inherit, mixin, eventsClass, templateManager, WebElementPrototype, WatchJS, camelize, smartCallback, ComponentPreFactory) {
+], function(mutagen, inherit, mixin, eventsClass, templateManager, GeneratorClass, WebElementPrototype, WatchJS, camelize, smartCallback, ComponentPreFactory) {
         var Synthet = function(element) {
             if ("object"!==typeof element.synthetic) {
                 return null;
@@ -51,6 +52,8 @@ AMD Synthet
                 componentFactory.construct(prototype);
             }
 
+
+
             document.registerElement(componentName, {
                 prototype: Object.create(HTMLElement.prototype, {
                     createdCallback: {
@@ -58,6 +61,7 @@ AMD Synthet
                             if (this.synthetic) return false;
                             
                             var WebElementFactory = function(element, component) {
+
                                 Object.defineProperty(this, '$element', {
                                     enumerable: false,
                                     writable: false,
@@ -101,7 +105,7 @@ AMD Synthet
                                         $element: element,
                                         $self: this,
                                         $component: component,
-                                        $generator: {}
+                                        $generator: new GeneratorClass(this),
                                     }
                                 });
                                 /*
@@ -124,7 +128,10 @@ AMD Synthet
                                 __config__.angularInitialedStage станет 2 и будет вызвано
                                 событие 'angularResolved', все watchers пройдут инициализацию
                                 */
+
+
                                 if (angular&&angular.bootstrap) {
+
                                     var $self = this;
                                     this.__config__.angularInitialedStage = 1;
                                     this.__config__.allWaitingForResolve = 'angularResolved';
@@ -145,6 +152,7 @@ AMD Synthet
                                         $self.__config__.$$angularTimeout = $timeout;
                                         $self.__config__.$$angularCompile = $compile;
                                         $self.__config__.$$angularElement = $element;
+
                                         $self.trigger('angularResolved');
                                     });
                                     element.setAttribute('ng-controller', this.$$angularModuleName+'Controller');
@@ -183,7 +191,7 @@ AMD Synthet
                                     for (var i = 0;i<component.prototypes.length;++i) {
                                         for (var p in component.prototypes[i]) {
                                             if (component.prototypes[i].hasOwnProperty(p)) {
-                                                this.__proto__[p] = this.$inject(component.prototypes[i][p]);
+                                                this[p] = this.$inject(component.prototypes[i][p]);
                                             }
                                         }
                                     }

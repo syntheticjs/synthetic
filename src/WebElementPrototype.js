@@ -4,7 +4,6 @@ define([
 	"./smartCallback.js",
 	"./classEvents.js",	
     './templaters/min.js', // Must lite templater
-    './templaters/angular.js', // Angular templater
     "polyvitamins~polyinherit@master",
 ],
 function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, angularTemplate) {
@@ -128,7 +127,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, ang
 			this.__config__.generator = {
 				template: source,
 				engine: engine||'min',
-				buildOn: buildOn||['created'],
+				buildOn: ['created'],
 				moduleClass: moduleClass,
 				module: false
 			}
@@ -139,12 +138,12 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, ang
 		Эта функция генерирует HTML
         */
         __generateHtml__ : function() {
-        	
+        	console.log('GENERATE HTML', this.__config__);
         	if (this.__config__.generator) {
         		switch(this.__config__.generator.engine) {
         			case 'angular':
 
-        				if (this.__config__.angularInitialedStage>1) {
+        				if (this.__config__.$$angularInitialedStage>1) {
         					this.$inject(function($self, $generator) {
         						
         						var test = $self.__config__.$$angularCompile($self.__config__.generator.template)($self.__config__.$$angularScope);
@@ -162,12 +161,20 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, ang
         			break;
         			case "min":
         			default:
-						this.$apply(function($element, $self, $generator, $scope) {
-							$element.innerHTML = minTemplate($self.__config__.generator.template, $scope);
-							if ($self.__config__.generator.moduleClass) {
-								$generator.module = new $self.__config__.generator.moduleClass($self);
-							}
-						});
+						if (this.__config__.angularInitialedStage>1) {
+							this.$inject(function($self, $generator) {
+
+								var test = $self.__config__.$$angularCompile($self.__config__.generator.template)($self.__config__.$$angularScope);
+
+								$self.__config__.$$angularElement.append(test);
+								if ($self.__config__.generator.moduleClass) {
+									$generator.module = new $self.__config__.generator.moduleClass($self);
+								}
+							})();
+
+						} else {
+							this.__selfie__.$element.innerHTML = this.__config__.generator.template;
+						}
 
         			break;
         		}
