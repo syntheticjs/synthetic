@@ -10,7 +10,7 @@ define(function() {
 		return [];
 	};
 
-	return function(callback) {
+	return function(callback, context) {
 		var prefixedArguments = [],
 		requiredArguments = getFunctionArguments(callback.toString());
 
@@ -23,7 +23,7 @@ define(function() {
 		}
 		
 		return function() {
-			return callback.apply(this, prefixedArguments.concat(Array.prototype.slice.call(arguments)));
+			return callback.apply(context||this, prefixedArguments.concat(Array.prototype.slice.call(arguments)));
 		}
 	}
 });

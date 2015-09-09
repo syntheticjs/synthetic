@@ -1,6 +1,6 @@
 define([
     "./classEvents.js",
-    "templaters/min.js"
+    "./templaters/min.js"
 ],
 function(classEvents, minTemplate) {
     return function(synthet) {
@@ -41,7 +41,7 @@ function(classEvents, minTemplate) {
                 } else {
                     this.$.__selfie__.$element.innerHTML = this.$.__selfie__.$element.innerHTML = minTemplate(this.configuration.template, this.$.__selfie__.$scope);
                     console.log('Change event>>', this);
-                    this.trigger("xxx");
+                    this.trigger("DOMChange");
                 }
             }
         });

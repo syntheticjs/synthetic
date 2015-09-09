@@ -3,10 +3,9 @@ define([
 	"./d3party/watchJS/watch.js",
 	"./smartCallback.js",
 	"./classEvents.js",	
-    './templaters/min.js', // Must lite templater
     "polyvitamins~polyinherit@master",
 ],
-function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate) {
+function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 	/*
 	Модифицируем стандартный classEvents
 	*/
@@ -107,7 +106,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate) {
 					});
 				}				
 			} else {
-				return smartCallback.call(this.__selfie__, callback);
+				return smartCallback.call(this.__selfie__, callback, this);
 			}
 			
 		},

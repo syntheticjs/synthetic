@@ -26,7 +26,7 @@
             }
             return [];
         };
-        return function(callback) {
+        return function(callback, context) {
             var prefixedArguments = [], requiredArguments = getFunctionArguments(callback.toString());
             for (var i = 0; i < requiredArguments.length; ++i) {
                 if (this.hasOwnProperty(requiredArguments[i]) && "object" === typeof this[requiredArguments[i]]) {
@@ -34,18 +34,8 @@
                 }
             }
             return function() {
-                return callback.apply(this, prefixedArguments.concat(Array.prototype.slice.call(arguments)));
+                return callback.apply(context || this, prefixedArguments.concat(Array.prototype.slice.call(arguments)));
             };
-        };
-    }();
-    var getObjectByXPath = function() {
-        return function(start, xpath) {
-            for (var i = 0; i < xpath.length; ++i) {
-                if ("object" !== typeof start) return false;
-                if ("undefined" === typeof start[xpath[i]]) return false;
-                start = start[xpath[i]];
-            }
-            return start;
         };
     }();
     var inherit = function(mixin) {
@@ -191,24 +181,16 @@
         mixin(this.prototype, proto);
         return this;
     };
-    var min = function(getObjectByXPath) {
-        var each = function(subject, fn) {
-            for (var prop in subject) {
-                if (subject.hasOwnProperty(prop)) {
-                    fn.call(subject, subject[prop], prop);
-                }
+    var getObjectByXPath = function() {
+        return function(start, xpath) {
+            for (var i = 0; i < xpath.length; ++i) {
+                if ("object" !== typeof start) return false;
+                if ("undefined" === typeof start[xpath[i]]) return false;
+                start = start[xpath[i]];
             }
-        }, regPlaceholder = /\{\{([^\} ]*)\}\}/gi;
-        return function(tpl, data, preProcessor, postProcessor) {
-            var template = tpl, matches = template.match(regPlaceholder);
-            if (matches !== null) matches.forEach(function(dph) {
-                regPlaceholder.lastIndex = 0;
-                var placeholderData = regPlaceholder.exec(dph), placeholder = placeholderData[1];
-                template = template.replace(dph, getObjectByXPath(data, placeholder.split(".")));
-            });
-            return template;
+            return start;
         };
-    }(getObjectByXPath);
+    }();
     var mixin2 = function() {
         var mixinup = function(a, b) {
             for (var i in b) {
@@ -818,214 +800,24 @@
         WatchJS.onChange = trackChange;
         return WatchJS;
     }();
-    var querySelector = function() {
-        (function() {
-            if (!HTMLElement.prototype.querySelectorAll) {
-                throw new Error("rootedQuerySelectorAll: This polyfill can only be used with browsers that support querySelectorAll");
-            }
-            var container = document.createElement("div");
-            try {
-                container.querySelectorAll(":scope *");
-            } catch (e) {
-                var scopeRE = /^\s*:scope/gi;
-                function overrideNodeMethod(prototype, methodName) {
-                    var oldMethod = prototype[methodName];
-                    prototype[methodName] = function(query) {
-                        var nodeList, gaveId = false, gaveContainer = false;
-                        if (query.match(scopeRE)) {
-                            query = query.replace(scopeRE, "");
-                            if (!this.parentNode) {
-                                container.appendChild(this);
-                                gaveContainer = true;
-                            }
-                            parentNode = this.parentNode;
-                            if (!this.id) {
-                                gaveId = this.attributeChangedCallback || true;
-                                this.attributeChangedCallback = false;
-                                this.id = "rootedQuerySelector_id_" + new Date().getTime();
-                            }
-                            nodeList = oldMethod.call(parentNode, "#" + this.id + " " + query);
-                            if (gaveId) {
-                                this.id = "";
-                                if ("function" === typeof gaveId) this.attributeChangedCallback = gaveId;
-                                gaveId = null;
-                            }
-                            if (gaveContainer) {
-                                container.removeChild(this);
-                            }
-                            return nodeList;
-                        } else {
-                            return oldMethod.call(this, query);
-                        }
-                    };
-                }
-                overrideNodeMethod(HTMLElement.prototype, "querySelector");
-                overrideNodeMethod(HTMLElement.prototype, "querySelectorAll");
-            }
-        })();
-        var regPseudoClasssDt = /:(eq|nth\-child)\(([0-9n\+ ]+)\)/gi, queryExpr = /<([a-zA-Z0-9_]+) \/>/i, argsExpr = /\[([a-zA-Z0-9_\-]*)[ ]?=([ ]?[^\]]*)\]/i, psopi = {
-            eq: function(elements, attrs) {
-                var index;
-                if (!isNaN(index = parseInt(attrs[2]))) {
-                    return [ index < 0 && index * -1 < elements.length ? elements[elements.length - index] : index < elements.length ? elements[index] : [] ];
-                } else {
-                    return [];
-                }
-            },
-            "nth-child": function(elements, attrs) {
-                var n = false, i = 0, rec = [], index;
-                if (!isNaN(index = parseInt(attrs[2]))) {
-                    n = attrs[2].indexOf("n") >= 0;
-                    for (;i < elements.length; i++) {
-                        if (!n && i === index) rec.push(elements[i]);
-                        if (n && i % index === 0) rec.push(elements[i]);
-                    }
-                } else {
-                    return [];
-                }
-                return rec;
-            }
-        }, pseusoSelect = function(elements, selector) {
-            var psop = regPseudoClasssDt.exec(selector);
-            if ("function" !== typeof psopi[psop[1]]) {
-                return [];
-            } else {
-                return psopi[psop[1]](elements, psop);
-            }
-        }, queryFinder = function(query, root) {
-            var prefix;
-            root && root instanceof HTMLElement ? prefix = ":scope " : prefix = "";
-            switch (typeof query) {
-              case "string":
-                var queryExpr = /<([a-zA-Z0-9_]+) \/>/i, argsExpr = /\[([a-zA-Z0-9_\-]*)[ ]?=([ ]?[^\]]*)\]/i;
-                if (query.indexOf("[") > -1 && argsExpr.exec(query)) {
-                    var patch = true;
-                    query = query.replace(argsExpr, '[$1="$2"]');
-                }
-                if (queryExpr.exec(query) === null) {
-                    if (query.length === 0) return new Array();
-                    try {
-                        return root.querySelectorAll(prefix + query);
-                    } catch (e) {
-                        regPseudoClasssDt.lastIndex = 0;
-                        if (regPseudoClasssDt.test(query) == true) {
-                            var ps = query.match(regPseudoClasssDt)[0];
-                            return pseusoSelect(queryFinder(query.replace(regPseudoClasssDt, ""), root), ps);
-                        } else {
-                            console.log(e);
-                            throw "querySelectorAll not support query: " + query;
-                        }
-                    }
-                } else {
-                    return [ document.createElement(result[1].toUpperCase()) ];
-                }
-                ;
-                break;
-
-              case "function":
-                return [];
-                break;
-
-              case "object":
-                if (query instanceof Array) {
-                    return query;
-                }
-                if (query === null) {
-                    return [];
-                } else {
-                    if (query == window) {
-                        return [ query ];
-                    } else if (query.jquery) {
-                        var elements = [];
-                        for (var j = 0; j < query.length; j++) elements.push(query[j]);
-                        return elements;
-                    } else if (query.brahma) {
-                        var elements = [];
-                        for (var j = 0; j < query.length; j++) elements.push(query[j]);
-                        return elements;
-                    } else {
-                        return [ query ];
-                    }
-                }
-                break;
-
-              case "undefined":
-              default:
-                return [ query ];
-                break;
-            }
-        };
-        return function(query, root) {
-            var root = root || document, roots = [];
-            if (root instanceof NodeList || root instanceof Array) {
-                roots = Array.prototype.slice.apply(root);
-            } else {
-                roots = [ root ];
-            }
-            var stack = [];
-            for (var i = 0; i < roots.length; ++i) {
-                var response = queryFinder(query, roots[i]);
-                if (("object" === typeof response || "function" === typeof response) && "number" === typeof response.length) {
-                    for (var r = 0; r < response.length; ++r) {
-                        stack.push(response[r]);
-                    }
-                }
-            }
-            return stack;
-        };
-    }();
-    var mutagen = function(extendedQuerySelector) {
+    var min = function(getObjectByXPath) {
         var each = function(subject, fn) {
             for (var prop in subject) {
                 if (subject.hasOwnProperty(prop)) {
                     fn.call(subject, subject[prop], prop);
                 }
             }
-        }, regPlaceholder = /\{\{([^\} \.]*)([\.~a-zA-Z0-9_]*)\}\}/gi;
-        var Mutagen = function(htmlElement, preProcessor, postProcessor) {
-            var template = this, matches = template.match(regPlaceholder), replacings = {};
-            if ("function" === typeof preProcessor) preProcessor.call(htmlElement, replacings);
+        }, regPlaceholder = /\{\{([^\} ]*)\}\}/gi;
+        return function(tpl, data, preProcessor, postProcessor) {
+            var template = tpl, matches = template.match(regPlaceholder);
             if (matches !== null) matches.forEach(function(dph) {
                 regPlaceholder.lastIndex = 0;
-                var placeholderData = regPlaceholder.exec(dph), placeholder = placeholderData[1], keyname = placeholderData[2] !== "" ? placeholderData[2].substr(1) : "innerHTML";
-                if ("undefined" !== typeof replacings[placeholder]) return true;
-                replacings[dph] = replacings[dph] || "";
-                if (placeholder === "content") {
-                    replacings[dph] = htmlElement.innerHTML;
-                } else {
-                    var elements = placeholder === "" ? [ htmlElement ] : extendedQuerySelector(placeholder, htmlElement);
-                    if (elements) {
-                        if ("undefined" !== typeof elements[0]) {
-                            if (keyname.substr(0, 1) === "~") {
-                                keyname = keyname.substr(1);
-                                replacings[dph] = "";
-                                for (var z = 0; z < elements[0].attributes.length; z++) {
-                                    if (elements[0].attributes[z].name === keyname) {
-                                        replacings[dph] = elements[0].attributes[z].value;
-                                        break;
-                                    }
-                                }
-                            } else if ("undefined" !== typeof elements[0][keyname]) {
-                                replacings[dph] = elements[0][keyname];
-                            } else {
-                                replacings[dph] = "undefined";
-                            }
-                        } else {
-                            replacings[dph] = replacings[dph] || "";
-                        }
-                    }
-                }
+                var placeholderData = regPlaceholder.exec(dph), placeholder = placeholderData[1];
+                template = template.replace(dph, getObjectByXPath(data, placeholder.split(".")));
             });
-            each(replacings, function(content, ph) {
-                template = template.replace(ph, content);
-            });
-            if ("function" === typeof postProcessor) postProcessor.call(htmlElement, template);
-            htmlElement.innerHTML = template;
             return template;
         };
-        Mutagen.query = extendedQuerySelector;
-        return Mutagen;
-    }(querySelector);
+    }(getObjectByXPath);
     var inherit2 = function(mixin) {
         return function(aClass, classes) {
             if (!(classes instanceof Array)) classes = [ classes ];
@@ -1121,12 +913,12 @@
                 } else {
                     this.$.__selfie__.$element.innerHTML = this.$.__selfie__.$element.innerHTML = minTemplate(this.configuration.template, this.$.__selfie__.$scope);
                     console.log("Change event>>", this);
-                    this.trigger("xxx");
+                    this.trigger("DOMChange");
                 }
             }
         });
     }(classEvents, min);
-    var WebElementPrototype = function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate) {
+    var WebElementPrototype = function(getObjectByXPath, watchJS, smartCallback, classEvents) {
         return function() {}.inherit(classEvents).proto({
             watch: function() {
                 if (this.__config__.allWaitingForResolve) {
@@ -1182,7 +974,7 @@
                         });
                     };
                 } else {
-                    return smartCallback.call(this.__selfie__, callback);
+                    return smartCallback.call(this.__selfie__, callback, this);
                 }
             },
             $queue: function(callback) {
@@ -1202,7 +994,7 @@
             },
             $destroy: function() {}
         });
-    }(getObjectByXPath, watch, smartCallback, classEvents, min);
+    }(getObjectByXPath, watch, smartCallback, classEvents);
     var camelize = function() {
         return function(text) {
             return text.replace(/-([\da-z])/gi, function(all, letter) {
@@ -1654,7 +1446,7 @@
             window[HTMLElement] = Element;
         })(window, Object, "HTMLElement");
     })();
-    (function(mutagen, inherit, mixin, eventsClass, templateManager, Generator, WebElementPrototype, WatchJS, camelize, smartCallback, ComponentPreFactory) {
+    (function(inherit, mixin, eventsClass, templateManager, Generator, WebElementPrototype, WatchJS, camelize, smartCallback, ComponentPreFactory) {
         var Synthetic = function(element) {
             if ("object" !== typeof element.synthetic) {
                 return null;
@@ -1814,6 +1606,11 @@
                                             }
                                         }
                                     }
+                                    this.trigger("created", [ WebElement ]);
+                                    this.__config__.createdEventFires = true;
+                                    for (var i = 0; i < component.conceivedCallers.length; ++i) {
+                                        this[component.conceivedCallers[i][0]].apply(this, component.conceivedCallers[i][1]);
+                                    }
                                     if (this.__config__.createdEventFires) {
                                         for (var i = 0; i < component.onCreatedCallbacks.length; ++i) {
                                             this.$inject(component.onCreatedCallbacks[i])();
@@ -1842,11 +1639,6 @@
                                         this.watch.apply(this, component.watchers[i]);
                                     }
                                 });
-                                for (var i = 0; i < component.conceivedCallers.length; ++i) {
-                                    this[component.conceivedCallers[i][0]].apply(this, component.conceivedCallers[i][1]);
-                                }
-                                this.trigger("created", [ WebElement ]);
-                                this.__config__.createdEventFires = true;
                             }.inherit(WebElementPrototype);
                             for (var i = 0; i < componentFactory.constructors.length; ++i) {
                                 WebElementFactory.inherit(componentFactory.constructors[i]);
@@ -1902,5 +1694,5 @@
         };
         if (window) window.Synthet = window.Synthetic = Synthetic;
         return Synthet;
-    })(mutagen, inherit2, mixin2, classEvents, null, generator, WebElementPrototype, watch, camelize, smartCallback, preFactory);
+    })(inherit2, mixin2, classEvents, null, generator, WebElementPrototype, watch, camelize, smartCallback, preFactory);
 })();

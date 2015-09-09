@@ -6,7 +6,6 @@ AMD Synthet
 	
 })
 ("synthet", [
-	"abstudio~mutagen@0.1.10",
     "abstudio~inherit@0.1.4",
 	"abstudio~mixin@0.1.0",
 	"./classEvents.js",
@@ -19,7 +18,7 @@ AMD Synthet
     "./preFactory.js",
     "polyvitamins~polyinherit@master",
 	"./d3party/WebReflection/document-register-element.amd.js"
-], function(mutagen, inherit, mixin, eventsClass, templateManager, Generator, WebElementPrototype, WatchJS, camelize, smartCallback, ComponentPreFactory) {
+], function(inherit, mixin, eventsClass, templateManager, Generator, WebElementPrototype, WatchJS, camelize, smartCallback, ComponentPreFactory) {
         var Synthetic = function(element) {
             if ("object"!==typeof element.synthetic) {
                 return null;
@@ -311,6 +310,8 @@ AMD Synthet
                                     this.__selfie__.$scope.properties[camelize(element.attributes[z].name.substr(5))] = element.attributes[z].value;
                                 }
 
+
+
                                 this.$queue(function() {
 
                                     /*
@@ -324,16 +325,28 @@ AMD Synthet
                                         }
                                     }
 
+                                    this.trigger("created", [ WebElement ]);
+                                    this.__config__.createdEventFires = true;
+
+                                    /*
+                                    Component conceived methods
+                                    */
+                                    for (var i = 0;i<component.conceivedCallers.length;++i) {
+                                        this[component.conceivedCallers[i][0]].apply(this, component.conceivedCallers[i][1]);
+                                    }
+
                                     /*
                                     Поочередно вызываем функции для события created (если created уже был)
                                     */
                                     if (this.__config__.createdEventFires) {
-
+                                        
                                         for (var i = 0;i<component.onCreatedCallbacks.length;++i) {
+                                            
                                             this.$inject(component.onCreatedCallbacks[i])();
                                         }
                                     } else {
                                         for (var i = 0;i<component.onCreatedCallbacks.length;++i) {
+
                                             this.on("created", component.onCreatedCallbacks[i]);
                                         }
                                     }
@@ -372,20 +385,6 @@ AMD Synthet
                                         this.watch.apply(this, component.watchers[i]);
                                     }
                                 });
-
-                                /*
-                                Component conceived methods
-                                */
-                                for (var i = 0;i<component.conceivedCallers.length;++i) {
-                                    this[component.conceivedCallers[i][0]].apply(this, component.conceivedCallers[i][1]);
-                                }
-
-
-
-                                this.trigger("created", [ WebElement ]);
-                                this.__config__.createdEventFires = true;
-
-                               
 
                             }.inherit(WebElementPrototype);
 
