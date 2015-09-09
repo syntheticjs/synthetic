@@ -69,12 +69,16 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, ang
 			var watchFabric = function(rprops, wobject, prop) {
 				
 				if ("undefined"===typeof wobject[prop]) wobject[prop] = false;
-				if (self.__config__.angulared) {
-					
-					angular.element(self.__selfie__.$element).scope().$watch(rprops.join('.'), function(newValue) {
+				if (Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
+					try {
+						angular.element(self.__selfie__.$element).scope().$watch(rprops.join('.'), function(newValue) {
+							
+							this.call(self, false, 'set', newValue);						
+						}.bind(getDatas(requiredProperties, rprops)));
+					} catch(e) {
+						console.error('Errors', self.__config__.$$angularInitialedStage);
 						
-						this.call(self, false, 'set', newValue);						
-					}.bind(getDatas(requiredProperties, rprops)));
+					}
 				} else {
 					watchJS.watch(
 						wobject, 
@@ -95,7 +99,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, ang
 		В случае интеграции с angularjs функция так же обертывается в $timeout
 		*/
 		$inject: function(callback) {
-			if (this.__config__.angulared&&this.__config__.$$angularScope) {
+			if (Synthetic.$$angularApp&&this.__config__.$$angularScope) {
 				var self = this;
 				return function() {
 					var nargs = Array.prototype.slice.apply(arguments),context=this;
@@ -114,6 +118,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, ang
 		*/
 		$queue: function(callback) {
 			if (this.__config__.allWaitingForResolve) {
+				console.log('Add to resolve waiter', this.__config__.allWaitingForResolve);
 				this.bind(this.__config__.allWaitingForResolve, callback);
 			} else {
 				callback.apply(this);
@@ -139,14 +144,14 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, ang
         		switch(this.__config__.generator.engine) {
         			case 'angular':
 
-        				if (this.__config__.angularInitialedStage>1) {
+        				if (this.__config__.$$angularInitialedStage>1) {
         					this.$inject(function($self) {
         						
         						var test = $self.__config__.$$angularCompile($self.__config__.generator.template)($self.__config__.$$angularScope);
         						$self.__config__.$$angularElement.append(test);
         					})();
 
-        					console.log('injected');
+        					console.log('injected', this.__config__.generator.template);
         					
         				} else {
         					this.__selfie__.$element.innerHTML = this.__config__.generator.template;

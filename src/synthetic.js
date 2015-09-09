@@ -19,23 +19,41 @@ AMD Synthet
     "polyvitamins~polyinherit@master",
 	"./d3party/WebReflection/document-register-element.amd.js"
 ], function(mutagen, inherit, mixin, eventsClass, templateManager, WebElementPrototype, WatchJS, camelize, smartCallback, ComponentPreFactory) {
-        var Synthet = function(element) {
+        var Synthetic = function(element) {
             if ("object"!==typeof element.synthetic) {
                 return null;
             }
             return element.synthetic;
         };
 
-        Synthet.prototype = {
-            construct: Synthet
+        Synthetic.prototype = {
+            construct: Synthetic
         };
 
-        Synthet.hasPropertySubKey = function(property, subkey) {
+        /*
+        CHARGE IT BY EVENT EMITTER * * * * *
+        Синтетик генерирует глоабальные события, такие как angularResolved
+        */
+        for (var prop in eventsClass.prototype) {
+            if (eventsClass.prototype.hasOwnProperty(prop)&&"function"===typeof eventsClass.prototype[prop]) {
+                Synthetic[prop] = eventsClass.prototype[prop];
+            }
+        }
+        eventsClass.call(Synthetic);
+        /*
+        * * * * * * * * * * * * * * * * * *
+        */
+
+        Synthetic.log = function() {
+            
+        }
+
+        Synthetic.hasPropertySubKey = function(property, subkey) {
             if (!("string"===typeof property||property instanceof Array)) return false;
             return !!~("string"===typeof property?property.replace(' ','').split(','):property).indexOf(subkey);
         }
 
-        Synthet.createComponent = function(componentName, constructor) {
+        Synthetic.createComponent = function(componentName, constructor) {
             if (componentName.indexOf("-") < 0) throw "Module name must have `-` symbol";
 
             var componentFactory = new ComponentPreFactory({
@@ -71,10 +89,10 @@ AMD Synthet
                                     writable: false,
                                     configurable: true,
                                     value: {
-                                        generator: false,
-                                        angulared: false,
                                         allWaitingForResolve: false,
+                                        generator: false,
                                         $$angularScope: false,
+                                        $$angularInitialedStage: 0,
                                         createdEventFires: false,
                                         attachedEventFires: false
                                     }
@@ -107,46 +125,141 @@ AMD Synthet
                                 Имя контроллера >> this.$$angularModuleName+'Controller'
 
                                 Когда происходит инициализация экземпляр получается состояние
-                                __config__.angularInitialedStage = 1 и 
+                                __config__.$$angularInitialedStage = 1 и 
                                 __config__.allWaitingForResolve = 'angularResolved';
 
                                 При этом все слушатели событий будут задержаны до 
                                 инициализации $scope от angular, а произойдет это при 
                                 attached.
                                 Когда инициализация $scope от angular произойдет состояние
-                                __config__.angularInitialedStage станет 2 и будет вызвано
+                                __config__.$$angularInitialedStage станет 2 и будет вызвано
                                 событие 'angularResolved', все watchers пройдут инициализацию
                                 */
                                 if ("object"===typeof angular&&angular.bootstrap&&element.getAttribute("noangular")===null) {
                                     var $self = this;
-                                    this.__config__.angularInitialedStage = 1;
-                                    this.__config__.allWaitingForResolve = 'angularResolved';
+                                    
                                     this.$$angularControllerName = 'singular'+(new Date()).getTime()+Math.round(Math.random()*10000);
+                                     /*
+                                    Set element angular integration stage
+                                    */
+                                    this.__config__.$$angularInitialedStage = 1;
+                                    /*
+                                    Set element waiting for `angularResolved` 
+                                    */
+                                    this.__config__.allWaitingForResolve = 'angularResolved';
 
                                     /* Creates angular app if not exists. Why i'm speaking english??? */
                                     
                                     if ("undefined"===typeof Synthetic.$$angularApp) {
-                                        console.log('$$configure angular app');
-                                        Synthetic.$$angularApp = angular.module('syntheticApp', [], function($compile) {
-                                            console.log('$$init angular app', $compile);
-                                            this.__config__.angularInitialedStage = 3;
-                                            
-                                            
+                                        Synthetic.log('$$configure angular app');
+                                       
+                                        
+                                        /*
+                                        Creates new angular app
+                                        */
+                                        Synthetic.$$angularApp = angular.module('syntheticApp', [], function() {
+                                                                                        
                                         }.bind(this));
+
+                                        /*
+                                        Этот чанк поможет разрешить проблему постинициализации контроллеров angular
+                                        */
+                                        // After the AngularJS has been bootstrapped, you can no longer
+                                        // use the normal module methods (ex, app.controller) to add
+                                        // components to the dependency-injection container. Instead, 
+                                        // you have to use the relevant providers. Since those are only
+                                        // available during the config() method at initialization time,
+                                        // we have to keep a reference to them.
+                                        // --
+                                        // NOTE: This general idea is based on excellent article by 
+                                        // Ifeanyi Isitor: http://ify.io/lazy-loading-in-angularjs/
+                                        Synthetic.$$angularApp.config(
+                                            function( $controllerProvider, $provide, $compileProvider ) {
+
+                                                // Since the "shorthand" methods for component 
+                                                // definitions are no longer valid, we can just 
+                                                // override them to use the providers for post-
+                                                // bootstrap loading.
+
+                                                // Let's keep the older references.
+                                                Synthetic.$$angularApp._controller = Synthetic.$$angularApp.controller;
+                                                Synthetic.$$angularApp._service = Synthetic.$$angularApp.service;
+                                                Synthetic.$$angularApp._factory = Synthetic.$$angularApp.factory;
+                                                Synthetic.$$angularApp._value = Synthetic.$$angularApp.value;
+                                                Synthetic.$$angularApp._directive = Synthetic.$$angularApp.directive;
+
+                                                // Provider-based controller.
+                                                Synthetic.$$angularApp.controller = function( name, constructor ) {
+
+                                                    $controllerProvider.register( name, constructor );
+                                                    return( this );
+
+                                                };
+                                                
+                                                // Provider-based service.
+                                                Synthetic.$$angularApp.service = function( name, constructor ) {
+
+                                                    $provide.service( name, constructor );
+                                                    return( this );
+
+                                                };
+
+                                                // Provider-based factory.
+                                                Synthetic.$$angularApp.factory = function( name, factory ) {
+
+                                                    $provide.factory( name, factory );
+                                                    return( this );
+
+                                                };
+
+                                                // Provider-based value.
+                                                Synthetic.$$angularApp.value = function( name, value ) {
+
+                                                    $provide.value( name, value );
+                                                    return( this );
+
+                                                };
+
+                                                // Provider-based directive.
+                                                Synthetic.$$angularApp.directive = function( name, factory ) {
+
+                                                    $compileProvider.directive( name, factory );
+                                                    return( this );
+
+                                                };
+
+                                                // NOTE: You can do the same thing with the "filter"
+                                                // and the "$filterProvider"; but, I don't really use
+                                                // custom filters.
+
+                                            }
+                                        );
+                                        
+                                        /*
+                                        * * * * * * * * * * * * *
+                                        *  Angular bootstraping * =================| 
+                                        * * * * * * * * * * * * *
+                                        */
+                                        if ("object"!==typeof angular.element(document.body).injector()) {
+                                            angular.element(document.body).ready(function() {
+                                              angular.bootstrap(document.body, 
+                                                ['syntheticApp']);
+                                            }.bind(this));
+                                        }
                                     }
                                     
                                     var $$app = Synthetic.$$angularApp;
-                                    console.log('$$controller registred', $self.$$angularControllerName);
+                                    element.setAttribute('ng-controller', this.$$angularControllerName);
+                                    Synthetic.log('$$controller registred', $self.$$angularControllerName);
                                     $$app.controller(this.$$angularControllerName, 
                                         function ($element, $scope, $timeout, $compile, $element) {
-                                        console.log('$$controller initialed', $self.$$angularControllerName);
-                                        $self.__config__.angulared = true;
+                                        Synthetic.log('$$controller initialed', $self.$$angularControllerName);
+                                        
                                         angular.extend($scope, $$scope);
                                         $self.__selfie__.$scope = $scope;
 
-                                        $self.__config__.angularInitialedStage = 2;
+                                        $self.__config__.$$angularInitialedStage = 2;
                                         $self.__config__.allWaitingForResolve = false;
-                                        
 
                                         $self.__config__.$$angularScope = angular.element($self.__selfie__.$element).scope();
                                         $self.__config__.$$angularTimeout = $timeout;
@@ -157,9 +270,7 @@ AMD Synthet
                                     });
                                     
                                     
-                                    setTimeout(function() {
-                                        element.setAttribute('ng-controller', this.$$angularControllerName);
-                                    }.bind(this), 0);
+                                   
                                    
                                     Object.defineProperty(this, '$$angular', {
                                         enumerable: false,
@@ -188,7 +299,7 @@ AMD Synthet
                                 }
 
                                 this.$queue(function() {
-
+                                    Synthetic.log('Resolve all');
                                     /*
                                     Преобраузем пользователський прототип c внедрением селфи аргументов
                                     */
@@ -240,6 +351,13 @@ AMD Synthet
                                     for (var i = 0;i<component.onAttributeChangedCallbacks.length;++i) {
                                         this.on("attributeChanged", component.onAttributeChangedCallbacks[i]);
                                     }
+
+                                    /*
+                                    Переносим наблюдение за scope
+                                    */                                
+                                    for (var i = 0;i<component.watchers.length;++i) {
+                                        this.watch.apply(this, component.watchers[i]);
+                                    }
                                 });
 
                                 /*
@@ -256,12 +374,7 @@ AMD Synthet
                                 this.trigger("created", [ WebElement ]);
                                 this.__config__.createdEventFires = true;
 
-                                /*
-                                Переносим наблюдение за scope
-                                */                                
-                                for (var i = 0;i<component.watchers.length;++i) {
-                                    this.watch.apply(this, component.watchers[i]);
-                                }
+                               
 
                             }.inherit(WebElementPrototype);
 
@@ -276,24 +389,16 @@ AMD Synthet
                     },
                     attachedCallback: {
                         value: function() {
-                            if (this.synthetic.__config__.angularInitialedStage===1) {
+                            Synthetic.log(this.synthetic.__config__.$$angularInitialedStage);
+                            if (this.synthetic.__config__.$$angularInitialedStage===1) {
                                 /*
-                                Бутстрапинг для angularjs. При бутстрапинге angular
-                                состояние __config__.angularInitialedStage принимает значение 2,
-                                и вызывается событие anglarResolved, которое слушают все задержанные методы.
-                                
-                                Состояние __config__.allWaitingForResolve диактивируется.
+                                Angular bootstraping
                                 */
-                                if ("object"!==typeof angular.element(document.body).injector()) {
-                                    console.log('bootstrap angular');
-                                    angular.element(document.body).ready(function() {
-                                      angular.bootstrap(document.body, 
-                                        ['syntheticApp']);
-                                    }.bind(this));
-                                } else {
+                                 
+
                                     // To resove this faka staff, i found this 
                                     // view-source:http://bennadel.github.io/JavaScript-Demos/demos/loading-angularjs-after-bootstrap/
-                                }
+                                
 
                                 this.synthetic.__generateHtml__();
                             }
@@ -312,7 +417,7 @@ AMD Synthet
                         enumerable: true,
                         value: function(name, previousValue, value) {
                             
-                            if (this.synthetic.__config__.angulared) {
+                            if ("object"===typeof Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage>1) {
                                 if (previousValue !== value) {
                                     angular.element(this.synthetic.__selfie__.$element).scope().$apply(function() {
                                         this.synthetic.__selfie__.$scope.attributes[camelize(name)] = value;
@@ -344,7 +449,7 @@ AMD Synthet
             return componentFactory;
         }
 
-        if (window) window.Synthet = window.Synthetic = Synthet;
+        if (window) window.Synthet = window.Synthetic = Synthetic;
         return Synthet;
 
 });
