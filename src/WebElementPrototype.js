@@ -4,10 +4,9 @@ define([
 	"./smartCallback.js",
 	"./classEvents.js",	
     './templaters/min.js', // Must lite templater
-    './templaters/angular.js', // Angular templater
     "polyvitamins~polyinherit@master",
 ],
-function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, angularTemplate) {
+function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate) {
 	/*
 	Модифицируем стандартный classEvents
 	*/
@@ -117,52 +116,24 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, ang
 		готов принимать обработчики и вочеры.
 		*/
 		$queue: function(callback) {
+
 			if (this.__config__.allWaitingForResolve) {
 				console.log('Add to resolve waiter', this.__config__.allWaitingForResolve);
 				this.bind(this.__config__.allWaitingForResolve, callback);
 			} else {
+
 				callback.apply(this);
 			}
 			return this;
 		},
-		template: function(source, engine, buildOn) {
-			console.log('WTF');
-			this.__config__.generator = {
-				template: source,
-				engine: engine||'min',
-				buildOn: buildOn||['created']
-			}
-			
-			this.__generateHtml__();
+		$apply: function(callback){
+			this.$inject(callback)();
 		},
-        /*
-		Эта функция генерирует HTML
-        */
-        __generateHtml__ : function() {
-        	
-        	if (this.__config__.generator) {
-        		switch(this.__config__.generator.engine) {
-        			case 'angular':
-
-        				if (this.__config__.$$angularInitialedStage>1) {
-        					this.$inject(function($self) {
-        						
-        						var test = $self.__config__.$$angularCompile($self.__config__.generator.template)($self.__config__.$$angularScope);
-        						$self.__config__.$$angularElement.append(test);
-        					})();
-
-        					console.log('injected', this.__config__.generator.template);
-        					
-        				} else {
-        					this.__selfie__.$element.innerHTML = this.__config__.generator.template;
-        				}
-        			break;
-        			case "min":
-        			default:
-        				this.__selfie__.$element.innerHTML = minTemplate(this.__config__.generator.template, this.__selfie__.$scope);
-        			break;
-        		}
-        	}
-        }
+		$template: function(content) {
+			this.__selfie__.$generator.template(content);
+		},
+		$destroy: function() {
+			// Сделать!///
+		}
 	});
 });

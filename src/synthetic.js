@@ -11,6 +11,7 @@ AMD Synthet
 	"abstudio~mixin@0.1.0",
 	"./classEvents.js",
     './templateManager.js',
+    './generator.js',
     "./WebElementPrototype.js",
     "./d3party/watchJS/watch.js",
 	"polyvitamins~polychrome@master/gist/convert/camelize.js",
@@ -18,7 +19,7 @@ AMD Synthet
     "./preFactory.js",
     "polyvitamins~polyinherit@master",
 	"./d3party/WebReflection/document-register-element.amd.js"
-], function(mutagen, inherit, mixin, eventsClass, templateManager, WebElementPrototype, WatchJS, camelize, smartCallback, ComponentPreFactory) {
+], function(mutagen, inherit, mixin, eventsClass, templateManager, Generator, WebElementPrototype, WatchJS, camelize, smartCallback, ComponentPreFactory) {
         var Synthetic = function(element) {
             if ("object"!==typeof element.synthetic) {
                 return null;
@@ -53,12 +54,21 @@ AMD Synthet
             return !!~("string"===typeof property?property.replace(' ','').split(','):property).indexOf(subkey);
         }
 
-        Synthetic.createComponent = function(componentName, constructor) {
-            if (componentName.indexOf("-") < 0) throw "Module name must have `-` symbol";
+        Synthetic.createComponent = function(componentOptions, constructor) {
 
-            var componentFactory = new ComponentPreFactory({
-                constructor: constructor
-            }),
+            var defaultOptions = {
+                tagName: '',
+                engine: 'sinthezia'
+            };
+
+            componentOptions = "string"!==typeof componentOptions ?
+            mixin(defaultOptions, componentOptions) : mixin(defaultOptions, {
+                tagName: componentOptions
+            });
+
+            if (componentOptions.tagName.indexOf("-") < 0) throw "Module name must have `-` symbol";
+
+            var componentFactory = new ComponentPreFactory(componentOptions),
             prototype = smartCallback.call({
                 $component: componentFactory
             }, constructor)();
@@ -69,13 +79,15 @@ AMD Synthet
                 componentFactory.construct(prototype);
             }
 
-            document.registerElement(componentName, {
+            document.registerElement(componentOptions.tagName, {
                 prototype: Object.create(HTMLElement.prototype, {
                     createdCallback: {
                         value: function() {
                             if (this.synthetic) return false;
-                            
+
                             var WebElementFactory = function(element, component) {
+
+
 
                                 Object.defineProperty(element, 'synthetic', {
                                     enumerable: false,
@@ -112,7 +124,8 @@ AMD Synthet
                                         $scope: $$scope,
                                         $element: element,
                                         $self: this,
-                                        $component: component
+                                        $component: component,
+                                        $generator: new Generator(this)
                                     }
                                 });
                                 /*
@@ -135,7 +148,7 @@ AMD Synthet
                                 __config__.$$angularInitialedStage станет 2 и будет вызвано
                                 событие 'angularResolved', все watchers пройдут инициализацию
                                 */
-                                if ("object"===typeof angular&&angular.bootstrap&&element.getAttribute("noangular")===null) {
+                                if ("object"===typeof angular&&angular.bootstrap&&component.options.engine==='angular') {
                                     var $self = this;
                                     
                                     this.$$angularControllerName = 'singular'+(new Date()).getTime()+Math.round(Math.random()*10000);
@@ -299,7 +312,7 @@ AMD Synthet
                                 }
 
                                 this.$queue(function() {
-                                    Synthetic.log('Resolve all');
+
                                     /*
                                     Преобраузем пользователський прототип c внедрением селфи аргументов
                                     */
@@ -361,15 +374,13 @@ AMD Synthet
                                 });
 
                                 /*
-                                Проверяем наличие генератора
+                                Component conceived methods
                                 */
-                                if ("object"===typeof component.generator) {
-                                    this.__config__.generator = mixin({
-                                        "template": "",
-                                        "engine": "min",
-                                        "buildOn": ["create"]
-                                    }, component.generator);
+                                for (var i = 0;i<component.conceivedCallers.length;++i) {
+                                    this[component.conceivedCallers[i][0]].apply(this, component.conceivedCallers[i][1]);
                                 }
+
+
 
                                 this.trigger("created", [ WebElement ]);
                                 this.__config__.createdEventFires = true;

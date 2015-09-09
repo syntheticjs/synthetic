@@ -1,5 +1,6 @@
 define(function() {
-	var preFactory = function() {
+	var preFactory = function(options) {
+		this.options = options;
 		this.onCreatedCallbacks = [];
 		this.onAttachedCallbacks = [];
 		this.onDetachedCallbacks = [];
@@ -8,9 +9,13 @@ define(function() {
 		this.prototypes = [];
 		this.constructors = [];
 		this.watchers = [];
+		this.conceivedCallers = [];
 	}
 	preFactory.prototype = {
 		constructor: preFactory,
+		$addConceivedMethod: function(fn, args) {
+			this.conceivedCallers.push([fn, args]);
+		},
 		created: function(callback) {
 			this.onCreatedCallbacks.push(callback);
 			return this;
@@ -19,11 +24,11 @@ define(function() {
 			this.onAttachedCallbacks.push(callback);
 			return this;
 		},
-		dettached: function(callback) {
+		detached: function(callback) {
 			this.onDetachedCallbacks.push(callback);
 			return this;
 		},
-		attributeChanged: function() {
+		attributeChanged: function(callback) {
 			this.onAttributeChangedCallbacks.push(callback);
 			return this;
 		},
@@ -37,12 +42,8 @@ define(function() {
 		construct: function(c) {
 			this.constructors.push(c);
 		},
-		template: function(source,engine,buildOn) {
-			this.generator = {
-				template: source,
-				engine: engine||false,
-				buildOn: buildOn||['created']
-			}
+		template: function() {
+			this.$addConceivedMethod('template', arguments);
 		}
 	}
 
