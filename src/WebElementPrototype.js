@@ -108,6 +108,9 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, ang
 			}
 			
 		},
+		$apply: function(callback) {
+			return this.$inject(callback)();
+		},
 		/*
 		Добавляет функцию в очередь. Она будет выполнена когда компонент будет
 		готов принимать обработчики и вочеры.
@@ -120,12 +123,14 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, ang
 			}
 			return this;
 		},
-		template: function(source, engine, buildOn) {
-			console.log('WTF');
+		template: function(source, engine, moduleClass) {
+
 			this.__config__.generator = {
 				template: source,
 				engine: engine||'min',
-				buildOn: buildOn||['created']
+				buildOn: buildOn||['created'],
+				moduleClass: moduleClass,
+				module: false
 			}
 			
 			this.__generateHtml__();
@@ -140,22 +145,30 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, minTemplate, ang
         			case 'angular':
 
         				if (this.__config__.angularInitialedStage>1) {
-        					this.$inject(function($self) {
+        					this.$inject(function($self, $generator) {
         						
         						var test = $self.__config__.$$angularCompile($self.__config__.generator.template)($self.__config__.$$angularScope);
-        						console.log('Heeeeelp!!!');
-        						$self.__config__.$$angularElement.append(test);
-        					})();
 
-        					console.log('injected');
+        						$self.__config__.$$angularElement.append(test);
+								if ($self.__config__.generator.moduleClass) {
+									$generator.module = new $self.__config__.generator.moduleClass($self);
+								}
+        					})();
         					
         				} else {
         					this.__selfie__.$element.innerHTML = this.__config__.generator.template;
         				}
+
         			break;
         			case "min":
         			default:
-        				this.__selfie__.$element.innerHTML = minTemplate(this.__config__.generator.template, this.__selfie__.$scope);
+						this.$apply(function($element, $self, $generator, $scope) {
+							$element.innerHTML = minTemplate($self.__config__.generator.template, $scope);
+							if ($self.__config__.generator.moduleClass) {
+								$generator.module = new $self.__config__.generator.moduleClass($self);
+							}
+						});
+
         			break;
         		}
         	}

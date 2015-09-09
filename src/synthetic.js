@@ -100,7 +100,8 @@ AMD Synthet
                                         $scope: $$scope,
                                         $element: element,
                                         $self: this,
-                                        $component: component
+                                        $component: component,
+                                        $generator: {}
                                     }
                                 });
                                 /*
