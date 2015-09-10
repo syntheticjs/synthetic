@@ -887,11 +887,9 @@
             this.configuration = {
                 template: false
             };
-            console.log("#bind angular resolved");
             this.$.on("angularResolved", function() {
                 var $ = this;
                 angular.element(synthet.__selfie__.$element).scope().$watch(function() {
-                    console.log("DOM CHANGED!");
                     $.trigger("DOMChanged");
                 });
             });
@@ -912,7 +910,6 @@
                     })(this.configuration.template);
                 } else {
                     this.$.__selfie__.$element.innerHTML = this.$.__selfie__.$element.innerHTML = minTemplate(this.configuration.template, this.$.__selfie__.$scope);
-                    console.log("Change event>>", this);
                     this.trigger("DOMChange");
                 }
             }
@@ -979,7 +976,6 @@
             },
             $queue: function(callback) {
                 if (this.__config__.allWaitingForResolve) {
-                    console.log("Add to resolve waiter", this.__config__.allWaitingForResolve);
                     this.bind(this.__config__.allWaitingForResolve, callback);
                 } else {
                     callback.apply(this);
@@ -1447,11 +1443,19 @@
         })(window, Object, "HTMLElement");
     })();
     (function(inherit, mixin, eventsClass, templateManager, Generator, WebElementPrototype, WatchJS, camelize, smartCallback, ComponentPreFactory) {
+        var regScriptContent = /<script[^>]*>([.\w\d\r\t\n\.\s;'"{}\(\)]*)<\/script>/i, regSyntheticScript = /^[\t\r\s]*Synthetic\(/i;
         var Synthetic = function(element) {
-            if ("object" !== typeof element.synthetic) {
-                return null;
+            if ("object" === typeof element.synthetic) {
+                return element.synthetic;
+            } else if ("function" === typeof element) {
+                if (Synthetic.$$lastElementFactory) {
+                    Synthetic.$$lastElementFactory.$queue(function() {
+                        this.$inject(element)();
+                    });
+                }
+                return false;
             }
-            return element.synthetic;
+            return false;
         };
         Synthetic.prototype = {
             construct: Synthetic
@@ -1463,19 +1467,20 @@
         }
         eventsClass.call(Synthetic);
         Synthetic.log = function() {};
+        Synthetic.$$lastElementFactory = false;
         Synthetic.hasPropertySubKey = function(property, subkey) {
             if (!("string" === typeof property || property instanceof Array)) return false;
             return !!~("string" === typeof property ? property.replace(" ", "").split(",") : property).indexOf(subkey);
         };
         Synthetic.createComponent = function(componentOptions, constructor) {
             var defaultOptions = {
-                tagName: "",
+                name: "",
                 engine: "sinthezia"
             };
             componentOptions = "string" !== typeof componentOptions ? mixin(defaultOptions, componentOptions) : mixin(defaultOptions, {
-                tagName: componentOptions
+                name: componentOptions
             });
-            if (componentOptions.tagName.indexOf("-") < 0) throw "Module name must have `-` symbol";
+            if (componentOptions.name.indexOf("-") < 0) throw "Module name must have `-` symbol";
             var componentFactory = new ComponentPreFactory(componentOptions), prototype = smartCallback.call({
                 $component: componentFactory
             }, constructor)();
@@ -1484,12 +1489,13 @@
             } else if ("function" === typeof prototype) {
                 componentFactory.construct(prototype);
             }
-            document.registerElement(componentOptions.tagName, {
+            document.registerElement(componentOptions.name, {
                 prototype: Object.create(HTMLElement.prototype, {
                     createdCallback: {
                         value: function() {
                             if (this.synthetic) return false;
                             var WebElementFactory = function(element, component) {
+                                Synthetic.$$lastElementFactory = this;
                                 Object.defineProperty(element, "synthetic", {
                                     enumerable: false,
                                     writable: false,
@@ -1591,7 +1597,23 @@
                                 }
                                 for (var i = 0; i < element.childNodes.length; ++i) {
                                     if (element.childNodes[i].nodeType === 1) {
-                                        this.__selfie__.$scope.html[camelize(element.childNodes[i].tagName.toLowerCase())] = element.childNodes[i].innerHTML;
+                                        console.log("+", element.childNodes[i]);
+                                        if (element.childNodes[i].tagName.toLowerCase() === "script" && regSyntheticScript.test(element.childNodes[i].innerHTML)) {
+                                            (function(content) {
+                                                var userfunc, Synthetic = function(callback) {
+                                                    userfunc = callback;
+                                                };
+                                                try {
+                                                    eval(content);
+                                                } catch (e) {
+                                                    console.error("Syntehtic: user func corrupt;", content, e);
+                                                    return;
+                                                }
+                                                this.$queue(this.$inject(userfunc));
+                                            }).call(this, element.childNodes[i].innerHTML);
+                                        } else {
+                                            this.__selfie__.$scope.html[camelize(element.childNodes[i].tagName.toLowerCase())] = element.childNodes[i].innerHTML;
+                                        }
                                     }
                                 }
                                 for (var z = 0; z < element.attributes.length; z++) {
@@ -1650,9 +1672,7 @@
                     attachedCallback: {
                         value: function() {
                             Synthetic.log(this.synthetic.__config__.$$angularInitialedStage);
-                            if (this.synthetic.__config__.$$angularInitialedStage === 1) {
-                                this.synthetic.__generateHtml__();
-                            }
+                            if (this.synthetic.__config__.$$angularInitialedStage === 1) {}
                             this.synthetic.trigger("attached", [ this.synthetic ]);
                             this.synthetic.__config__.attachedEventFires = true;
                         }

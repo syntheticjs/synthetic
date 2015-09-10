@@ -25,7 +25,10 @@ AMD Synthet
             if ("object"===typeof element.synthetic) {
                 return element.synthetic;
             } else if ("function"===typeof element) {
-                element(); return false;
+                if (Synthetic.$$lastElementFactory) {
+                    Synthetic.$$lastElementFactory.$queue(function() { this.$inject(element)(); });
+                }
+                return false;
             }
             return false;
         };
@@ -51,6 +54,11 @@ AMD Synthet
         Synthetic.log = function() {
             
         }
+
+        /*
+        Last factory
+        */
+        Synthetic.$$lastElementFactory = false;
 
         Synthetic.hasPropertySubKey = function(property, subkey) {
             if (!("string"===typeof property||property instanceof Array)) return false;
@@ -88,9 +96,9 @@ AMD Synthet
                         value: function() {
                             if (this.synthetic) return false;
 
+
                             var WebElementFactory = function(element, component) {
-
-
+                                Synthetic.$$lastElementFactory = this;
 
                                 Object.defineProperty(element, 'synthetic', {
                                     enumerable: false,
@@ -299,8 +307,11 @@ AMD Synthet
                                 /*
                                 Собираем дерево элементов в $scope
                                 */
+                               
                                 for (var i = 0;i<element.childNodes.length;++i) {
                                     if (element.childNodes[i].nodeType===1) {
+                                        console.log('+', element.childNodes[i]);
+
                                         if (element.childNodes[i].tagName.toLowerCase()==='script'&&regSyntheticScript.test(element.childNodes[i].innerHTML)) {
                                            ;(function(content) {
                                                var userfunc,
@@ -313,7 +324,7 @@ AMD Synthet
                                                     console.error('Syntehtic: user func corrupt;', content, e);
                                                     return;
                                                }
-                                               
+
                                                this.$queue(this.$inject(userfunc));
                                            }).call(this, element.childNodes[i].innerHTML);
                                         } else {
