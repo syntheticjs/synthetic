@@ -17,6 +17,7 @@ define(function() {
 			this.conceivedCallers.push([fn, args]);
 		},
 		created: function(callback) {
+			
 			this.onCreatedCallbacks.push(callback);
 			return this;
 		},

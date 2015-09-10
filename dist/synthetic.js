@@ -882,6 +882,13 @@
     }(mixin2);
     var templateManager = function() {}.proto({});
     var generator = function(classEvents, minTemplate) {
+        var synthetModule = function($synthet) {
+            this.$synthet = $synthet;
+            this.$controller = $synthet;
+            this.$apply = function(cb) {
+                return $synthet.$apply(cb);
+            };
+        };
         return function(synthet) {
             this.$ = synthet;
             this.configuration = {
@@ -897,21 +904,35 @@
             $inject: function(callback) {
                 return this.$.$inject(callback);
             },
-            template: function(template) {
+            template: function(template, module) {
                 this.configuration.template = template;
+                this.configuration.module = "function" === typeof module ? module : false;
                 this.render();
             },
-            render: function(template) {
+            render: function(template, module) {
+                var $ = this;
                 if (template) this.configuration.template = template;
+                this.configuration.module = "function" === typeof module ? module : false;
                 if (this.$.__config__.$$angularInitialedStage > 1) {
-                    this.$inject(function($self, template) {
+                    this.$inject(function($self, template, module) {
                         var test = $self.__config__.$$angularCompile(template)($self.__config__.$$angularScope);
                         $self.__config__.$$angularElement.append(test);
-                    })(this.configuration.template);
+                        $.trigger("DOMChanged");
+                        if (module) {
+                            $.setup(module);
+                        }
+                    })(this.configuration.template, this.configuration.module);
                 } else {
                     this.$.__selfie__.$element.innerHTML = this.$.__selfie__.$element.innerHTML = minTemplate(this.configuration.template, this.$.__selfie__.$scope);
-                    this.trigger("DOMChange");
+                    if (this.configuration.module) {
+                        $.setup(this.configuration.module);
+                    }
+                    this.trigger("DOMChanged");
                 }
+            },
+            setup: function(module) {
+                var nm = function($synthet) {}.inherit(module).inherit(synthetModule);
+                this.$.module = new nm(this.$);
             }
         });
     }(classEvents, min);
@@ -934,20 +955,22 @@
                     requiredProperties.push(xpath.concat(properties[i].split(".")));
                 }
                 var getDatas = function(requiredProperties, rprops) {
+                    if (rprops === false) throw "fuuuuck!";
                     return function(prop, action, newValue) {
                         var alldata = [];
                         for (var x = 0; x < requiredProperties.length; ++x) {
                             if (rprops === requiredProperties[x]) alldata.push(newValue); else alldata.push(getObjectByXPath(self.__selfie__.$scope, requiredProperties[x]));
                         }
+                        console.log("@event change " + rprops + ":", newValue);
                         self.$inject(callback).apply(self, alldata);
                     };
                 };
-                getDatas.call(self, requiredProperties, false).call(self);
                 var watchFabric = function(rprops, wobject, prop) {
                     if ("undefined" === typeof wobject[prop]) wobject[prop] = false;
                     if (Synthetic.$$angularApp) {
                         try {
                             angular.element(self.__selfie__.$element).scope().$watch(rprops.join("."), function(newValue) {
+                                console.log("@call event change", newValue);
                                 this.call(self, false, "set", newValue);
                             }.bind(getDatas(requiredProperties, rprops)));
                         } catch (e) {
@@ -962,12 +985,12 @@
                 }
             },
             $inject: function(callback) {
-                if (Synthetic.$$angularApp && this.__config__.$$angularScope) {
+                if (Synthetic.$$angularApp && this.__config__.$$angularScope && this.__config__.$$angularInitialedStage > 1) {
                     var self = this;
                     return function() {
                         var nargs = Array.prototype.slice.apply(arguments), context = this;
                         self.__config__.$$angularTimeout(function() {
-                            smartCallback.call(self.__selfie__, callback).apply(context, nargs);
+                            smartCallback.call(self.__selfie__, callback, self).apply(context, nargs);
                         });
                     };
                 } else {
@@ -1496,6 +1519,12 @@
                             if (this.synthetic) return false;
                             var WebElementFactory = function(element, component) {
                                 Synthetic.$$lastElementFactory = this;
+                                this.$element = element;
+                                Object.defineProperty(this, "$scope", {
+                                    get: function() {
+                                        return this.__selfie__.$scope;
+                                    }
+                                });
                                 Object.defineProperty(element, "synthetic", {
                                     enumerable: false,
                                     writable: false,
@@ -1569,7 +1598,9 @@
                                         });
                                         if ("object" !== typeof angular.element(document.body).injector()) {
                                             angular.element(document.body).ready(function() {
-                                                angular.bootstrap(document.body, [ "syntheticApp" ]);
+                                                setTimeout(function() {
+                                                    angular.bootstrap(document.body, [ "syntheticApp" ]);
+                                                }, 2e3);
                                             }.bind(this));
                                         }
                                     }
@@ -1579,6 +1610,7 @@
                                     $$app.controller(this.$$angularControllerName, function($element, $scope, $timeout, $compile, $element) {
                                         Synthetic.log("$$controller initialed", $self.$$angularControllerName);
                                         angular.extend($scope, $$scope);
+                                        console.log("Import $scope", $element);
                                         $self.__selfie__.$scope = $scope;
                                         $self.__config__.$$angularInitialedStage = 2;
                                         $self.__config__.allWaitingForResolve = false;
@@ -1597,7 +1629,6 @@
                                 }
                                 for (var i = 0; i < element.childNodes.length; ++i) {
                                     if (element.childNodes[i].nodeType === 1) {
-                                        console.log("+", element.childNodes[i]);
                                         if (element.childNodes[i].tagName.toLowerCase() === "script" && regSyntheticScript.test(element.childNodes[i].innerHTML)) {
                                             (function(content) {
                                                 var userfunc, Synthetic = function(callback) {

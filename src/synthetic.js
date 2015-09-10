@@ -52,7 +52,7 @@ AMD Synthet
         */
 
         Synthetic.log = function() {
-            
+            //console.log.apply(console, (["%cSynthetic:","color:blue;font-style:italic;"]).concat(Array.prototype.slice.apply(arguments)));
         }
 
         /*
@@ -94,11 +94,22 @@ AMD Synthet
                 prototype: Object.create(HTMLElement.prototype, {
                     createdCallback: {
                         value: function() {
+
                             if (this.synthetic) return false;
 
 
                             var WebElementFactory = function(element, component) {
+                                
+                                
                                 Synthetic.$$lastElementFactory = this;
+
+                                this.$element = element;
+
+                                Object.defineProperty(this, '$scope', {
+                                    get: function() {
+                                        return this.__selfie__.$scope;
+                                    }
+                                })
 
                                 Object.defineProperty(element, 'synthetic', {
                                     enumerable: false,
@@ -265,9 +276,14 @@ AMD Synthet
                                         * * * * * * * * * * * * *
                                         */
                                         if ("object"!==typeof angular.element(document.body).injector()) {
+
                                             angular.element(document.body).ready(function() {
-                                              angular.bootstrap(document.body, 
-                                                ['syntheticApp']);
+                                              setTimeout(function() {
+                                                    angular.bootstrap(document.body, 
+                                                    ['syntheticApp']);
+                                                    
+                                                }, 2000);
+                                              
                                             }.bind(this));
                                         }
                                     }
@@ -280,6 +296,7 @@ AMD Synthet
                                         Synthetic.log('$$controller initialed', $self.$$angularControllerName);
                                         
                                         angular.extend($scope, $$scope);
+                                        console.log('Import $scope', $element);
                                         $self.__selfie__.$scope = $scope;
 
                                         $self.__config__.$$angularInitialedStage = 2;
@@ -291,10 +308,7 @@ AMD Synthet
                                         $self.__config__.$$angularElement = $element;
                                         
                                         $self.trigger('angularResolved');
-                                    });
-                                    
-                                    
-                                   
+                                    });                                   
                                    
                                     Object.defineProperty(this, '$$angular', {
                                         enumerable: false,
@@ -310,7 +324,6 @@ AMD Synthet
                                
                                 for (var i = 0;i<element.childNodes.length;++i) {
                                     if (element.childNodes[i].nodeType===1) {
-                                        console.log('+', element.childNodes[i]);
 
                                         if (element.childNodes[i].tagName.toLowerCase()==='script'&&regSyntheticScript.test(element.childNodes[i].innerHTML)) {
                                            ;(function(content) {
@@ -332,10 +345,7 @@ AMD Synthet
                                         }
                                     }
                                 }
-                                /*
-
-                                */
-
+                                
                                 /*
                                 Культивируем аттрибуты
                                 */
@@ -346,7 +356,7 @@ AMD Synthet
                                 }
 
 
-
+                                
                                 this.$queue(function() {
 
                                     /*
@@ -359,6 +369,8 @@ AMD Synthet
                                             }
                                         }
                                     }
+
+                                    
 
                                     this.trigger("created", [ WebElement ]);
                                     this.__config__.createdEventFires = true;
@@ -375,11 +387,13 @@ AMD Synthet
                                     */
                                     if (this.__config__.createdEventFires) {
                                         
+                                        
                                         for (var i = 0;i<component.onCreatedCallbacks.length;++i) {
                                             
                                             this.$inject(component.onCreatedCallbacks[i])();
                                         }
                                     } else {
+
                                         for (var i = 0;i<component.onCreatedCallbacks.length;++i) {
 
                                             this.on("created", component.onCreatedCallbacks[i]);
@@ -415,10 +429,13 @@ AMD Synthet
 
                                     /*
                                     Переносим наблюдение за scope
-                                    */                                
+                                    */    
+
                                     for (var i = 0;i<component.watchers.length;++i) {
                                         this.watch.apply(this, component.watchers[i]);
                                     }
+
+
                                 });
 
                             }.inherit(WebElementPrototype);
@@ -464,6 +481,7 @@ AMD Synthet
                             
                             if ("object"===typeof Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage>1) {
                                 if (previousValue !== value) {
+                                    
                                     angular.element(this.synthetic.__selfie__.$element).scope().$apply(function() {
                                         this.synthetic.__selfie__.$scope.attributes[camelize(name)] = value;
                                         if (name.substr(0,5)==='data-') {

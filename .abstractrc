@@ -1,7 +1,7 @@
 {
 	"aliases": {
-		"abstudio": "S:/mahabra/components",
-		"polyvitamins": "S:/mahabra/polyvitamins"
+		"abstudio": "/Users/VladimirMorulus/WorkAreas/mahabra/components",
+		"polyvitamins": "/Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins"
 	},
 	"apps": {
 		"./dist/": "./component.json"

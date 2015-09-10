@@ -41,6 +41,8 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 			*/
 			var xpath = objectXPath?objectXPath.split('.'):[];
 			requiredProperties = [];
+
+
 			
 			for (var i = 0;i<properties.length;++i) {
 				requiredProperties.push(xpath.concat(properties[i].split('.')));
@@ -49,8 +51,9 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 			Начинаем наблюдение за переменной
 			*/
 			var getDatas = function(requiredProperties, rprops) {
+				if (rprops===false) throw 'fuuuuck!';
 				return function(prop, action, newValue) {
-
+					
 					var alldata = [];
 					for (var x = 0;x<requiredProperties.length;++x) {
 						if (rprops===requiredProperties[x])
@@ -58,19 +61,30 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 						else
 						alldata.push(getObjectByXPath(self.__selfie__.$scope, requiredProperties[x]));
 					}
-
+					console.log('@event change '+rprops+':', newValue);
 					self.$inject(callback).apply(self, alldata);
 				}
 			};
 
-			getDatas.call(self, requiredProperties, false).call(self);
+			/* !!!!!!!!!!!!!!!!!!
+			ЭТОТ КОД ВЫПОЛНЯЛ ФУНКЦИЮ ПЕРВИЧНОГО ВЫЗОВА СОБЫТИЯ ИЗМЕНЕНИЯ ОБЪЕКТА (НАЧАЛО)
+			НО ЭТО СОБЫТИЕ СРАБАТЫВАЕТ И ТАК. В AGNULAR JS СОБЫТИЕ СРАБАТЫВАЕТ ПРИ ИНИЦИАЛИЗАЦИИ $SCOPE
+			КОГДА МЫ КОПИРУЕМ В НЕГО СУЩЕСТВУЮЩИЕ ДАННЫЕ. ПОЭТОМУ ЭТОТ БЛОК ДОЛЖЕН БЫТЬ АКТУАЛЬНЫМ ТОЛЬКО 
+			ДЛЯ ДЕФОЛТНОГО ВОЧЕРА
+			
+			*/
+			if (!Synthetic.$$angularApp) { 
+				getDatas.call(self, requiredProperties, false).call(self);
+			}
+
 			var watchFabric = function(rprops, wobject, prop) {
 				
 				if ("undefined"===typeof wobject[prop]) wobject[prop] = false;
 				if (Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
 					try {
+
 						angular.element(self.__selfie__.$element).scope().$watch(rprops.join('.'), function(newValue) {
-							
+							console.log('@call event change', newValue);
 							this.call(self, false, 'set', newValue);						
 						}.bind(getDatas(requiredProperties, rprops)));
 					} catch(e) {
@@ -78,6 +92,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 						
 					}
 				} else {
+					
 					watchJS.watch(
 						wobject, 
 						prop, 
@@ -97,12 +112,12 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 		В случае интеграции с angularjs функция так же обертывается в $timeout
 		*/
 		$inject: function(callback) {
-			if (Synthetic.$$angularApp&&this.__config__.$$angularScope) {
+			if (Synthetic.$$angularApp&&this.__config__.$$angularScope&&this.__config__.$$angularInitialedStage>1) {
 				var self = this;
 				return function() {
 					var nargs = Array.prototype.slice.apply(arguments),context=this;
 					self.__config__.$$angularTimeout(function() {
-						smartCallback.call(self.__selfie__, callback).apply(context, nargs);
+						smartCallback.call(self.__selfie__, callback, self).apply(context, nargs);
 					});
 				}				
 			} else {
