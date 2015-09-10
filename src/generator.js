@@ -8,14 +8,12 @@ function(classEvents, minTemplate) {
         this.configuration = {
             template: false
         }
-        console.log('#bind angular resolved');
         this.$.on('angularResolved', function() {
             /*
              Включаем наблюдение за DOM внутри контроллера
              */
             var $ = this;
             angular.element(synthet.__selfie__.$element).scope().$watch(function(){
-                console.log('DOM CHANGED!');
                 $.trigger("DOMChanged");
             });
         });
@@ -40,7 +38,7 @@ function(classEvents, minTemplate) {
                     })(this.configuration.template);
                 } else {
                     this.$.__selfie__.$element.innerHTML = this.$.__selfie__.$element.innerHTML = minTemplate(this.configuration.template, this.$.__selfie__.$scope);
-                    console.log('Change event>>', this);
+                    
                     this.trigger("DOMChange");
                 }
             }

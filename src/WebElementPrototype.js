@@ -117,7 +117,6 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 		$queue: function(callback) {
 
 			if (this.__config__.allWaitingForResolve) {
-				console.log('Add to resolve waiter', this.__config__.allWaitingForResolve);
 				this.bind(this.__config__.allWaitingForResolve, callback);
 			} else {
 
