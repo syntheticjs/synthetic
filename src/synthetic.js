@@ -52,8 +52,10 @@ AMD Synthet
         */
 
         Synthetic.log = function() {
-            //console.log.apply(console, (["%cSynthetic:","color:blue;font-style:italic;"]).concat(Array.prototype.slice.apply(arguments)));
+            console.log.apply(console, (["%cSynthetic:","color:blue;font-style:italic;"]).concat(Array.prototype.slice.apply(arguments)));
         }
+
+        Synthetic.$$angularBootstraped = false;
 
         /*
         Last factory
@@ -268,7 +270,11 @@ AMD Synthet
                                                 // custom filters.
 
                                             }
-                                        );
+                                        ).run(function($rootScope, $compile, $q) {
+                                            Synthetic.$$angularRootScope = $rootScope;
+                                            Synthetic.$$angularRCompile = $compile;
+                                            Synthetic.$$angularQ = $q;
+                                        });
                                         
                                         /*
                                         * * * * * * * * * * * * *
@@ -278,44 +284,81 @@ AMD Synthet
                                         if ("object"!==typeof angular.element(document.body).injector()) {
 
                                             angular.element(document.body).ready(function() {
-                                              setTimeout(function() {
+                                             
                                                     angular.bootstrap(document.body, 
                                                     ['syntheticApp']);
+                                                    Synthetic.$$angularBootstraped = true;
                                                     
-                                                }, 2000);
+                                                    Synthetic.trigger('angularBootstraped');
                                               
                                             }.bind(this));
                                         }
                                     }
+
+                                    var controllerGenerator = function() {
+                                        
+                                        Synthetic.log('$$controller registred', $self.$$angularControllerName);
+                                        var deferred = Synthetic.$$angularQ.defer();
+
+                                        Synthetic.$$angularApp.controller(this.$$angularControllerName, 
+                                            function ($element, $scope, $timeout, $compile, $element) {
+                                            Synthetic.log('$$controller initialed', $self.$$angularControllerName);
+                                            
+                                            angular.extend($scope, $$scope);
+                                            
+                                            $self.__selfie__.$scope = $scope;
+
+                                            $self.__config__.$$angularInitialedStage = 2;
+                                            $self.__config__.allWaitingForResolve = false;
+
+                                            $self.__config__.$$angularScope = angular.element($self.__selfie__.$element).scope();
+                                            $self.__config__.$$angularTimeout = $timeout;
+                                            $self.__config__.$$angularCompile = $compile;
+                                            $self.__config__.$$angularElement = $element;
+                                            
+                                            $self.trigger('angularResolved');
+                                        });     
+                                        
+
+                                        element.setAttribute('ng-controller', $self.$$angularControllerName);   
+
+                                        //if (Synthetic.$$angularRCompile) Synthetic.$$angularRCompile(element.innerHTML)(Synthetic.$$angularRootScope);
+
+                                        /*ynthetic.$$angularRootScope.$apply(function() {
+                                            deferred.resolve();
+                                        });*/
+
+                                        setTimeout(function() {
+                                            angular.element(document.body).injector().invoke(function($compile) { 
+                                                var scope = angular.element(element).scope(); 
+                                                console.log('$scope', scope, 'element', element);
+                                                $compile(element)(scope); 
+                                            });
+                                        });
+                                                                      
+                                       
+                                        Object.defineProperty(this, '$$angular', {
+                                            enumerable: false,
+                                            writable: false,
+                                            configurable: false,
+                                            value: Synthetic.$$angularApp
+                                        });           
+                                       
+                                        Object.defineProperty(this, '$$angular', {
+                                            enumerable: false,
+                                            writable: false,
+                                            configurable: false,
+                                            value: Synthetic.$$angularApp
+                                        });
+                                    }.bind(this);
+
+                                    if (Synthetic.$$angularBootstraped) {
+                                        controllerGenerator();
+                                    } else {
+                                        Synthetic.bind('angularBootstraped', controllerGenerator);
+                                    }
                                     
-                                    var $$app = Synthetic.$$angularApp;
-                                    element.setAttribute('ng-controller', this.$$angularControllerName);
-                                    Synthetic.log('$$controller registred', $self.$$angularControllerName);
-                                    $$app.controller(this.$$angularControllerName, 
-                                        function ($element, $scope, $timeout, $compile, $element) {
-                                        Synthetic.log('$$controller initialed', $self.$$angularControllerName);
-                                        
-                                        angular.extend($scope, $$scope);
-                                        console.log('Import $scope', $element);
-                                        $self.__selfie__.$scope = $scope;
-
-                                        $self.__config__.$$angularInitialedStage = 2;
-                                        $self.__config__.allWaitingForResolve = false;
-
-                                        $self.__config__.$$angularScope = angular.element($self.__selfie__.$element).scope();
-                                        $self.__config__.$$angularTimeout = $timeout;
-                                        $self.__config__.$$angularCompile = $compile;
-                                        $self.__config__.$$angularElement = $element;
-                                        
-                                        $self.trigger('angularResolved');
-                                    });                                   
-                                   
-                                    Object.defineProperty(this, '$$angular', {
-                                        enumerable: false,
-                                        writable: false,
-                                        configurable: false,
-                                        value: $$app
-                                    });
+                                    
                                 }
 
                                 /*

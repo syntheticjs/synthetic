@@ -40,7 +40,7 @@ function(classEvents, minTemplate) {
                 this.render();
             },
             render: function(template, module) {
-               
+                console.log('re-render', this.$.$element);
                 var $ = this;
                 if (template) this.configuration.template = template;
                 this.configuration.module = "function"===typeof module?module:false;
@@ -49,7 +49,7 @@ function(classEvents, minTemplate) {
                     this.$inject(function($self, template, module) {
 
                         var test = $self.__config__.$$angularCompile(template)($self.__config__.$$angularScope);
-                        $self.__config__.$$angularElement.append(test);
+                        $self.__config__.$$angularElement.html(test);
                         
                         $.trigger("DOMChanged");
                         if (module) {

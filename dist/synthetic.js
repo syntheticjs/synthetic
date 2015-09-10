@@ -910,13 +910,14 @@
                 this.render();
             },
             render: function(template, module) {
+                console.log("re-render", this.$.$element);
                 var $ = this;
                 if (template) this.configuration.template = template;
                 this.configuration.module = "function" === typeof module ? module : false;
                 if (this.$.__config__.$$angularInitialedStage > 1) {
                     this.$inject(function($self, template, module) {
                         var test = $self.__config__.$$angularCompile(template)($self.__config__.$$angularScope);
-                        $self.__config__.$$angularElement.append(test);
+                        $self.__config__.$$angularElement.html(test);
                         $.trigger("DOMChanged");
                         if (module) {
                             $.setup(module);
@@ -961,16 +962,17 @@
                         for (var x = 0; x < requiredProperties.length; ++x) {
                             if (rprops === requiredProperties[x]) alldata.push(newValue); else alldata.push(getObjectByXPath(self.__selfie__.$scope, requiredProperties[x]));
                         }
-                        console.log("@event change " + rprops + ":", newValue);
                         self.$inject(callback).apply(self, alldata);
                     };
                 };
+                if (!Synthetic.$$angularApp) {
+                    getDatas.call(self, requiredProperties, false).call(self);
+                }
                 var watchFabric = function(rprops, wobject, prop) {
                     if ("undefined" === typeof wobject[prop]) wobject[prop] = false;
                     if (Synthetic.$$angularApp) {
                         try {
                             angular.element(self.__selfie__.$element).scope().$watch(rprops.join("."), function(newValue) {
-                                console.log("@call event change", newValue);
                                 this.call(self, false, "set", newValue);
                             }.bind(getDatas(requiredProperties, rprops)));
                         } catch (e) {
@@ -1489,7 +1491,10 @@
             }
         }
         eventsClass.call(Synthetic);
-        Synthetic.log = function() {};
+        Synthetic.log = function() {
+            console.log.apply(console, [ "%cSynthetic:", "color:blue;font-style:italic;" ].concat(Array.prototype.slice.apply(arguments)));
+        };
+        Synthetic.$$angularBootstraped = false;
         Synthetic.$$lastElementFactory = false;
         Synthetic.hasPropertySubKey = function(property, subkey) {
             if (!("string" === typeof property || property instanceof Array)) return false;
@@ -1595,37 +1600,60 @@
                                                 $compileProvider.directive(name, factory);
                                                 return this;
                                             };
+                                        }).run(function($rootScope, $compile, $q) {
+                                            Synthetic.$$angularRootScope = $rootScope;
+                                            Synthetic.$$angularRCompile = $compile;
+                                            Synthetic.$$angularQ = $q;
                                         });
                                         if ("object" !== typeof angular.element(document.body).injector()) {
                                             angular.element(document.body).ready(function() {
-                                                setTimeout(function() {
-                                                    angular.bootstrap(document.body, [ "syntheticApp" ]);
-                                                }, 2e3);
+                                                angular.bootstrap(document.body, [ "syntheticApp" ]);
+                                                Synthetic.$$angularBootstraped = true;
+                                                Synthetic.trigger("angularBootstraped");
                                             }.bind(this));
                                         }
                                     }
-                                    var $$app = Synthetic.$$angularApp;
-                                    element.setAttribute("ng-controller", this.$$angularControllerName);
-                                    Synthetic.log("$$controller registred", $self.$$angularControllerName);
-                                    $$app.controller(this.$$angularControllerName, function($element, $scope, $timeout, $compile, $element) {
-                                        Synthetic.log("$$controller initialed", $self.$$angularControllerName);
-                                        angular.extend($scope, $$scope);
-                                        console.log("Import $scope", $element);
-                                        $self.__selfie__.$scope = $scope;
-                                        $self.__config__.$$angularInitialedStage = 2;
-                                        $self.__config__.allWaitingForResolve = false;
-                                        $self.__config__.$$angularScope = angular.element($self.__selfie__.$element).scope();
-                                        $self.__config__.$$angularTimeout = $timeout;
-                                        $self.__config__.$$angularCompile = $compile;
-                                        $self.__config__.$$angularElement = $element;
-                                        $self.trigger("angularResolved");
-                                    });
-                                    Object.defineProperty(this, "$$angular", {
-                                        enumerable: false,
-                                        writable: false,
-                                        configurable: false,
-                                        value: $$app
-                                    });
+                                    var controllerGenerator = function() {
+                                        Synthetic.log("$$controller registred", $self.$$angularControllerName);
+                                        var deferred = Synthetic.$$angularQ.defer();
+                                        Synthetic.$$angularApp.controller(this.$$angularControllerName, function($element, $scope, $timeout, $compile, $element) {
+                                            Synthetic.log("$$controller initialed", $self.$$angularControllerName);
+                                            angular.extend($scope, $$scope);
+                                            $self.__selfie__.$scope = $scope;
+                                            $self.__config__.$$angularInitialedStage = 2;
+                                            $self.__config__.allWaitingForResolve = false;
+                                            $self.__config__.$$angularScope = angular.element($self.__selfie__.$element).scope();
+                                            $self.__config__.$$angularTimeout = $timeout;
+                                            $self.__config__.$$angularCompile = $compile;
+                                            $self.__config__.$$angularElement = $element;
+                                            $self.trigger("angularResolved");
+                                        });
+                                        element.setAttribute("ng-controller", $self.$$angularControllerName);
+                                        setTimeout(function() {
+                                            angular.element(document.body).injector().invoke(function($compile) {
+                                                var scope = angular.element(element).scope();
+                                                console.log("$scope", scope, "element", element);
+                                                $compile(element)(scope);
+                                            });
+                                        });
+                                        Object.defineProperty(this, "$$angular", {
+                                            enumerable: false,
+                                            writable: false,
+                                            configurable: false,
+                                            value: Synthetic.$$angularApp
+                                        });
+                                        Object.defineProperty(this, "$$angular", {
+                                            enumerable: false,
+                                            writable: false,
+                                            configurable: false,
+                                            value: Synthetic.$$angularApp
+                                        });
+                                    }.bind(this);
+                                    if (Synthetic.$$angularBootstraped) {
+                                        controllerGenerator();
+                                    } else {
+                                        Synthetic.bind("angularBootstraped", controllerGenerator);
+                                    }
                                 }
                                 for (var i = 0; i < element.childNodes.length; ++i) {
                                     if (element.childNodes[i].nodeType === 1) {

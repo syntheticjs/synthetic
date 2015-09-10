@@ -61,7 +61,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 						else
 						alldata.push(getObjectByXPath(self.__selfie__.$scope, requiredProperties[x]));
 					}
-					console.log('@event change '+rprops+':', newValue);
+					
 					self.$inject(callback).apply(self, alldata);
 				}
 			};
@@ -84,7 +84,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 					try {
 
 						angular.element(self.__selfie__.$element).scope().$watch(rprops.join('.'), function(newValue) {
-							console.log('@call event change', newValue);
+							
 							this.call(self, false, 'set', newValue);						
 						}.bind(getDatas(requiredProperties, rprops)));
 					} catch(e) {
