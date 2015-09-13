@@ -71,6 +71,16 @@ function(classEvents, minTemplate) {
                     
                 }.inherit(module)
                 .inherit(synthetModule);
+
+                /*
+                Расширение модуля прототипом указанном в опциях
+                */
+                if ("function"===typeof this.$.__config__.templateModulePrototype) {
+                    nm = nm.inherit();
+                } else if ("object"===typeof this.$.__config__.templateModulePrototype) {
+                    var overMod = function() { }.proto(this.$.__config__.templateModulePrototype);
+                    nm = nm.inherit(overMod);
+                }
                 this.$.module = new nm(this.$);
             }
         });

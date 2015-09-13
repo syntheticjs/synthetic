@@ -1,6 +1,9 @@
-define(function() {
+define([
+	"abstudio~mixin@0.1.0"
+], function(mixin) {
 	var preFactory = function(options) {
 		this.options = options;
+
 		this.onCreatedCallbacks = [];
 		this.onAttachedCallbacks = [];
 		this.onDetachedCallbacks = [];
@@ -39,12 +42,19 @@ define(function() {
 		},
 		proto: function(proto) {
 			this.prototypes.push(proto);
+			return this;
 		},
 		construct: function(c) {
 			this.constructors.push(c);
+			return this;
 		},
 		template: function() {
 			this.$addConceivedMethod('template', arguments);
+			return this;
+		},
+		config: function(useroptions) {
+			this.options = mixin(this.options, useroptions);
+			return this;
 		}
 	}
 
