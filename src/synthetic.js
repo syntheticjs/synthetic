@@ -52,7 +52,7 @@ AMD Synthet
         */
 
         Synthetic.log = function() {
-            console.log.apply(console, (["%cSynthetic:","color:blue;font-style:italic;"]).concat(Array.prototype.slice.apply(arguments)));
+            //console.log.apply(console, (["%cSynthetic:","color:blue;font-style:italic;"]).concat(Array.prototype.slice.apply(arguments)));
         }
 
         Synthetic.$$angularBootstraped = false;
@@ -95,6 +95,7 @@ AMD Synthet
             document.registerElement(componentOptions.name, {
                 prototype: Object.create(HTMLElement.prototype, {
                     createdCallback: {
+
                         value: function() {
 
                             if (this.synthetic) return false;
@@ -124,20 +125,26 @@ AMD Synthet
                                     enumerable: false,
                                     writable: false,
                                     configurable: true,
-                                    value: {
-                                        allWaitingForResolve: false,
-                                        generator: false,
-                                        $$angularScope: false,
-                                        $$angularInitialedStage: 0,
-                                        createdEventFires: false,
-                                        attachedEventFires: false
-                                    }
+                                    value: mixin({
+                                        allWaitingForResolve: false, // Используется при инициализации angular.
+                                        // DOTO: delete depricated element
+                                        generator: false, // Depricated
+                                        $$angularScope: false, // Ссылка на $scope angular
+                                        $$angularInitialedStage: 0, // Этап инициализации angular
+                                        createdEventFires: false, // Произошло ли событие created
+                                        attachedEventFires: false, // Произошло ли событие attached
+                                        templateModulePrototype: false // Класс, которым автоматичнески расширяется модуль шаблона 
+                                    }, component.options)
                                 });
 
                                 var $$scope= {
                                     attributes: {}, // Содержит все аттрибуты элемента
                                     properties: {}, // Содержит все аттрибуты data-*
-                                    html: {} 
+                                    html: {},
+                                    uid: 'syntheticElement'+Math.round(Math.random()*10000),
+                                    test: {
+                                        abc: 'helloworld'
+                                    }
                                 }
 
                                 Object.defineProperty(this, '__selfie__', {
@@ -315,27 +322,51 @@ AMD Synthet
                                             $self.__config__.$$angularTimeout = $timeout;
                                             $self.__config__.$$angularCompile = $compile;
                                             $self.__config__.$$angularElement = $element;
+
+                                            //
+                                            $self.__selfie__.$scope.parent = function() {
+                                                console.log('>>>PARNT', arguments);
+                                                return {
+                                                    test: 'wow!'
+                                                };
+                                            }
                                             
                                             $self.trigger('angularResolved');
                                         });     
                                         
 
-                                        element.setAttribute('ng-controller', $self.$$angularControllerName);   
+                                        element.setAttribute('ng-controller', $self.$$angularControllerName);
+                                       
+                                        /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+                                        * Этот код на вес золота, я его решал несколько дней. Его смысл прикрепить контроллер к синтету. *
 
-                                        //if (Synthetic.$$angularRCompile) Synthetic.$$angularRCompile(element.innerHTML)(Synthetic.$$angularRootScope);
+                                        Посколько после того как angular проходит стадию bootstrap он перестается следить на деревом, к 
+                                        которому он не относится, все вновь созданные компоненты должны быть инициализированны принудительно.
+                                        За исключением тех случаев, когда шаблон для них устанавливается через интерфейс $generator.render()
+                                        в таком случае angular сам производит инициализацию контроллеров.
 
-                                        /*ynthetic.$$angularRootScope.$apply(function() {
-                                            deferred.resolve();
-                                        });*/
+                                        Мною было найдено несколько ресурсов, которые помогли мне решить задачу.
 
+                                        http://ify.io/lazy-loading-in-angularjs/
+                                        Здесь предлагают использовать $compileProvider. Это решение позволяет создавать новые контроллеры
+                                        уже после активации angular.
+
+                                        http://stackoverflow.com/a/24058760/5322348
+                                        Здесь был продемонстрирован данный код. Он позволяет компилировать отдельные элементы, вводя их в
+                                        область видимости angular.
+
+                                        Morulus
+                                        * * * * * * * *  * * * * * * * *  * * * * * * * *  * * * * * * * *  * * * * * * * *  * * * * * * */
+                                        /*
+                                                                                */
                                         setTimeout(function() {
+                                            if ($self.__config__.$$angularInitialedStage>1) return;
                                             angular.element(document.body).injector().invoke(function($compile) { 
                                                 var scope = angular.element(element).scope(); 
-                                                console.log('$scope', scope, 'element', element);
                                                 $compile(element)(scope); 
                                             });
                                         });
-                                                                      
+                                        /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */                   
                                        
                                         Object.defineProperty(this, '$$angular', {
                                             enumerable: false,
@@ -357,8 +388,6 @@ AMD Synthet
                                     } else {
                                         Synthetic.bind('angularBootstraped', controllerGenerator);
                                     }
-                                    
-                                    
                                 }
 
                                 /*
@@ -414,8 +443,8 @@ AMD Synthet
                                     }
 
                                     
-
-                                    this.trigger("created", [ WebElement ]);
+                                    
+                                    this.trigger("created", [ this.element ]);
                                     this.__config__.createdEventFires = true;
 
                                     /*
@@ -525,15 +554,17 @@ AMD Synthet
                             if ("object"===typeof Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage>1) {
                                 if (previousValue !== value) {
                                     
-                                    angular.element(this.synthetic.__selfie__.$element).scope().$apply(function() {
-                                        this.synthetic.__selfie__.$scope.attributes[camelize(name)] = value;
-                                        if (name.substr(0,5)==='data-') {
-                                           
-                                                this.synthetic.__selfie__.$scope.properties[camelize(name.substr(5))] = value;
-                                           
-                                        }
-                                        this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
-                                    }.bind(this));
+                                    this.synthetic.__config__.$$angularTimeout(function() {
+                                        angular.element(this.synthetic.__selfie__.$element).scope().$apply(function() {
+                                            this.synthetic.__selfie__.$scope.attributes[camelize(name)] = value;
+                                            if (name.substr(0,5)==='data-') {
+                                               
+                                                    this.synthetic.__selfie__.$scope.properties[camelize(name.substr(5))] = value;
+                                               
+                                            }
+                                            this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
+                                        }.bind(this));
+                                    }.bind(this));                                    
                                 }
                             } else {
                                 if (previousValue !== value) {

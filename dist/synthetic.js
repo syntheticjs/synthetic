@@ -100,6 +100,25 @@
             return Mixin;
         };
     }(mixin);
+    var mixin2 = function() {
+        var mixinup = function(a, b) {
+            for (var i in b) {
+                if (b.hasOwnProperty(i)) {
+                    a[i] = b[i];
+                }
+            }
+            return a;
+        };
+        return function(a) {
+            var i = 1;
+            for (;i < arguments.length; i++) {
+                if ("object" === typeof arguments[i]) {
+                    mixinup(a, arguments[i]);
+                }
+            }
+            return a;
+        };
+    }();
     var classEvents = function(smartCallback) {
         var Events = function() {
             this.eventListners = {};
@@ -189,25 +208,6 @@
                 start = start[xpath[i]];
             }
             return start;
-        };
-    }();
-    var mixin2 = function() {
-        var mixinup = function(a, b) {
-            for (var i in b) {
-                if (b.hasOwnProperty(i)) {
-                    a[i] = b[i];
-                }
-            }
-            return a;
-        };
-        return function(a) {
-            var i = 1;
-            for (;i < arguments.length; i++) {
-                if ("object" === typeof arguments[i]) {
-                    mixinup(a, arguments[i]);
-                }
-            }
-            return a;
         };
     }();
     var watch = function() {
@@ -933,6 +933,12 @@
             },
             setup: function(module) {
                 var nm = function($synthet) {}.inherit(module).inherit(synthetModule);
+                if ("function" === typeof this.$.__config__.templateModulePrototype) {
+                    nm = nm.inherit();
+                } else if ("object" === typeof this.$.__config__.templateModulePrototype) {
+                    var overMod = function() {}.proto(this.$.__config__.templateModulePrototype);
+                    nm = nm.inherit(overMod);
+                }
                 this.$.module = new nm(this.$);
             }
         });
@@ -1023,7 +1029,7 @@
             });
         };
     }();
-    var preFactory = function() {
+    var preFactory = function(mixin) {
         var preFactory = function(options) {
             this.options = options;
             this.onCreatedCallbacks = [];
@@ -1063,16 +1069,23 @@
             },
             proto: function(proto) {
                 this.prototypes.push(proto);
+                return this;
             },
             construct: function(c) {
                 this.constructors.push(c);
+                return this;
             },
             template: function() {
                 this.$addConceivedMethod("template", arguments);
+                return this;
+            },
+            config: function(useroptions) {
+                this.options = mixin(this.options, useroptions);
+                return this;
             }
         };
         return preFactory;
-    }();
+    }(mixin2);
     (function() {
         (function(window, document, Object, REGISTER_ELEMENT) {
             "use strict";
@@ -1491,9 +1504,7 @@
             }
         }
         eventsClass.call(Synthetic);
-        Synthetic.log = function() {
-            console.log.apply(console, [ "%cSynthetic:", "color:blue;font-style:italic;" ].concat(Array.prototype.slice.apply(arguments)));
-        };
+        Synthetic.log = function() {};
         Synthetic.$$angularBootstraped = false;
         Synthetic.$$lastElementFactory = false;
         Synthetic.hasPropertySubKey = function(property, subkey) {
@@ -1540,19 +1551,24 @@
                                     enumerable: false,
                                     writable: false,
                                     configurable: true,
-                                    value: {
+                                    value: mixin({
                                         allWaitingForResolve: false,
                                         generator: false,
                                         $$angularScope: false,
                                         $$angularInitialedStage: 0,
                                         createdEventFires: false,
-                                        attachedEventFires: false
-                                    }
+                                        attachedEventFires: false,
+                                        templateModulePrototype: false
+                                    }, component.options)
                                 });
                                 var $$scope = {
                                     attributes: {},
                                     properties: {},
-                                    html: {}
+                                    html: {},
+                                    uid: "syntheticElement" + Math.round(Math.random() * 1e4),
+                                    test: {
+                                        abc: "helloworld"
+                                    }
                                 };
                                 Object.defineProperty(this, "__selfie__", {
                                     enumerable: false,
@@ -1626,13 +1642,19 @@
                                             $self.__config__.$$angularTimeout = $timeout;
                                             $self.__config__.$$angularCompile = $compile;
                                             $self.__config__.$$angularElement = $element;
+                                            $self.__selfie__.$scope.parent = function() {
+                                                console.log(">>>PARNT", arguments);
+                                                return {
+                                                    test: "wow!"
+                                                };
+                                            };
                                             $self.trigger("angularResolved");
                                         });
                                         element.setAttribute("ng-controller", $self.$$angularControllerName);
                                         setTimeout(function() {
+                                            if ($self.__config__.$$angularInitialedStage > 1) return;
                                             angular.element(document.body).injector().invoke(function($compile) {
                                                 var scope = angular.element(element).scope();
-                                                console.log("$scope", scope, "element", element);
                                                 $compile(element)(scope);
                                             });
                                         });
@@ -1687,7 +1709,7 @@
                                             }
                                         }
                                     }
-                                    this.trigger("created", [ WebElement ]);
+                                    this.trigger("created", [ this.element ]);
                                     this.__config__.createdEventFires = true;
                                     for (var i = 0; i < component.conceivedCallers.length; ++i) {
                                         this[component.conceivedCallers[i][0]].apply(this, component.conceivedCallers[i][1]);
@@ -1748,12 +1770,14 @@
                         value: function(name, previousValue, value) {
                             if ("object" === typeof Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage > 1) {
                                 if (previousValue !== value) {
-                                    angular.element(this.synthetic.__selfie__.$element).scope().$apply(function() {
-                                        this.synthetic.__selfie__.$scope.attributes[camelize(name)] = value;
-                                        if (name.substr(0, 5) === "data-") {
-                                            this.synthetic.__selfie__.$scope.properties[camelize(name.substr(5))] = value;
-                                        }
-                                        this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
+                                    this.synthetic.__config__.$$angularTimeout(function() {
+                                        angular.element(this.synthetic.__selfie__.$element).scope().$apply(function() {
+                                            this.synthetic.__selfie__.$scope.attributes[camelize(name)] = value;
+                                            if (name.substr(0, 5) === "data-") {
+                                                this.synthetic.__selfie__.$scope.properties[camelize(name.substr(5))] = value;
+                                            }
+                                            this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
+                                        }.bind(this));
                                     }.bind(this));
                                 }
                             } else {
