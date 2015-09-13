@@ -51,7 +51,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 			Начинаем наблюдение за переменной
 			*/
 			var getDatas = function(requiredProperties, rprops) {
-				if (rprops===false) throw 'fuuuuck!';
+				
 				return function(prop, action, newValue) {
 					
 					var alldata = [];
@@ -74,6 +74,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 			
 			*/
 			if (!Synthetic.$$angularApp) { 
+				
 				getDatas.call(self, requiredProperties, false).call(self);
 			}
 

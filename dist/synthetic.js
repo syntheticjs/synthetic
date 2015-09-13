@@ -956,7 +956,6 @@
                     requiredProperties.push(xpath.concat(properties[i].split(".")));
                 }
                 var getDatas = function(requiredProperties, rprops) {
-                    if (rprops === false) throw "fuuuuck!";
                     return function(prop, action, newValue) {
                         var alldata = [];
                         for (var x = 0; x < requiredProperties.length; ++x) {
@@ -1771,7 +1770,7 @@
             });
             return componentFactory;
         };
-        if (window) window.Synthet = window.Synthetic = Synthetic;
-        return Synthet;
+        if (window) window.Synthetic = Synthetic;
+        return Synthetic;
     })(inherit2, mixin2, classEvents, null, generator, WebElementPrototype, watch, camelize, smartCallback, preFactory);
 })();

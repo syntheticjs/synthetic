@@ -555,7 +555,6 @@ AMD Synthet
             return componentFactory;
         }
 
-        if (window) window.Synthet = window.Synthetic = Synthetic;
-        return Synthet;
-
+        if (window) window.Synthetic = Synthetic;
+        return Synthetic;
 });
