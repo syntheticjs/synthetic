@@ -10,7 +10,10 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 	Модифицируем стандартный classEvents
 	*/
 	return function() {
-
+		/*
+		Этот массив содержит объекты с методом unwatch на каждое из наблюдений
+		*/
+		this.$watchersHistory = [];
 	}.inherit(classEvents)
 	.proto({
 		watch: function() {
@@ -24,7 +27,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 				функции прослушивания переменных задерживаются до инициализации
 				*/
 				
-				this.bind(this.__config__.allWaitingForResolve, function(args) {
+				this.$queue(function(args) {
 
 					this.watch.apply(this, args);
 				}.bind(this, arguments));
@@ -47,11 +50,13 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 			for (var i = 0;i<properties.length;++i) {
 				requiredProperties.push(xpath.concat(properties[i].split('.')));
 			}
+			var lastTrack = {}; // Последнее состояние срабатываения
 			/*
 			Начинаем наблюдение за переменной
 			*/
 			var getDatas = function(requiredProperties, rprops) {
-				if (rprops===false) throw 'fuuuuck!';
+
+				
 				return function(prop, action, newValue) {
 					
 					var alldata = [];
@@ -61,6 +66,18 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 						else
 						alldata.push(getObjectByXPath(self.__selfie__.$scope, requiredProperties[x]));
 					}
+
+					/*
+					Если наблюдение происходит на несколькими переменными одновременно, то 
+					срабатывание функции обработчика будет происходит каждый раз когда одна из 
+					переменных изменится. Но когда это изменение происходит по эвенту инициализации
+					мы получим такой результат, когда функция обработчик будет вызвана несколько раз с
+					одними и теми же данными. Что бы это предотвратить необходимо сравниваться предыдущее
+					состояние ответа с новым. И если они равны, то вызов callback производится не будет.
+					*/
+					var jstr = JSON.stringify(alldata);
+					if (jstr===lastTrack) { return; }
+					lastTrack = jstr;
 					
 					self.$inject(callback).apply(self, alldata);
 				}
@@ -82,28 +99,49 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 				if ("undefined"===typeof wobject[prop]) wobject[prop] = false;
 				if (Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
 					try {
-
-						angular.element(self.__selfie__.$element).scope().$watch(rprops.join('.'), function(newValue) {
-							
-							this.call(self, false, 'set', newValue);						
-						}.bind(getDatas(requiredProperties, rprops)));
-					} catch(e) {
-						console.error('Errors', self.__config__.$$angularInitialedStage);
+						var unwatcher = angular.element(self.__selfie__.$element).scope().$watch(rprops.join('.'), function(newValue) {
+						this.call(self, false, 'set', newValue);
+						}.bind(getDatas(requiredProperties, rprops)))
+						self.$watchersHistory.push({
+							"unwatch": unwatcher
+						});
 						
+					} catch(e) {
+						window.teste = self.__selfie__.$element;
+						console.error('Errors', e, self.__selfie__.$element);
 					}
+					return unwatcher;
 				} else {
+					/*
+					Запоминаем обработчики, что бы потом можно было их всех затереть
+					*/
+					var watchi = {
+						"object": wobject, 
+						"property": prop,
+						"callback": getDatas(requiredProperties, rprops)
+					};
 					
+					var unwatcher = function() {
+							watchJS.unwatch(this.object, this.prop, this.callback);
+						}.bind(watchi);
+					this.$watchersHistory.push({
+						"unwatch": unwatcher
+					});
 					watchJS.watch(
-						wobject, 
-						prop, 
-						getDatas(requiredProperties, rprops)
-					)
+						watchi.object,
+						watchi.prop,
+						watchi.callback
+					);
+
+					return unwatcher;
 				};
 			};
+			var unwacthers = function() {}; // Эта функция будет содержат функции для уничтожения наблюдений
 			for (var i = 0;i<requiredProperties.length;++i) {
 				
-				watchFabric(requiredProperties[i], getObjectByXPath(this.__selfie__.$scope, requiredProperties[i].slice(0, requiredProperties[i].length-1)), requiredProperties[i][requiredProperties[i].length-1]);
+				unwacthers.inherit(watchFabric(requiredProperties[i], getObjectByXPath(this.__selfie__.$scope, requiredProperties[i].slice(0, requiredProperties[i].length-1)), requiredProperties[i][requiredProperties[i].length-1]));
 			}
+			return unwacthers;
 		},
 		/*
 		Анализирует пользовательскую функцию и внедряет в нее системные аргументы. Так например
@@ -130,9 +168,12 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 		готов принимать обработчики и вочеры.
 		*/
 		$queue: function(callback) {
-
+			var self = this;
 			if (this.__config__.allWaitingForResolve) {
-				this.bind(this.__config__.allWaitingForResolve, callback);
+				this.bind(this.__config__.allWaitingForResolve, function() {
+					if (self.$destroyed) return false;
+					callback.apply(this, arguments);
+				});
 			} else {
 
 				callback.apply(this);
@@ -146,7 +187,40 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 			this.__selfie__.$generator.template(content);
 		},
 		$destroy: function() {
-			// Сделать!///
+			
+			if (this.$destroyed) return true;
+			this.$destroyed = true;
+			/*
+			Очищаем события встроенным в classEvent методом clearEventListners
+			*/
+			this.clearEventListners();
+			/*
+			Очищаем watchers через crossEngine метод unwatch коллекции watchersHistory
+			*/
+			for (var i = 0;i<this.$watchersHistory.length;++i) {
+				if (this.$watchersHistory[i]!==null) {
+					this.$watchersHistory.unwatch();
+				}
+			}
+			/*
+			Запускаем destroy функцию собственных надстроек
+			*/
+			if ("function"===typeof this.destroy) {
+				this.destroy();
+			}
+			/*
+			Удаляем generator
+			*/
+			this.__selfie__.$generator.destroy();
+			this.__selfie__.$generator = null;
+			/*
+			Удаляем привязку объекта к элементу
+			*/
+			this.__selfie__.$element.synthetic = null;
+			/*
+			Очищаем собственные данные конфигурации
+			*/
+			this.__config__ = {};
 		}
 	});
 });

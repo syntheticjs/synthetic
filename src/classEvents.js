@@ -20,8 +20,6 @@ define([
 		}
 	}
 
-
-
 	Events.prototype = {
 		constructor: Events,
 		bind : function(e, callback, once) {
@@ -79,6 +77,12 @@ define([
 				};
 			};
 			return response;
+		},
+		/*
+		Очищает от событий
+		*/
+		clearEventListners: function() {
+			this.eventListners = {};
 		}
 	}
 

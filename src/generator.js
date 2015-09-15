@@ -24,9 +24,15 @@ function(classEvents, minTemplate) {
              Включаем наблюдение за DOM внутри контроллера
              */
             var $ = this;
-            angular.element(synthet.__selfie__.$element).scope().$watch(function(){
-                $.trigger("DOMChanged");
-            });
+            
+            try {
+                angular.element(synthet.__selfie__.$element).scope().$watch(function(){
+                    $.trigger("DOMChanged");
+                });
+            }
+            catch(e) {
+
+            }
         });
 
     }.inherit(classEvents)
@@ -40,7 +46,6 @@ function(classEvents, minTemplate) {
                 this.render();
             },
             render: function(template, module) {
-                console.log('re-render', this.$.$element);
                 var $ = this;
                 if (template) this.configuration.template = template;
                 this.configuration.module = "function"===typeof module?module:false;
@@ -82,6 +87,19 @@ function(classEvents, minTemplate) {
                     nm = nm.inherit(overMod);
                 }
                 this.$.module = new nm(this.$);
+            },
+            destroy: function() {
+                /*
+                Очищаем модуль
+                */
+                if ("object"===typeof this.module&&"function"===typeof this.module.destory) {
+                    this.module.destory();
+                    this.module = null;
+                }
+                /*
+                Очищаем события
+                */
+                this.clearEventListners();
             }
         });
 });

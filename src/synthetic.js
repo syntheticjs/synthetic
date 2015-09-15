@@ -95,15 +95,16 @@ AMD Synthet
             document.registerElement(componentOptions.name, {
                 prototype: Object.create(HTMLElement.prototype, {
                     createdCallback: {
-
                         value: function() {
+                            
 
                             if (this.synthetic) return false;
 
 
                             var WebElementFactory = function(element, component) {
+
                                 
-                                
+
                                 Synthetic.$$lastElementFactory = this;
 
                                 this.$element = element;
@@ -303,12 +304,28 @@ AMD Synthet
                                     }
 
                                     var controllerGenerator = function() {
-                                        
+                                        /*
+                                        Предотвращаем генерацию контроллера, если элемент уже был удален
+                                        */
+                                        if (this.$destroyed) return false;
+
+
+
                                         Synthetic.log('$$controller registred', $self.$$angularControllerName);
                                         var deferred = Synthetic.$$angularQ.defer();
 
                                         Synthetic.$$angularApp.controller(this.$$angularControllerName, 
-                                            function ($element, $scope, $timeout, $compile, $element) {
+                                            function ($element, $scope, $timeout, $compile) {
+                                            
+                                            /*
+                                            Если элемент был перемещен в scope
+                                            */
+                                            if (angular.element($self.$element).scope()===undefined) {
+                                                
+                                                $self.$destroy();
+                                                return;
+                                            }
+                                            
                                             Synthetic.log('$$controller initialed', $self.$$angularControllerName);
                                             
                                             angular.extend($scope, $$scope);
@@ -322,18 +339,11 @@ AMD Synthet
                                             $self.__config__.$$angularTimeout = $timeout;
                                             $self.__config__.$$angularCompile = $compile;
                                             $self.__config__.$$angularElement = $element;
-
-                                            //
-                                            $self.__selfie__.$scope.parent = function() {
-                                                console.log('>>>PARNT', arguments);
-                                                return {
-                                                    test: 'wow!'
-                                                };
-                                            }
                                             
                                             $self.trigger('angularResolved');
                                         });     
                                         
+                                       
 
                                         element.setAttribute('ng-controller', $self.$$angularControllerName);
                                        
@@ -363,7 +373,21 @@ AMD Synthet
                                             if ($self.__config__.$$angularInitialedStage>1) return;
                                             angular.element(document.body).injector().invoke(function($compile) { 
                                                 var scope = angular.element(element).scope(); 
-                                                $compile(element)(scope); 
+                                                if (!scope) {
+                                                    /*
+                                                    Если scope для этого элемента не проявляется, значит angular его использует как вспомогательный элемент,
+                                                    инициализировать такой элемент нам не нужно.
+                                                    */
+
+                                                    $self.$destroy();
+                                                } else {
+                                                    /*
+                                                    Воизбежание переиницаилизации мы должны игнорировать директиву
+                                                    ngRepeat. Игнорирование прочих директив не исключено, то их поведение
+                                                    еще не выявлено.
+                                                    */                                                    
+                                                    $compile(element, undefined, undefined, 'ngRepeat')(scope); 
+                                                }
                                             });
                                         });
                                         /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */                   
@@ -426,8 +450,6 @@ AMD Synthet
                                     if (element.attributes[z].name.substr(0,5)==='data-')
                                     this.__selfie__.$scope.properties[camelize(element.attributes[z].name.substr(5))] = element.attributes[z].value;
                                 }
-
-
                                 
                                 this.$queue(function() {
 
@@ -542,6 +564,7 @@ AMD Synthet
                     },
                     detachedCallback: {
                         value: function() {
+                            
                             this.synthetic.trigger("detached", [ this.synthetic ]);
                         }
                     },
