@@ -191,6 +191,12 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 			if (this.$destroyed) return true;
 			this.$destroyed = true;
 			/*
+			Запускаем destroy функцию собственных надстроек
+			*/
+			if ("function"===typeof this.destroy) {
+				this.destroy();
+			}
+			/*
 			Очищаем события встроенным в classEvent методом clearEventListners
 			*/
 			this.clearEventListners();
@@ -199,15 +205,10 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 			*/
 			for (var i = 0;i<this.$watchersHistory.length;++i) {
 				if (this.$watchersHistory[i]!==null) {
-					this.$watchersHistory.unwatch();
+					this.$watchersHistory[i].unwatch();
 				}
 			}
-			/*
-			Запускаем destroy функцию собственных надстроек
-			*/
-			if ("function"===typeof this.destroy) {
-				this.destroy();
-			}
+			
 			/*
 			Удаляем generator
 			*/

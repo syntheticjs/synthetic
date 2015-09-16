@@ -897,12 +897,13 @@
             this.configuration = {
                 template: false
             };
+            this.watchers = [];
             this.$.on("angularResolved", function() {
                 var $ = this;
                 try {
-                    angular.element(synthet.__selfie__.$element).scope().$watch(function() {
+                    this.watchers.push(angular.element(synthet.__selfie__.$element).scope().$watch(function() {
                         $.trigger("DOMChanged");
-                    });
+                    }));
                 } catch (e) {}
             });
         }.inherit(classEvents).proto({
@@ -949,6 +950,9 @@
                 if ("object" === typeof this.module && "function" === typeof this.module.destory) {
                     this.module.destory();
                     this.module = null;
+                }
+                for (var i = 0; i < this.watchers.length; ++i) {
+                    his.watchers[i]();
                 }
                 this.clearEventListners();
             }
@@ -1063,14 +1067,14 @@
             $destroy: function() {
                 if (this.$destroyed) return true;
                 this.$destroyed = true;
+                if ("function" === typeof this.destroy) {
+                    this.destroy();
+                }
                 this.clearEventListners();
                 for (var i = 0; i < this.$watchersHistory.length; ++i) {
                     if (this.$watchersHistory[i] !== null) {
-                        this.$watchersHistory.unwatch();
+                        this.$watchersHistory[i].unwatch();
                     }
-                }
-                if ("function" === typeof this.destroy) {
-                    this.destroy();
                 }
                 this.__selfie__.$generator.destroy();
                 this.__selfie__.$generator = null;
@@ -1576,6 +1580,18 @@
             componentOptions = "string" !== typeof componentOptions ? mixin(defaultOptions, componentOptions) : mixin(defaultOptions, {
                 name: componentOptions
             });
+            if ("string" === typeof componentOptions.engine) {
+                componentOptions.engine = {
+                    name: componentOptions.engine,
+                    initial: false
+                };
+            } else if ("object" === typeof componentOptions.engine && componentOptions.engine instanceof Array) {
+                componentOptions.engine = {
+                    name: componentOptions.engine[0],
+                    initial: componentOptions.engine[1] || false
+                };
+                console.log("componentOptions.engine ", componentOptions.engine);
+            }
             if (componentOptions.name.indexOf("-") < 0) throw "Module name must have `-` symbol";
             var componentFactory = new ComponentPreFactory(componentOptions), prototype = smartCallback.call({
                 $component: componentFactory
@@ -1622,10 +1638,7 @@
                                     attributes: {},
                                     properties: {},
                                     html: {},
-                                    uid: "syntheticElement" + Math.round(Math.random() * 1e4),
-                                    test: {
-                                        abc: "helloworld"
-                                    }
+                                    uid: "syntheticElement" + Math.round(Math.random() * 1e4)
                                 };
                                 Object.defineProperty(this, "__selfie__", {
                                     enumerable: false,
@@ -1639,14 +1652,25 @@
                                         $generator: new Generator(this)
                                     }
                                 });
-                                if ("object" === typeof angular && angular.bootstrap && component.options.engine === "angular") {
+                                if ("object" === typeof angular && angular.bootstrap && component.options.engine.name === "angular") {
                                     var $self = this;
                                     this.$$angularControllerName = "singular" + new Date().getTime() + Math.round(Math.random() * 1e4);
                                     this.__config__.$$angularInitialedStage = 1;
                                     this.__config__.allWaitingForResolve = "angularResolved";
                                     if ("undefined" === typeof Synthetic.$$angularApp) {
                                         Synthetic.log("$$configure angular app");
-                                        Synthetic.$$angularApp = angular.module("syntheticApp", [], function() {}.bind(this));
+                                        Synthetic.$$angularApp = angular.module("syntheticApp", [], function() {}.bind(this)).filter("tester", function() {
+                                            var args = arguments;
+                                            return function(items, property, value) {
+                                                var filtered = [], to;
+                                                if ("undefined" === typeof items) return false;
+                                                for (var i = 0; i < items.length; ++i) {
+                                                    to = sx.cache.getSync("entity", items[i].objectId);
+                                                    if (to && to[property] === value) filtered.push(items[i]);
+                                                }
+                                                return filtered;
+                                            };
+                                        });
                                         Synthetic.$$angularApp.config(function($controllerProvider, $provide, $compileProvider) {
                                             Synthetic.$$angularApp._controller = Synthetic.$$angularApp.controller;
                                             Synthetic.$$angularApp._service = Synthetic.$$angularApp.service;
@@ -1678,6 +1702,10 @@
                                             Synthetic.$$angularRCompile = $compile;
                                             Synthetic.$$angularQ = $q;
                                         });
+                                        if ("function" === typeof component.options.engine.initial) {
+                                            console.log("Init app", component.options.engine.initial);
+                                            component.options.engine.initial(Synthetic.$$angularApp);
+                                        }
                                         if ("object" !== typeof angular.element(document.body).injector()) {
                                             angular.element(document.body).ready(function() {
                                                 angular.bootstrap(document.body, [ "syntheticApp" ]);
@@ -1828,6 +1856,7 @@
                         writable: true,
                         enumerable: true,
                         value: function(name, previousValue, value) {
+                            if (this.synthetic.destoryed) return false;
                             if ("object" === typeof Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage > 1) {
                                 if (previousValue !== value) {
                                     this.synthetic.__config__.$$angularTimeout(function() {

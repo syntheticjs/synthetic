@@ -2,22 +2,22 @@
 AMD Synthet
 */
 (function(name, depends, factory) {
-	if (define && "function"===typeof define) define(name, depends, factory);
-	
+    if (define && "function"===typeof define) define(name, depends, factory);
+    
 })
 ("synthet", [
     "abstudio~inherit@0.1.4",
-	"abstudio~mixin@0.1.0",
-	"./classEvents.js",
+    "abstudio~mixin@0.1.0",
+    "./classEvents.js",
     './templateManager.js',
     './generator.js',
     "./WebElementPrototype.js",
     "./d3party/watchJS/watch.js",
-	"polyvitamins~polychrome@master/gist/convert/camelize.js",
+    "polyvitamins~polychrome@master/gist/convert/camelize.js",
     "./smartCallback.js",
     "./preFactory.js",
     "polyvitamins~polyinherit@master",
-	"./d3party/WebReflection/document-register-element.amd.js"
+    "./d3party/WebReflection/document-register-element.amd.js"
 ], function(inherit, mixin, eventsClass, templateManager, Generator, WebElementPrototype, WatchJS, camelize, smartCallback, ComponentPreFactory) {
         var regScriptContent = /<script[^>]*>([.\w\d\r\t\n\.\s;'"{}\(\)]*)<\/script>/i,
         regSyntheticScript = /^[\t\r\s]*Synthetic\(/i;
@@ -74,10 +74,29 @@ AMD Synthet
                 engine: 'sinthezia'
             };
 
+            /*
+            Преобразуем строковое представление componentOptions в объект
+            */
             componentOptions = "string"!==typeof componentOptions ?
             mixin(defaultOptions, componentOptions) : mixin(defaultOptions, {
                 name: componentOptions
             });
+
+            /*
+            Преобразуем строкове представление engine в объект
+            */
+            if ("string"===typeof componentOptions.engine) {
+                componentOptions.engine = {
+                    name: componentOptions.engine,
+                    initial: false
+                }
+            } else if ("object"===typeof componentOptions.engine&&componentOptions.engine instanceof Array) {
+                componentOptions.engine = {
+                    name: componentOptions.engine[0],
+                    initial: componentOptions.engine[1]||false
+                }
+                console.log('componentOptions.engine ', componentOptions.engine );
+            }
 
             if (componentOptions.name.indexOf("-") < 0) throw "Module name must have `-` symbol";
 
@@ -142,10 +161,7 @@ AMD Synthet
                                     attributes: {}, // Содержит все аттрибуты элемента
                                     properties: {}, // Содержит все аттрибуты data-*
                                     html: {},
-                                    uid: 'syntheticElement'+Math.round(Math.random()*10000),
-                                    test: {
-                                        abc: 'helloworld'
-                                    }
+                                    uid: 'syntheticElement'+Math.round(Math.random()*10000)
                                 }
 
                                 Object.defineProperty(this, '__selfie__', {
@@ -180,7 +196,7 @@ AMD Synthet
                                 __config__.$$angularInitialedStage станет 2 и будет вызвано
                                 событие 'angularResolved', все watchers пройдут инициализацию
                                 */
-                                if ("object"===typeof angular&&angular.bootstrap&&component.options.engine==='angular') {
+                                if ("object"===typeof angular&&angular.bootstrap&&component.options.engine.name==='angular') {
                                     var $self = this;
                                     
                                     this.$$angularControllerName = 'singular'+(new Date()).getTime()+Math.round(Math.random()*10000);
@@ -204,7 +220,21 @@ AMD Synthet
                                         */
                                         Synthetic.$$angularApp = angular.module('syntheticApp', [], function() {
                                                                                         
-                                        }.bind(this));
+                                        }.bind(this))
+                                        .filter('tester', function() {
+                                            var args =  arguments;
+                                            return function(items, property, value) {
+                                                
+                                                var filtered = [],to;
+                                                if ("undefined"===typeof items) return false;
+                                                for (var i = 0;i<items.length;++i) {
+                                                    to=sx.cache.getSync('entity', items[i].objectId);
+                                                    if (to&&to[property]===value) filtered.push(items[i])
+                                                }
+                                                
+                                                return filtered;
+                                            }
+                                        })
 
                                         /*
                                         Этот чанк поможет разрешить проблему постинициализации контроллеров angular
@@ -283,6 +313,14 @@ AMD Synthet
                                             Synthetic.$$angularRCompile = $compile;
                                             Synthetic.$$angularQ = $q;
                                         });
+
+                                        /*
+                                        Выполняем пользовательскую инициализацию
+                                        */
+                                        if ("function"===typeof component.options.engine.initial) {
+                                            console.log('Init app', component.options.engine.initial);
+                                            component.options.engine.initial(Synthetic.$$angularApp);
+                                        }
                                         
                                         /*
                                         * * * * * * * * * * * * *
@@ -573,7 +611,7 @@ AMD Synthet
                         writable: true,
                         enumerable: true,
                         value: function(name, previousValue, value) {
-                            
+                            if (this.synthetic.destoryed) return false;
                             if ("object"===typeof Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage>1) {
                                 if (previousValue !== value) {
                                     

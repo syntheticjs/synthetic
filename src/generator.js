@@ -19,6 +19,7 @@ function(classEvents, minTemplate) {
         this.configuration = {
             template: false
         }
+        this.watchers = [];
         this.$.on('angularResolved', function() {
             /*
              Включаем наблюдение за DOM внутри контроллера
@@ -26,9 +27,9 @@ function(classEvents, minTemplate) {
             var $ = this;
             
             try {
-                angular.element(synthet.__selfie__.$element).scope().$watch(function(){
+                this.watchers.push(angular.element(synthet.__selfie__.$element).scope().$watch(function(){
                     $.trigger("DOMChanged");
-                });
+                }));
             }
             catch(e) {
 
@@ -95,6 +96,12 @@ function(classEvents, minTemplate) {
                 if ("object"===typeof this.module&&"function"===typeof this.module.destory) {
                     this.module.destory();
                     this.module = null;
+                }
+                /*
+                Очищаем наблюдвтелей
+                */
+                for (var i = 0;i<this.watchers.length;++i) {
+                    his.watchers[i]();
                 }
                 /*
                 Очищаем события
