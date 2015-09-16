@@ -185,6 +185,9 @@
                     }
                 }
                 return response;
+            },
+            clearEventListners: function() {
+                this.eventListners = {};
             }
         };
         return Events;
@@ -894,11 +897,14 @@
             this.configuration = {
                 template: false
             };
+            this.watchers = [];
             this.$.on("angularResolved", function() {
                 var $ = this;
-                angular.element(synthet.__selfie__.$element).scope().$watch(function() {
-                    $.trigger("DOMChanged");
-                });
+                try {
+                    this.watchers.push(angular.element(synthet.__selfie__.$element).scope().$watch(function() {
+                        $.trigger("DOMChanged");
+                    }));
+                } catch (e) {}
             });
         }.inherit(classEvents).proto({
             $inject: function(callback) {
@@ -910,7 +916,6 @@
                 this.render();
             },
             render: function(template, module) {
-                console.log("re-render", this.$.$element);
                 var $ = this;
                 if (template) this.configuration.template = template;
                 this.configuration.module = "function" === typeof module ? module : false;
@@ -940,14 +945,26 @@
                     nm = nm.inherit(overMod);
                 }
                 this.$.module = new nm(this.$);
+            },
+            destroy: function() {
+                if ("object" === typeof this.module && "function" === typeof this.module.destory) {
+                    this.module.destory();
+                    this.module = null;
+                }
+                for (var i = 0; i < this.watchers.length; ++i) {
+                    his.watchers[i]();
+                }
+                this.clearEventListners();
             }
         });
     }(classEvents, min);
     var WebElementPrototype = function(getObjectByXPath, watchJS, smartCallback, classEvents) {
-        return function() {}.inherit(classEvents).proto({
+        return function() {
+            this.$watchersHistory = [];
+        }.inherit(classEvents).proto({
             watch: function() {
                 if (this.__config__.allWaitingForResolve) {
-                    this.bind(this.__config__.allWaitingForResolve, function(args) {
+                    this.$queue(function(args) {
                         this.watch.apply(this, args);
                     }.bind(this, arguments));
                     return;
@@ -961,12 +978,18 @@
                 for (var i = 0; i < properties.length; ++i) {
                     requiredProperties.push(xpath.concat(properties[i].split(".")));
                 }
+                var lastTrack = {};
                 var getDatas = function(requiredProperties, rprops) {
                     return function(prop, action, newValue) {
                         var alldata = [];
                         for (var x = 0; x < requiredProperties.length; ++x) {
                             if (rprops === requiredProperties[x]) alldata.push(newValue); else alldata.push(getObjectByXPath(self.__selfie__.$scope, requiredProperties[x]));
                         }
+                        var jstr = JSON.stringify(alldata);
+                        if (jstr === lastTrack) {
+                            return;
+                        }
+                        lastTrack = jstr;
                         self.$inject(callback).apply(self, alldata);
                     };
                 };
@@ -977,19 +1000,38 @@
                     if ("undefined" === typeof wobject[prop]) wobject[prop] = false;
                     if (Synthetic.$$angularApp) {
                         try {
-                            angular.element(self.__selfie__.$element).scope().$watch(rprops.join("."), function(newValue) {
+                            var unwatcher = angular.element(self.__selfie__.$element).scope().$watch(rprops.join("."), function(newValue) {
                                 this.call(self, false, "set", newValue);
                             }.bind(getDatas(requiredProperties, rprops)));
+                            self.$watchersHistory.push({
+                                unwatch: unwatcher
+                            });
                         } catch (e) {
-                            console.error("Errors", self.__config__.$$angularInitialedStage);
+                            window.teste = self.__selfie__.$element;
+                            console.error("Errors", e, self.__selfie__.$element);
                         }
+                        return unwatcher;
                     } else {
-                        watchJS.watch(wobject, prop, getDatas(requiredProperties, rprops));
+                        var watchi = {
+                            object: wobject,
+                            property: prop,
+                            callback: getDatas(requiredProperties, rprops)
+                        };
+                        var unwatcher = function() {
+                            watchJS.unwatch(this.object, this.prop, this.callback);
+                        }.bind(watchi);
+                        self.$watchersHistory.push({
+                            unwatch: unwatcher
+                        });
+                        watchJS.watch(watchi.object, watchi.prop, watchi.callback);
+                        return unwatcher;
                     }
                 };
+                var unwacthers = function() {};
                 for (var i = 0; i < requiredProperties.length; ++i) {
-                    watchFabric(requiredProperties[i], getObjectByXPath(this.__selfie__.$scope, requiredProperties[i].slice(0, requiredProperties[i].length - 1)), requiredProperties[i][requiredProperties[i].length - 1]);
+                    unwacthers.inherit(watchFabric(requiredProperties[i], getObjectByXPath(this.__selfie__.$scope, requiredProperties[i].slice(0, requiredProperties[i].length - 1)), requiredProperties[i][requiredProperties[i].length - 1]));
                 }
+                return unwacthers;
             },
             $inject: function(callback) {
                 if (Synthetic.$$angularApp && this.__config__.$$angularScope && this.__config__.$$angularInitialedStage > 1) {
@@ -1005,8 +1047,12 @@
                 }
             },
             $queue: function(callback) {
+                var self = this;
                 if (this.__config__.allWaitingForResolve) {
-                    this.bind(this.__config__.allWaitingForResolve, callback);
+                    this.bind(this.__config__.allWaitingForResolve, function() {
+                        if (self.$destroyed) return false;
+                        callback.apply(this, arguments);
+                    });
                 } else {
                     callback.apply(this);
                 }
@@ -1018,7 +1064,23 @@
             $template: function(content) {
                 this.__selfie__.$generator.template(content);
             },
-            $destroy: function() {}
+            $destroy: function() {
+                if (this.$destroyed) return true;
+                this.$destroyed = true;
+                if ("function" === typeof this.destroy) {
+                    this.destroy();
+                }
+                this.clearEventListners();
+                for (var i = 0; i < this.$watchersHistory.length; ++i) {
+                    if (this.$watchersHistory[i] !== null) {
+                        this.$watchersHistory[i].unwatch();
+                    }
+                }
+                this.__selfie__.$generator.destroy();
+                this.__selfie__.$generator = null;
+                this.__selfie__.$element.synthetic = null;
+                this.__config__ = {};
+            }
         });
     }(getObjectByXPath, watch, smartCallback, classEvents);
     var camelize = function() {
@@ -1518,6 +1580,18 @@
             componentOptions = "string" !== typeof componentOptions ? mixin(defaultOptions, componentOptions) : mixin(defaultOptions, {
                 name: componentOptions
             });
+            if ("string" === typeof componentOptions.engine) {
+                componentOptions.engine = {
+                    name: componentOptions.engine,
+                    initial: false
+                };
+            } else if ("object" === typeof componentOptions.engine && componentOptions.engine instanceof Array) {
+                componentOptions.engine = {
+                    name: componentOptions.engine[0],
+                    initial: componentOptions.engine[1] || false
+                };
+                console.log("componentOptions.engine ", componentOptions.engine);
+            }
             if (componentOptions.name.indexOf("-") < 0) throw "Module name must have `-` symbol";
             var componentFactory = new ComponentPreFactory(componentOptions), prototype = smartCallback.call({
                 $component: componentFactory
@@ -1564,10 +1638,7 @@
                                     attributes: {},
                                     properties: {},
                                     html: {},
-                                    uid: "syntheticElement" + Math.round(Math.random() * 1e4),
-                                    test: {
-                                        abc: "helloworld"
-                                    }
+                                    uid: "syntheticElement" + Math.round(Math.random() * 1e4)
                                 };
                                 Object.defineProperty(this, "__selfie__", {
                                     enumerable: false,
@@ -1581,14 +1652,25 @@
                                         $generator: new Generator(this)
                                     }
                                 });
-                                if ("object" === typeof angular && angular.bootstrap && component.options.engine === "angular") {
+                                if ("object" === typeof angular && angular.bootstrap && component.options.engine.name === "angular") {
                                     var $self = this;
                                     this.$$angularControllerName = "singular" + new Date().getTime() + Math.round(Math.random() * 1e4);
                                     this.__config__.$$angularInitialedStage = 1;
                                     this.__config__.allWaitingForResolve = "angularResolved";
                                     if ("undefined" === typeof Synthetic.$$angularApp) {
                                         Synthetic.log("$$configure angular app");
-                                        Synthetic.$$angularApp = angular.module("syntheticApp", [], function() {}.bind(this));
+                                        Synthetic.$$angularApp = angular.module("syntheticApp", [], function() {}.bind(this)).filter("tester", function() {
+                                            var args = arguments;
+                                            return function(items, property, value) {
+                                                var filtered = [], to;
+                                                if ("undefined" === typeof items) return false;
+                                                for (var i = 0; i < items.length; ++i) {
+                                                    to = sx.cache.getSync("entity", items[i].objectId);
+                                                    if (to && to[property] === value) filtered.push(items[i]);
+                                                }
+                                                return filtered;
+                                            };
+                                        });
                                         Synthetic.$$angularApp.config(function($controllerProvider, $provide, $compileProvider) {
                                             Synthetic.$$angularApp._controller = Synthetic.$$angularApp.controller;
                                             Synthetic.$$angularApp._service = Synthetic.$$angularApp.service;
@@ -1620,6 +1702,10 @@
                                             Synthetic.$$angularRCompile = $compile;
                                             Synthetic.$$angularQ = $q;
                                         });
+                                        if ("function" === typeof component.options.engine.initial) {
+                                            console.log("Init app", component.options.engine.initial);
+                                            component.options.engine.initial(Synthetic.$$angularApp);
+                                        }
                                         if ("object" !== typeof angular.element(document.body).injector()) {
                                             angular.element(document.body).ready(function() {
                                                 angular.bootstrap(document.body, [ "syntheticApp" ]);
@@ -1629,9 +1715,14 @@
                                         }
                                     }
                                     var controllerGenerator = function() {
+                                        if (this.$destroyed) return false;
                                         Synthetic.log("$$controller registred", $self.$$angularControllerName);
                                         var deferred = Synthetic.$$angularQ.defer();
-                                        Synthetic.$$angularApp.controller(this.$$angularControllerName, function($element, $scope, $timeout, $compile, $element) {
+                                        Synthetic.$$angularApp.controller(this.$$angularControllerName, function($element, $scope, $timeout, $compile) {
+                                            if (angular.element($self.$element).scope() === undefined) {
+                                                $self.$destroy();
+                                                return;
+                                            }
                                             Synthetic.log("$$controller initialed", $self.$$angularControllerName);
                                             angular.extend($scope, $$scope);
                                             $self.__selfie__.$scope = $scope;
@@ -1641,12 +1732,6 @@
                                             $self.__config__.$$angularTimeout = $timeout;
                                             $self.__config__.$$angularCompile = $compile;
                                             $self.__config__.$$angularElement = $element;
-                                            $self.__selfie__.$scope.parent = function() {
-                                                console.log(">>>PARNT", arguments);
-                                                return {
-                                                    test: "wow!"
-                                                };
-                                            };
                                             $self.trigger("angularResolved");
                                         });
                                         element.setAttribute("ng-controller", $self.$$angularControllerName);
@@ -1654,7 +1739,11 @@
                                             if ($self.__config__.$$angularInitialedStage > 1) return;
                                             angular.element(document.body).injector().invoke(function($compile) {
                                                 var scope = angular.element(element).scope();
-                                                $compile(element)(scope);
+                                                if (!scope) {
+                                                    $self.$destroy();
+                                                } else {
+                                                    $compile(element, undefined, undefined, "ngRepeat")(scope);
+                                                }
                                             });
                                         });
                                         Object.defineProperty(this, "$$angular", {
@@ -1767,6 +1856,7 @@
                         writable: true,
                         enumerable: true,
                         value: function(name, previousValue, value) {
+                            if (this.synthetic.destoryed) return false;
                             if ("object" === typeof Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage > 1) {
                                 if (previousValue !== value) {
                                     this.synthetic.__config__.$$angularTimeout(function() {

@@ -19,14 +19,21 @@ function(classEvents, minTemplate) {
         this.configuration = {
             template: false
         }
+        this.watchers = [];
         this.$.on('angularResolved', function() {
             /*
              Включаем наблюдение за DOM внутри контроллера
              */
             var $ = this;
-            angular.element(synthet.__selfie__.$element).scope().$watch(function(){
-                $.trigger("DOMChanged");
-            });
+            
+            try {
+                this.watchers.push(angular.element(synthet.__selfie__.$element).scope().$watch(function(){
+                    $.trigger("DOMChanged");
+                }));
+            }
+            catch(e) {
+
+            }
         });
 
     }.inherit(classEvents)
@@ -40,16 +47,22 @@ function(classEvents, minTemplate) {
                 this.render();
             },
             render: function(template, module) {
-                console.log('re-render', this.$.$element);
                 var $ = this;
                 if (template) this.configuration.template = template;
                 this.configuration.module = "function"===typeof module?module:false;
                 if (this.$.__config__.$$angularInitialedStage>1) {
                     
                     this.$inject(function($self, template, module) {
-
+                        
                         var test = $self.__config__.$$angularCompile(template)($self.__config__.$$angularScope);
-                        $self.__config__.$$angularElement.html(test);
+                        /*
+                        Надо обратить внимание на тот факт, что в случае если к странице подключен jquery angular
+                        использует его методы - это звучит немного безумно, т.к. они отличаются от "родных".
+                        Так например html у angular действует аналогично set innerHTML и не может принимать
+                        данные ввиде массива node. Поэтому для присвоения нового html необходимо использовать
+                        append предварительно очищая элемент с помощью html('').
+                        */
+                        $self.__config__.$$angularElement.html('').append(test);
                         
                         $.trigger("DOMChanged");
                         if (module) {
@@ -82,6 +95,25 @@ function(classEvents, minTemplate) {
                     nm = nm.inherit(overMod);
                 }
                 this.$.module = new nm(this.$);
+            },
+            destroy: function() {
+                /*
+                Очищаем модуль
+                */
+                if ("object"===typeof this.module&&"function"===typeof this.module.destory) {
+                    this.module.destory();
+                    this.module = null;
+                }
+                /*
+                Очищаем наблюдвтелей
+                */
+                for (var i = 0;i<this.watchers.length;++i) {
+                    his.watchers[i]();
+                }
+                /*
+                Очищаем события
+                */
+                this.clearEventListners();
             }
         });
 });
