@@ -119,7 +119,6 @@ AMD Synthet
 
                             if (this.synthetic) return false;
 
-
                             var WebElementFactory = function(element, component) {
 
                                 
@@ -149,7 +148,6 @@ AMD Synthet
                                         allWaitingForResolve: false, // Используется при инициализации angular.
                                         // DOTO: delete depricated element
                                         generator: false, // Depricated
-                                        $$angularScope: false, // Ссылка на $scope angular
                                         $$angularInitialedStage: 0, // Этап инициализации angular
                                         createdEventFires: false, // Произошло ли событие created
                                         attachedEventFires: false, // Произошло ли событие attached
@@ -308,17 +306,18 @@ AMD Synthet
                                                 // custom filters.
 
                                             }
-                                        ).run(function($rootScope, $compile, $q) {
+                                        ).run(function($rootScope, $compile, $q, $timeout) {
                                             Synthetic.$$angularRootScope = $rootScope;
                                             Synthetic.$$angularRCompile = $compile;
+                                            Synthetic.$$angularCompile = $compile;
                                             Synthetic.$$angularQ = $q;
+                                            Synthetic.$$angularTimeout = $timeout;
                                         });
 
                                         /*
                                         Выполняем пользовательскую инициализацию
                                         */
                                         if ("function"===typeof component.options.engine.initial) {
-                                            console.log('Init app', component.options.engine.initial);
                                             component.options.engine.initial(Synthetic.$$angularApp);
                                         }
                                         
@@ -328,6 +327,14 @@ AMD Synthet
                                         * * * * * * * * * * * * *
                                         */
                                         if ("object"!==typeof angular.element(document.body).injector()) {
+
+                                            Synthetic.$$angularApp.controller('syntheticController', 
+                                                function ($element, $scope) {
+
+                                                }
+                                            );
+
+                                            document.body.setAttribute('ng-controller', 'syntheticController');
 
                                             angular.element(document.body).ready(function() {
                                              
@@ -342,48 +349,34 @@ AMD Synthet
                                     }
 
                                     var controllerGenerator = function() {
+
                                         /*
                                         Предотвращаем генерацию контроллера, если элемент уже был удален
                                         */
                                         if (this.$destroyed) return false;
-
-
-
-                                        Synthetic.log('$$controller registred', $self.$$angularControllerName);
-                                        var deferred = Synthetic.$$angularQ.defer();
-
-                                        Synthetic.$$angularApp.controller(this.$$angularControllerName, 
-                                            function ($element, $scope, $timeout, $compile) {
-                                            
-                                            /*
-                                            Если элемент был перемещен в scope
-                                            */
-                                            if (angular.element($self.$element).scope()===undefined) {
-                                                
-                                                $self.$destroy();
-                                                return;
-                                            }
-                                            
-                                            Synthetic.log('$$controller initialed', $self.$$angularControllerName);
-                                            
-                                            angular.extend($scope, $$scope);
-                                            
-                                            $self.__selfie__.$scope = $scope;
-
-                                            $self.__config__.$$angularInitialedStage = 2;
-                                            $self.__config__.allWaitingForResolve = false;
-
-                                            $self.__config__.$$angularScope = angular.element($self.__selfie__.$element).scope();
-                                            $self.__config__.$$angularTimeout = $timeout;
-                                            $self.__config__.$$angularCompile = $compile;
-                                            $self.__config__.$$angularElement = $element;
-                                            
-                                            $self.trigger('angularResolved');
-                                        });     
-                                        
+                                        /*
+                                        Если элемент был перемещен в scope
+                                        */
+                                        $scope = angular.element($self.$element).scope();
+                                        if (!$scope) $scope = Synthetic.$$angularRootScope.$new(true);
                                        
+                                        if ($scope===undefined) {
+                                            $self.$destroy();
+                                            return;
+                                        }
+                                        
+                                        angular.extend($scope, $$scope);
+                                        
+                                        $self.__selfie__.$scope = $scope;
+                                        
+                                        $self.__config__.allWaitingForResolve = false;
+                                        
+                                        $self.__config__.$$angularElement = angular.element($self.$element);
 
-                                        element.setAttribute('ng-controller', $self.$$angularControllerName);
+                                        $self.__config__.$$angularScope = $scope;
+                                            
+                                            
+                                        ///////////////   
                                        
                                         /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
                                         * Этот код на вес золота, я его решал несколько дней. Его смысл прикрепить контроллер к синтету. *
@@ -405,11 +398,14 @@ AMD Synthet
 
                                         Morulus
                                         * * * * * * * *  * * * * * * * *  * * * * * * * *  * * * * * * * *  * * * * * * * *  * * * * * * */
-                                        /*
-                                                                                */
+
                                         setTimeout(function() {
+
                                             if ($self.__config__.$$angularInitialedStage>1) return;
+
+
                                             angular.element(document.body).injector().invoke(function($compile) { 
+
                                                 var scope = angular.element(element).scope(); 
                                                 if (!scope) {
                                                     /*
@@ -426,6 +422,11 @@ AMD Synthet
                                                     */                                                    
                                                     $compile(element, undefined, undefined, 'ngRepeat')(scope); 
                                                 }
+
+                                                Synthetic.$$angularTimeout(function() {
+                                                    $self.__config__.$$angularInitialedStage = 2;
+                                                    $self.trigger('angularResolved');
+                                                });
                                             });
                                         });
                                         /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */                   
@@ -615,7 +616,7 @@ AMD Synthet
                             if ("object"===typeof Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage>1) {
                                 if (previousValue !== value) {
                                     
-                                    this.synthetic.__config__.$$angularTimeout(function() {
+                                    Synthetic.$$angularTimeout(function() {
                                         angular.element(this.synthetic.__selfie__.$element).scope().$apply(function() {
                                             this.synthetic.__selfie__.$scope.attributes[camelize(name)] = value;
                                             if (name.substr(0,5)==='data-') {

@@ -156,7 +156,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 				var self = this;
 				return function() {
 					var nargs = Array.prototype.slice.apply(arguments),context=this;
-					self.__config__.$$angularTimeout(function() {
+					Synthetic.$$angularTimeout(function() {
 						smartCallback.call(self.__selfie__, callback, self).apply(context, nargs);
 					});
 				}				
