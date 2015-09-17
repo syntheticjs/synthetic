@@ -117,13 +117,13 @@ define(function() {
             document.body.setAttribute('ng-controller', 'syntheticController');
 
             angular.element(document.body).ready(function() {
-                    console.log('bootstrap angular');
-                    angular.bootstrap(document.body, 
-                    ['syntheticApp']);
-                    Synthetic.$$angularBootstraped = true;
-                    
-                    Synthetic.trigger('angularBootstraped');
-              
+                    setTimeout(function() {
+                        angular.bootstrap(document.body, 
+                        ['syntheticApp']);
+                        Synthetic.$$angularBootstraped = true;
+                        
+                        Synthetic.trigger('angularBootstraped');
+                    }, 100);
             }.bind(this));
         }
 	}

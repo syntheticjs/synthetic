@@ -161,9 +161,16 @@ AMD Synthet
                     return {
                         restrict: 'A',
                         scope: {},
-                        compile: function() {
+                        compile: function($element, $s) {
+                            
                             return function($scope, $element) {
-                                
+                                if ($s.ngRepeat) {
+                                   
+                                    setTimeout(function() {
+                                        scopeGenerator($element[0].synthetic, angular.element($element).scope());
+                                    })
+                                }
+                                else
                                 scopeGenerator($element[0].synthetic, angular.element($element).scope());
                             }
                         },
