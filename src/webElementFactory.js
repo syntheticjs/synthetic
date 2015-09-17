@@ -2,9 +2,10 @@ define([
 	"./WebElementPrototype.js",
 	"abstudio~mixin@0.1.0",
 	"./generator.js",
+	"./scopeGenerator.js",
 	"polyvitamins~polychrome@master/gist/convert/camelize.js",
 	"polyvitamins~polyinherit@master",
-], function(WebElementPrototype, mixin, Generator, camelize) {
+], function(WebElementPrototype, mixin, Generator, scopeGenerator, camelize) {
 	return function(element, component) {
             if (component.options.engine.name==='angular') {
                 element.setAttribute(component.options.name, "exp");
@@ -13,12 +14,6 @@ define([
             Synthetic.$$lastElementFactory = this;
 
             this.$element = element;
-
-            Object.defineProperty(this, '$scope', {
-                get: function() {
-                    return this.$injectors.$scope;
-                }
-            })
 
             Object.defineProperty(element, 'synthetic', {
                 enumerable: false,
@@ -93,125 +88,17 @@ define([
                 Set element waiting for `angularResolved` 
                 */
                 this.__config__.allWaitingForResolve = 'angularResolved';
-
                 
 
-                var controllerGenerator = function() {
-
-                    /*
-                    Предотвращаем генерацию контроллера, если элемент уже был удален
-                    */
-                    if (this.$destroyed) return false;
-                    /*
-                    Если элемент был перемещен в scope
-                    */
-                    $scope = angular.element($self.$element).scope().$new(true);
-
-                    if (!$scope) {
-                        $scope = angular.element($self.$element).scope();
-                        setTimeout(function() {
-                            console.error('scope uexists', angular.element($self.$element).scope());
-                        },200);
-                        
-                        return;
-                        $scope = Synthetic.$$angularRootScope.$new(true);
-                    } else {
-                        console.log('+scope', $scope.$parent);
-                    }
-                   
-                    if ($scope===undefined) {
-                        $self.$destroy();
-                        return;
-                    }
-                    
-                    angular.extend($scope, $$scope);
-                    
-                    $self.$injectors.$scope = $scope;
-                    
-                    $self.__config__.allWaitingForResolve = false;
-                    
-                    $self.__config__.$$angularElement = angular.element($self.$element);
-
-                    $self.__config__.$$angularScope = $scope;
-                        
-                        
-                    ///////////////   
-                   
-                    /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-                    * Этот код на вес золота, я его решал несколько дней. Его смысл прикрепить контроллер к синтету. *
-
-                    Посколько после того как angular проходит стадию bootstrap он перестается следить на деревом, к 
-                    которому он не относится, все вновь созданные компоненты должны быть инициализированны принудительно.
-                    За исключением тех случаев, когда шаблон для них устанавливается через интерфейс $generator.render()
-                    в таком случае angular сам производит инициализацию контроллеров.
-
-                    Мною было найдено несколько ресурсов, которые помогли мне решить задачу.
-
-                    http://ify.io/lazy-loading-in-angularjs/
-                    Здесь предлагают использовать $compileProvider. Это решение позволяет создавать новые контроллеры
-                    уже после активации angular.
-
-                    http://stackoverflow.com/a/24058760/5322348
-                    Здесь был продемонстрирован данный код. Он позволяет компилировать отдельные элементы, вводя их в
-                    область видимости angular.
-
-                    Morulus
-                    * * * * * * * *  * * * * * * * *  * * * * * * * *  * * * * * * * *  * * * * * * * *  * * * * * * */
-
-                    setTimeout(function() {
-
-                        if ($self.__config__.$$angularInitialedStage>1) return;
-
-
-                        angular.element(document.body).injector().invoke(function($compile) { 
-
-                            var scope = angular.element(element).scope(); 
-                            if (!scope) {
-                                /*
-                                Если scope для этого элемента не проявляется, значит angular его использует как вспомогательный элемент,
-                                инициализировать такой элемент нам не нужно.
-                                */
-
-                                $self.$destroy();
-                            } else {
-                                /*
-                                Воизбежание переиницаилизации мы должны игнорировать директиву
-                                ngRepeat. Игнорирование прочих директив не исключено, то их поведение
-                                еще не выявлено.
-                                */                                                    
-                                $compile(element, undefined, undefined, 'ngRepeat')(scope); 
-                            }
-
-                            Synthetic.$$angularTimeout(function() {
-                                $self.__config__.$$angularInitialedStage = 2;
-                                $self.trigger('angularResolved');
-                            });
-                        });
-                    });
-                    /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */                   
-                   
-                    Object.defineProperty(this, '$$angular', {
-                        enumerable: false,
-                        writable: false,
-                        configurable: false,
-                        value: Synthetic.$$angularApp
-                    });           
-                   
-                    Object.defineProperty(this, '$$angular', {
-                        enumerable: false,
-                        writable: false,
-                        configurable: false,
-                        value: Synthetic.$$angularApp
-                    });
-                }.bind(this);
-
                 if (Synthetic.$$angularBootstraped) {
-                        Synthetic.$$angularTimeout(function() {
-                            controllerGenerator();
-                        });
+                    Synthetic.$$angularTimeout(function() {
+                        scopeGenerator($self, $$scope);
+                    });
                         
                 } else {
-                    Synthetic.bind('angularBootstraped', controllerGenerator);
+                    Synthetic.bind('angularBootstraped', function() {
+                    	scopeGenerator($self, $$scope);
+                    });
                 }
             }
 

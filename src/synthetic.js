@@ -130,10 +130,7 @@ AMD Synthet
                 if ("undefined"===typeof Synthetic.$$angularApp) {
                     initAngular();
                 }
-
-                /*
-
-                */
+                
                 if ("function"===typeof componentFactory.options.engine.initial) {
                     componentFactory.options.engine.initial(Synthetic.$$angularApp);
                 }
@@ -147,7 +144,6 @@ AMD Synthet
                             Отклоняем, если по какой то причине этот компонент уже инициализирован
                             */
                             if (this.synthetic) return false;
-
                             
                             // inherit constructors
                             for (var i = 0;i<componentFactory.constructors.length;++i) {
@@ -185,7 +181,7 @@ AMD Synthet
                                 if (previousValue !== value) {
                                     
                                     Synthetic.$$angularTimeout(function() {
-                                        this.__config__.$$angularScope.$apply(function($self, $scope) {
+                                        this.$apply(function($self, $scope) {
                                             $scope.attributes[camelize(name)] = value;
                                             if (name.substr(0,5)==='data-') {
                                                
