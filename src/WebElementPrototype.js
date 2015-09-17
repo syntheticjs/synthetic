@@ -35,11 +35,13 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 				}.bind(this, arguments));
 				return;
 			}
+
 			/*
 			Start watching ***
 			*/
 			var self=this,objectXPath=false, properties, callback;
 			;(arguments.length>2) ? (objectXPath=arguments[0],properties=arguments[1],callback=arguments[2]) : (properties=arguments[0],callback=arguments[1]);
+			
 			
 			/*
 			Формируем полные пути свойств
