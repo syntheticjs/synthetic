@@ -199,10 +199,10 @@ AMD Synthet
                             } else {
                                 if (previousValue !== value) {
                                     
-                                    this.synthetic.__selfie__.$scope.attributes[camelize(name)] = value;
+                                    this.synthetic.$injectors.$scope.attributes[camelize(name)] = value;
                                     if (name.substr(0,5)==='data-') {
                                        
-                                            this.synthetic.__selfie__.$scope.properties[camelize(name.substr(5))] = value;
+                                            this.synthetic.$injectors.$scope.properties[camelize(name.substr(5))] = value;
                                        
                                     }
                                     this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);

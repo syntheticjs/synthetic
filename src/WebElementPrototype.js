@@ -64,7 +64,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 						if (rprops===requiredProperties[x])
 						alldata.push(newValue);
 						else
-						alldata.push(getObjectByXPath(self.__selfie__.$scope, requiredProperties[x]));
+						alldata.push(getObjectByXPath(self.$injectors.$scope, requiredProperties[x]));
 					}
 
 					/*
@@ -99,7 +99,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 				if ("undefined"===typeof wobject[prop]) wobject[prop] = false;
 				if (Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
 					try {
-						var unwatcher = angular.element(self.__selfie__.$element).scope().$watch(rprops.join('.'), function(newValue) {
+						var unwatcher = angular.element(self.$injectors.$element).scope().$watch(rprops.join('.'), function(newValue) {
 						this.call(self, false, 'set', newValue);
 						}.bind(getDatas(requiredProperties, rprops)))
 						self.$watchersHistory.push({
@@ -107,8 +107,8 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 						});
 						
 					} catch(e) {
-						window.teste = self.__selfie__.$element;
-						console.error('Errors', e, self.__selfie__.$element);
+						window.teste = self.$injectors.$element;
+						console.error('Errors', e, self.$injectors.$element);
 					}
 					return unwatcher;
 				} else {
@@ -141,7 +141,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 			var unwacthers = function() {}; // Эта функция будет содержат функции для уничтожения наблюдений
 			for (var i = 0;i<requiredProperties.length;++i) {
 				
-				unwacthers.inherit(watchFabric(requiredProperties[i], getObjectByXPath(this.__selfie__.$scope, requiredProperties[i].slice(0, requiredProperties[i].length-1)), requiredProperties[i][requiredProperties[i].length-1]));
+				unwacthers.inherit(watchFabric(requiredProperties[i], getObjectByXPath(this.$injectors.$scope, requiredProperties[i].slice(0, requiredProperties[i].length-1)), requiredProperties[i][requiredProperties[i].length-1]));
 			}
 			return unwacthers;
 		},
@@ -157,11 +157,11 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 				return function() {
 					var nargs = Array.prototype.slice.apply(arguments),context=this;
 					Synthetic.$$angularTimeout(function() {
-						smartCallback.call(self.__selfie__, callback, self).apply(context, nargs);
+						smartCallback.call(self.$injectors, callback, self).apply(context, nargs);
 					});
 				}				
 			} else {
-				return smartCallback.call(this.__selfie__, callback, this);
+				return smartCallback.call(this.$injectors, callback, this);
 			}
 			
 		},
@@ -186,7 +186,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 			this.$inject(callback)();
 		},
 		$template: function(content) {
-			this.__selfie__.$generator.template(content);
+			this.$injectors.$generator.template(content);
 		},
 		$destroy: function() {
 			
@@ -214,12 +214,12 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 			/*
 			Удаляем generator
 			*/
-			this.__selfie__.$generator.destroy();
-			this.__selfie__.$generator = null;
+			this.$injectors.$generator.destroy();
+			this.$injectors.$generator = null;
 			/*
 			Удаляем привязку объекта к элементу
 			*/
-			this.__selfie__.$element.synthetic = null;
+			this.$injectors.$element.synthetic = null;
 			/*
 			Очищаем собственные данные конфигурации
 			*/

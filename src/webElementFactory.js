@@ -16,7 +16,7 @@ define([
 
             Object.defineProperty(this, '$scope', {
                 get: function() {
-                    return this.__selfie__.$scope;
+                    return this.$injectors.$scope;
                 }
             })
 
@@ -49,7 +49,7 @@ define([
                 uid: 'syntheticElement'+Math.round(Math.random()*10000)
             }
 
-            Object.defineProperty(this, '__selfie__', {
+            Object.defineProperty(this, '$injectors', {
                 enumerable: false,
                 writable: false,
                 configurable: true,
@@ -126,7 +126,7 @@ define([
                     
                     angular.extend($scope, $$scope);
                     
-                    $self.__selfie__.$scope = $scope;
+                    $self.$injectors.$scope = $scope;
                     
                     $self.__config__.allWaitingForResolve = false;
                     
@@ -238,7 +238,7 @@ define([
                            this.$queue(this.$inject(userfunc));
                        }).call(this, element.childNodes[i].innerHTML);
                     } else {
-                        this.__selfie__.$scope.html[camelize(element.childNodes[i].tagName.toLowerCase())] = element.childNodes[i].innerHTML;
+                        this.$injectors.$scope.html[camelize(element.childNodes[i].tagName.toLowerCase())] = element.childNodes[i].innerHTML;
                     }
                 }
             }
@@ -247,9 +247,9 @@ define([
             Культивируем аттрибуты
             */
             for (var z = 0; z < element.attributes.length; z++) {
-                this.__selfie__.$scope.attributes[camelize(element.attributes[z].name)] = element.attributes[z].value;
+                this.$injectors.$scope.attributes[camelize(element.attributes[z].name)] = element.attributes[z].value;
                 if (element.attributes[z].name.substr(0,5)==='data-')
-                this.__selfie__.$scope.properties[camelize(element.attributes[z].name.substr(5))] = element.attributes[z].value;
+                this.$injectors.$scope.properties[camelize(element.attributes[z].name.substr(5))] = element.attributes[z].value;
             }
             
             this.$queue(function() {

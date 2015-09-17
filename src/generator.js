@@ -27,7 +27,7 @@ function(classEvents, minTemplate) {
             var $ = this;
             
             try {
-                this.watchers.push(angular.element(synthet.__selfie__.$element).scope().$watch(function(){
+                this.watchers.push(angular.element(synthet.$injectors.$element).scope().$watch(function(){
                     $.trigger("DOMChanged");
                 }));
             }
@@ -70,7 +70,7 @@ function(classEvents, minTemplate) {
                         }
                     })(this.configuration.template, this.configuration.module);
                 } else {
-                    this.$.__selfie__.$element.innerHTML = this.$.__selfie__.$element.innerHTML = minTemplate(this.configuration.template, this.$.__selfie__.$scope);
+                    this.$.$injectors.$element.innerHTML = this.$.$injectors.$element.innerHTML = minTemplate(this.configuration.template, this.$.$injectors.$scope);
                     
                     if (this.configuration.module) {
                         $.setup(this.configuration.module);
