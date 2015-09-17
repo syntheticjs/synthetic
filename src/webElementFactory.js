@@ -7,7 +7,8 @@ define([
 	"polyvitamins~polyinherit@master",
 ], function(WebElementPrototype, mixin, Generator, scopeGenerator, camelize) {
 	return function(element, component) {
-            
+            this.randomId = Math.round(Math.random()*10000000);
+            sx.debug('create-comp'+this.randomId).evaluate('@begin');
             if (component.options.engine.name==='angular') {
                 element.setAttribute(component.options.name, "exp");
             }
@@ -84,6 +85,7 @@ define([
             __config__.$$angularInitialedStage станет 2 и будет вызвано
             событие 'angularResolved', все watchers пройдут инициализацию
             */
+            sx.debug('create-comp'+this.randomId).evaluate('init');
             if ("object"===typeof angular&&angular.bootstrap&&component.options.engine.name==='angular') {
                 var $self = this;
                 
@@ -99,12 +101,14 @@ define([
                 
 
                 if (Synthetic.$$angularBootstraped) {
-                    Synthetic.$$angularTimeout(function() {
+                    setTimeout(function() {
+                        sx.debug('create-comp'+$self.randomId).evaluate('apply');
                         scopeGenerator($self, $$scope);
-                    });
+                    },0);
                         
                 } else {
                     Synthetic.bind('angularBootstraped', function() {
+                        sx.debug('create-comp'+$self.randomId).evaluate('bootstrp');
                     	scopeGenerator($self, $$scope);
                     });
                 }

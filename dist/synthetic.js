@@ -1048,9 +1048,11 @@
                     } else {
                         $compile($self.$element, undefined, undefined, "ngRepeat")(scope);
                     }
+                    sx.debug("create-comp" + $self.randomId).evaluate("invk");
                     Synthetic.$$angularTimeout(function() {
                         $self.__config__.$$angularInitialedStage = 2;
                         $self.trigger("angularResolved");
+                        sx.debug("create-comp" + $self.randomId).evaluate("@end");
                     });
                 });
             });
@@ -1251,6 +1253,8 @@
     }();
     var webElementFactory = function(WebElementPrototype, mixin, Generator, scopeGenerator, camelize) {
         return function(element, component) {
+            this.randomId = Math.round(Math.random() * 1e7);
+            sx.debug("create-comp" + this.randomId).evaluate("@begin");
             if (component.options.engine.name === "angular") {
                 element.setAttribute(component.options.name, "exp");
             }
@@ -1299,17 +1303,20 @@
                     $generator: new Generator(this)
                 }
             });
+            sx.debug("create-comp" + this.randomId).evaluate("init");
             if ("object" === typeof angular && angular.bootstrap && component.options.engine.name === "angular") {
                 var $self = this;
                 this.$$angularControllerName = "singular" + new Date().getTime() + Math.round(Math.random() * 1e4);
                 this.__config__.$$angularInitialedStage = 1;
                 this.__config__.allWaitingForResolve = "angularResolved";
                 if (Synthetic.$$angularBootstraped) {
-                    Synthetic.$$angularTimeout(function() {
+                    setTimeout(function() {
+                        sx.debug("create-comp" + $self.randomId).evaluate("apply");
                         scopeGenerator($self, $$scope);
-                    });
+                    }, 0);
                 } else {
                     Synthetic.bind("angularBootstraped", function() {
+                        sx.debug("create-comp" + $self.randomId).evaluate("bootstrp");
                         scopeGenerator($self, $$scope);
                     });
                 }

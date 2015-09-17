@@ -78,10 +78,14 @@ define([
                     $compile($self.$element, undefined, undefined, 'ngRepeat')(scope); 
                 }
 
+                sx.debug('create-comp'+$self.randomId).evaluate('invk');
+
                 Synthetic.$$angularTimeout(function() {
                     $self.__config__.$$angularInitialedStage = 2;
                     $self.trigger('angularResolved');
+                    sx.debug('create-comp'+$self.randomId).evaluate('@end');
                 });
+
             });
         });
         /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */                   
