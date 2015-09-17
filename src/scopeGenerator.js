@@ -17,7 +17,9 @@ define([
             $self.$destroy();
             return;
         }
-        
+
+
+
         angular.extend($scope, $$scope);
         
         $self.$injectors.$scope = $scope;

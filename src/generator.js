@@ -25,7 +25,6 @@ function(classEvents, minTemplate) {
              Включаем наблюдение за DOM внутри контроллера
              */
             var $ = this;
-            
             try {
                 this.watchers.push(angular.element(synthet.$injectors.$element).scope().$watch(function(){
                     $.trigger("DOMChanged");

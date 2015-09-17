@@ -7,6 +7,7 @@ define([
 	"polyvitamins~polyinherit@master",
 ], function(WebElementPrototype, mixin, Generator, scopeGenerator, camelize) {
 	return function(element, component) {
+            
             if (component.options.engine.name==='angular') {
                 element.setAttribute(component.options.name, "exp");
             }
@@ -42,7 +43,14 @@ define([
                 properties: {}, // Содержит все аттрибуты data-*
                 html: {},
                 uid: 'syntheticElement'+Math.round(Math.random()*10000)
-            }
+            };
+
+            Object.defineProperty(this, '$scope', {
+                enumberable: true,
+                get: function() {
+                    return this.$injectors.$scope;
+                }.bind(this)
+            });
 
             Object.defineProperty(this, '$injectors', {
                 enumerable: false,
@@ -130,16 +138,20 @@ define([
                 }
             }
             
-            /*
-            Культивируем аттрибуты
-            */
-            for (var z = 0; z < element.attributes.length; z++) {
-                this.$injectors.$scope.attributes[camelize(element.attributes[z].name)] = element.attributes[z].value;
-                if (element.attributes[z].name.substr(0,5)==='data-')
-                this.$injectors.$scope.properties[camelize(element.attributes[z].name.substr(5))] = element.attributes[z].value;
-            }
+
             
             this.$queue(function() {
+
+                /*
+                 Культивируем аттрибуты
+                 */
+                for (var z = 0; z < element.attributes.length; z++) {
+                    this.$injectors.$scope.attributes[camelize(element.attributes[z].name)] = element.attributes[z].value;
+                    if (element.attributes[z].name.substr(0,5)==='data-') {
+                        
+                        this.$injectors.$scope.properties[camelize(element.attributes[z].name.substr(5))] = element.attributes[z].value;
+                    }
+                }
 
                 /*
                 Преобраузем пользователський прототип c внедрением селфи аргументов

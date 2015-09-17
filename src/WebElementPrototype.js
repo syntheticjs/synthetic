@@ -17,6 +17,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 	}.inherit(classEvents)
 	.proto({
 		watch: function() {
+
 			/*
 			Проверка задержки
 			*/
@@ -44,8 +45,6 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 			*/
 			var xpath = objectXPath?objectXPath.split('.'):[];
 			requiredProperties = [];
-
-
 			
 			for (var i = 0;i<properties.length;++i) {
 				requiredProperties.push(xpath.concat(properties[i].split('.')));
@@ -90,16 +89,18 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 			ДЛЯ ДЕФОЛТНОГО ВОЧЕРА
 			
 			*/
-			if (!Synthetic.$$angularApp) { 
+			//if (!Synthetic.$$angularApp) { 
 				getDatas.call(self, requiredProperties, false).call(self);
-			}
+			//}
 
 			var watchFabric = function(rprops, wobject, prop) {
 				
 				if ("undefined"===typeof wobject[prop]) wobject[prop] = false;
 				if (Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
+
 					try {
-						var unwatcher = angular.element(self.$injectors.$element).scope().$watch(rprops.join('.'), function(newValue) {
+						var unwatcher = self.$injectors.$scope.$watch(rprops.join('.'), function(newValue) {
+
 						this.call(self, false, 'set', newValue);
 						}.bind(getDatas(requiredProperties, rprops)))
 						self.$watchersHistory.push({
@@ -120,7 +121,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 						"property": prop,
 						"callback": getDatas(requiredProperties, rprops)
 					};
-
+					
 					
 					var unwatcher = function() {
 							watchJS.unwatch(this.object, this.prop, this.callback);
