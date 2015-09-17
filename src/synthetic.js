@@ -15,6 +15,7 @@ AMD Synthet
     "./smartCallback.js",
     "./preFactory.js",
     "./initAngular.js",
+    "./scopeGenerator.js",
     "./webElementFactory.js",
     "polyvitamins~polyinherit@master",
     "./d3party/WebReflection/document-register-element.amd.js"
@@ -28,8 +29,28 @@ AMD Synthet
     smartCallback, 
     ComponentPreFactory, 
     initAngular,
+    scopeGenerator,
     WebElementFactory
-) {
+) { 
+        var componentAttacher = function() {
+             this.synthetic.trigger("attached", [ this.synthetic ]);
+             this.synthetic.__config__.attachedEventFires = true;
+        }
+        var componentCreater = function(componentFactory) {
+
+            /*
+            Отклоняем, если по какой то причине этот компонент уже инициализирован
+            */
+            if (this.synthetic) return false;
+            
+            // inherit constructors
+            for (var i = 0;i<componentFactory.constructors.length;++i) {
+                WebElementFactory.inherit(componentFactory.constructors[i]);
+            }
+           
+            var WebElement = new WebElementFactory(this, componentFactory);
+        };
+
         var regScriptContent = /<script[^>]*>([.\w\d\r\t\n\.\s;'"{}\(\)]*)<\/script>/i,
         regSyntheticScript = /^[\t\r\s]*Synthetic\(/i;
         var Synthetic = function(element) {
@@ -134,29 +155,37 @@ AMD Synthet
                 if ("function"===typeof componentFactory.options.engine.initial) {
                     componentFactory.options.engine.initial(Synthetic.$$angularApp);
                 }
+
+               
+                Synthetic.$$angularApp.directive(camelize(componentOptions.name), function() {
+                    return {
+                        restrict: 'A',
+                        scope: {},
+                        compile: function() {
+                            return function($scope, $element) {
+                                
+                                scopeGenerator($element[0].synthetic, angular.element($element).scope());
+                            }
+                        },
+                        link: function(scope, iElm, iAttrs) {
+                            // Hello world
+                            
+                        },
+                        scope: true
+                    }
+                });
             }
 
             document.registerElement(componentOptions.name, {
                 prototype: Object.create(HTMLElement.prototype, {
                     createdCallback: {
                         value: function() {
-                            /*
-                            Отклоняем, если по какой то причине этот компонент уже инициализирован
-                            */
-                            if (this.synthetic) return false;
-                            
-                            // inherit constructors
-                            for (var i = 0;i<componentFactory.constructors.length;++i) {
-                                WebElementFactory.inherit(componentFactory.constructors[i]);
-                            }
-                           
-                            var WebElement = new WebElementFactory(this, componentFactory);
+                            componentCreater.call(this, componentFactory);
                         }
                     },
                     attachedCallback: {
                         value: function() {
-                            this.synthetic.trigger("attached", [ this.synthetic ]);
-                            this.synthetic.__config__.attachedEventFires = true;
+                            componentAttacher.call(this);                           
                         }
                     },
                     detachedCallback: {
@@ -208,6 +237,9 @@ AMD Synthet
                     }
                 })
             });
+           
+
+            
 
             return componentFactory;
         }

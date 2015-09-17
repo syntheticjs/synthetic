@@ -110,7 +110,7 @@ define(function() {
 
             Synthetic.$$angularApp.controller('syntheticController', 
                 function ($element, $scope) {
-                    console.log('init controller');
+                    
                 }
             );
 

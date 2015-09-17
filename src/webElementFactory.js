@@ -2,19 +2,19 @@ define([
 	"./WebElementPrototype.js",
 	"abstudio~mixin@0.1.0",
 	"./generator.js",
-	"./scopeGenerator.js",
 	"polyvitamins~polychrome@master/gist/convert/camelize.js",
 	"polyvitamins~polyinherit@master",
-], function(WebElementPrototype, mixin, Generator, scopeGenerator, camelize) {
+], function(WebElementPrototype, mixin, Generator, camelize) {
 	return function(element, component) {
+            
             this.randomId = Math.round(Math.random()*10000000);
-            sx.debug.evaluate('create-comp'+this.randomId, '@begin');
+            
             if (component.options.engine.name==='angular') {
                 element.setAttribute(component.options.name, "exp");
             }
 
             Synthetic.$$lastElementFactory = this;
-
+           
             this.$element = element;
 
             Object.defineProperty(element, 'synthetic', {
@@ -39,7 +39,7 @@ define([
                 }, component.options)
             });
 
-            var $$scope= {
+            this.$$scope = {
                 attributes: {}, // Содержит все аттрибуты элемента
                 properties: {}, // Содержит все аттрибуты data-*
                 html: {},
@@ -58,7 +58,7 @@ define([
                 writable: false,
                 configurable: true,
                 value: {
-                    $scope: $$scope,
+                    $scope: this.$$scope,
                     $element: element,
                     $self: this,
                     $component: component,
@@ -85,7 +85,7 @@ define([
             __config__.$$angularInitialedStage станет 2 и будет вызвано
             событие 'angularResolved', все watchers пройдут инициализацию
             */
-            sx.debug.evaluate('create-comp'+this.randomId, 'init');
+            
             if ("object"===typeof angular&&angular.bootstrap&&component.options.engine.name==='angular') {
                 var $self = this;
                 
@@ -98,20 +98,6 @@ define([
                 Set element waiting for `angularResolved` 
                 */
                 this.__config__.allWaitingForResolve = 'angularResolved';
-                
-
-                if (Synthetic.$$angularBootstraped) {
-                    setTimeout(function() {
-                        sx.debug.evaluate('create-comp'+$self.randomId, 'apply');
-                        scopeGenerator($self, $$scope);
-                    },0);
-                        
-                } else {
-                    Synthetic.bind('angularBootstraped', function() {
-                        sx.debug.evaluate('create-comp'+$self.randomId, 'bootstrp');
-                    	scopeGenerator($self, $$scope);
-                    });
-                }
             }
 
             /*
@@ -137,6 +123,7 @@ define([
                            this.$queue(this.$inject(userfunc));
                        }).call(this, element.childNodes[i].innerHTML);
                     } else {
+
                         this.$injectors.$scope.html[camelize(element.childNodes[i].tagName.toLowerCase())] = element.childNodes[i].innerHTML;
                     }
                 }
@@ -149,6 +136,7 @@ define([
                 /*
                  Культивируем аттрибуты
                  */
+                
                 for (var z = 0; z < element.attributes.length; z++) {
                     this.$injectors.$scope.attributes[camelize(element.attributes[z].name)] = element.attributes[z].value;
                     if (element.attributes[z].name.substr(0,5)==='data-') {

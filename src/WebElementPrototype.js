@@ -3,9 +3,10 @@ define([
 	"./d3party/watchJS/watch.js",
 	"./smartCallback.js",
 	"./classEvents.js",	
+	"polyvitamins~polychrome@master/gist/convert/camelize.js",
     "polyvitamins~polyinherit@master",
 ],
-function(getObjectByXPath, watchJS, smartCallback, classEvents) {
+function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 	/*
 	Модифицируем стандартный classEvents
 	*/
@@ -165,6 +166,9 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents) {
 				return smartCallback.call(this.$injectors, callback, this);
 			}
 			
+		},
+		$injector: function(cb) {
+			return $inject(cb)();
 		},
 		/*
 		Добавляет функцию в очередь. Она будет выполнена когда компонент будет

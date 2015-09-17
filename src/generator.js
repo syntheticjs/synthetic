@@ -52,7 +52,6 @@ function(classEvents, minTemplate) {
                 if (this.$.__config__.$$angularInitialedStage>1) {
                     
                     this.$inject(function($self, template, module) {
-                        
                         var test = Synthetic.$$angularCompile(template)($self.__config__.$$angularScope);
                         /*
                         Надо обратить внимание на тот факт, что в случае если к странице подключен jquery angular
