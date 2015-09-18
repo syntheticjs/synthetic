@@ -53,7 +53,7 @@ function(classEvents, minTemplate) {
                     
                     this.$inject(function($self, template, module) {
                        
-                        var test = Synthetic.$$angularCompile(template, undefined, undefined, 'ngRepeat')($self.__config__.$$angularScope);
+                        var test = Synthetic.$$angularCompile(template, undefined, undefined)($self.__config__.$$angularScope);
                         /*
                         Надо обратить внимание на тот факт, что в случае если к странице подключен jquery angular
                         использует его методы - это звучит немного безумно, т.к. они отличаются от "родных".

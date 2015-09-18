@@ -6,7 +6,9 @@ define([
 	"polyvitamins~polyinherit@master",
 ], function(WebElementPrototype, mixin, Generator, camelize) {
 	return function(element, component) {
-            
+            if (!~element.className.split(' ').indexOf('synt-loading'))
+            element.className+=' synt-loading';
+
             this.randomId = Math.round(Math.random()*10000000);
             
             if (component.options.engine.name==='angular') {
@@ -33,6 +35,7 @@ define([
                     // DOTO: delete depricated element
                     generator: false, // Depricated
                     $$angularInitialedStage: 0, // Этап инициализации angular
+                    $$angularDirectived: false, // Поддерживает ли этот элемент директива angular
                     createdEventFires: false, // Произошло ли событие created
                     attachedEventFires: false, // Произошло ли событие attached
                     templateModulePrototype: false // Класс, которым автоматичнески расширяется модуль шаблона 
@@ -98,6 +101,20 @@ define([
                 Set element waiting for `angularResolved` 
                 */
                 this.__config__.allWaitingForResolve = 'angularResolved';
+
+                /*
+                Если элемент был добавлен не через angular то директива обрабатывающая этот элемент не сработает
+                Нам необходимо подождать до следующего шага ангуляр и если this.__config__.$$angularInitialedStage 
+                так и остался 1, значит необходимо произвести инициализацию в ручную.
+                */
+                
+                if (Synthetic.$$angularBootstraped) Synthetic.$$angularTimeout(function() {
+                    
+                    if (!$self.__config__.$$angularDirectived&&$self.__config__.$$angularInitialedStage<2) {
+                        
+                        Synthetic.$$angularCompile($self.$element)(angular.element($self.$element).scope());
+                    }
+                });
             }
 
             /*
@@ -128,10 +145,21 @@ define([
                     }
                 }
             }
-            
 
+           
             
             this.$queue(function() {
+                /*
+                Remove loading class
+                */
+                /*var i =this.$element.className.split(' ').indexOf('synt-loading')
+                if (!!~i) {
+                    var st = this.$element.className.split(' ');
+                    st.splice(i,1);
+                    this.$element.className = st.join(' ');
+                }*/
+                if (!~this.$element.className.split(' ').indexOf('synt-loaded'))
+                this.$element.className+=' synt-loaded';
 
                 /*
                  Культивируем аттрибуты

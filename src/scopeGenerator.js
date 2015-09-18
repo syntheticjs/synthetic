@@ -45,6 +45,8 @@ define([
 
         $self.__config__.$$angularInitialedStage = 2;
         $self.trigger('angularResolved');
+
+        
         /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */                   
        
         Object.defineProperty($self, '$$angular', {

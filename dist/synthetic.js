@@ -130,6 +130,13 @@
         mixin(this.prototype, proto);
         return this;
     };
+    var camelize = function() {
+        return function(text) {
+            return text.replace(/-([\da-z])/gi, function(all, letter) {
+                return letter.toUpperCase();
+            });
+        };
+    }();
     var classEvents = function(smartCallback) {
         var Events = function() {
             this.eventListners = {};
@@ -803,13 +810,6 @@
         WatchJS.onChange = trackChange;
         return WatchJS;
     }();
-    var camelize = function() {
-        return function(text) {
-            return text.replace(/-([\da-z])/gi, function(all, letter) {
-                return letter.toUpperCase();
-            });
-        };
-    }();
     var min = function(getObjectByXPath) {
         var each = function(subject, fn) {
             for (var prop in subject) {
@@ -828,7 +828,7 @@
             return template;
         };
     }(getObjectByXPath);
-    var WebElementPrototype = function(getObjectByXPath, watchJS, smartCallback, classEvents) {
+    var WebElementPrototype = function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
         return function() {
             this.$watchersHistory = [];
         }.inherit(classEvents).proto({
@@ -914,6 +914,9 @@
                     return smartCallback.call(this.$injectors, callback, this);
                 }
             },
+            $injector: function(cb) {
+                return $inject(cb)();
+            },
             $queue: function(callback) {
                 var self = this;
                 if (this.__config__.allWaitingForResolve) {
@@ -950,7 +953,7 @@
                 this.__config__ = {};
             }
         });
-    }(getObjectByXPath, watch, smartCallback, classEvents);
+    }(getObjectByXPath, watch, smartCallback, classEvents, camelize);
     var generator = function(classEvents, minTemplate) {
         var synthetModule = function($synthet) {
             this.$synthet = $synthet;
@@ -988,7 +991,7 @@
                 this.configuration.module = "function" === typeof module ? module : false;
                 if (this.$.__config__.$$angularInitialedStage > 1) {
                     this.$inject(function($self, template, module) {
-                        var test = Synthetic.$$angularCompile(template)($self.__config__.$$angularScope);
+                        var test = Synthetic.$$angularCompile(template, undefined, undefined)($self.__config__.$$angularScope);
                         $self.__config__.$$angularElement.html("").append(test);
                         $.trigger("DOMChanged");
                         if (module) {
@@ -1025,51 +1028,6 @@
             }
         });
     }(classEvents, min);
-    var scopeGenerator = function(mixin) {
-        return function($self, $$scope) {
-            if ($self.$destroyed) return false;
-            try {
-                $scope = angular.element($self.$element).scope().$new(true);
-            } catch (e) {
-                $self.$destroy();
-                return;
-            }
-            angular.extend($scope, $$scope);
-            $self.$injectors.$scope = $scope;
-            $self.__config__.allWaitingForResolve = false;
-            $self.__config__.$$angularElement = angular.element($self.$element);
-            $self.__config__.$$angularScope = $scope;
-            setTimeout(function() {
-                if ($self.__config__.$$angularInitialedStage > 1) return;
-                angular.element(document.body).injector().invoke(function($compile) {
-                    var scope = angular.element($self.$element).scope();
-                    if (!scope) {
-                        $self.$destroy();
-                    } else {
-                        $compile($self.$element, undefined, undefined, "ngRepeat")(scope);
-                    }
-                    sx.debug.evaluate("create-comp" + $self.randomId, "invk");
-                    Synthetic.$$angularTimeout(function() {
-                        $self.__config__.$$angularInitialedStage = 2;
-                        $self.trigger("angularResolved");
-                        sx.debug.evaluate("create-comp" + $self.randomId, "@end");
-                    });
-                });
-            });
-            Object.defineProperty($self, "$$angular", {
-                enumerable: false,
-                writable: false,
-                configurable: false,
-                value: Synthetic.$$angularApp
-            });
-            Object.defineProperty($self, "$$angular", {
-                enumerable: false,
-                writable: false,
-                configurable: false,
-                value: Synthetic.$$angularApp
-            });
-        };
-    }(mixin2);
     var inherit2 = function(mixin) {
         return function(aClass, classes) {
             if (!(classes instanceof Array)) classes = [ classes ];
@@ -1238,23 +1196,40 @@
                 Synthetic.$$angularTimeout = $timeout;
             });
             if ("object" !== typeof angular.element(document.body).injector()) {
-                Synthetic.$$angularApp.controller("syntheticController", function($element, $scope) {
-                    console.log("init controller");
-                });
+                Synthetic.$$angularApp.controller("syntheticController", function($element, $scope) {});
                 document.body.setAttribute("ng-controller", "syntheticController");
                 angular.element(document.body).ready(function() {
-                    console.log("bootstrap angular");
-                    angular.bootstrap(document.body, [ "syntheticApp" ]);
-                    Synthetic.$$angularBootstraped = true;
-                    Synthetic.trigger("angularBootstraped");
+                    setTimeout(function() {
+                        angular.bootstrap(document.body, [ "syntheticApp" ]);
+                        Synthetic.$$angularBootstraped = true;
+                        Synthetic.trigger("angularBootstraped");
+                    }, 100);
                 }.bind(this));
             }
         };
     }();
-    var webElementFactory = function(WebElementPrototype, mixin, Generator, scopeGenerator, camelize) {
+    var scopeGenerator = function(mixin, camelize) {
+        return function($self, $$scope) {
+            if ($self.$destroyed) return false;
+            angular.extend($$scope, $self.$$scope);
+            $self.$injectors.$scope = $$scope;
+            $self.__config__.allWaitingForResolve = false;
+            $self.__config__.$$angularElement = angular.element($self.$element);
+            $self.__config__.$$angularScope = $$scope;
+            $self.__config__.$$angularInitialedStage = 2;
+            $self.trigger("angularResolved");
+            Object.defineProperty($self, "$$angular", {
+                enumerable: false,
+                writable: false,
+                configurable: false,
+                value: Synthetic.$$angularApp
+            });
+        };
+    }(mixin2, camelize);
+    var webElementFactory = function(WebElementPrototype, mixin, Generator, camelize) {
         return function(element, component) {
+            if (!~element.className.split(" ").indexOf("synt-loading")) element.className += " synt-loading";
             this.randomId = Math.round(Math.random() * 1e7);
-            sx.debug.evaluate("create-comp" + this.randomId, "@begin");
             if (component.options.engine.name === "angular") {
                 element.setAttribute(component.options.name, "exp");
             }
@@ -1274,12 +1249,13 @@
                     allWaitingForResolve: false,
                     generator: false,
                     $$angularInitialedStage: 0,
+                    $$angularDirectived: false,
                     createdEventFires: false,
                     attachedEventFires: false,
                     templateModulePrototype: false
                 }, component.options)
             });
-            var $$scope = {
+            this.$$scope = {
                 attributes: {},
                 properties: {},
                 html: {},
@@ -1296,30 +1272,23 @@
                 writable: false,
                 configurable: true,
                 value: {
-                    $scope: $$scope,
+                    $scope: this.$$scope,
                     $element: element,
                     $self: this,
                     $component: component,
                     $generator: new Generator(this)
                 }
             });
-            sx.debug.evaluate("create-comp" + this.randomId, "init");
             if ("object" === typeof angular && angular.bootstrap && component.options.engine.name === "angular") {
                 var $self = this;
                 this.$$angularControllerName = "singular" + new Date().getTime() + Math.round(Math.random() * 1e4);
                 this.__config__.$$angularInitialedStage = 1;
                 this.__config__.allWaitingForResolve = "angularResolved";
-                if (Synthetic.$$angularBootstraped) {
-                    setTimeout(function() {
-                        sx.debug.evaluate("create-comp" + $self.randomId, "apply");
-                        scopeGenerator($self, $$scope);
-                    }, 0);
-                } else {
-                    Synthetic.bind("angularBootstraped", function() {
-                        sx.debug.evaluate("create-comp" + $self.randomId, "bootstrp");
-                        scopeGenerator($self, $$scope);
-                    });
-                }
+                if (Synthetic.$$angularBootstraped) Synthetic.$$angularTimeout(function() {
+                    if (!$self.__config__.$$angularDirectived && $self.__config__.$$angularInitialedStage < 2) {
+                        Synthetic.$$angularCompile($self.$element)(angular.element($self.$element).scope());
+                    }
+                });
             }
             for (var i = 0; i < element.childNodes.length; ++i) {
                 if (element.childNodes[i].nodeType === 1) {
@@ -1342,6 +1311,7 @@
                 }
             }
             this.$queue(function() {
+                if (!~this.$element.className.split(" ").indexOf("synt-loaded")) this.$element.className += " synt-loaded";
                 for (var z = 0; z < element.attributes.length; z++) {
                     this.$injectors.$scope.attributes[camelize(element.attributes[z].name)] = element.attributes[z].value;
                     if (element.attributes[z].name.substr(0, 5) === "data-") {
@@ -1389,7 +1359,7 @@
                 }
             });
         }.inherit(WebElementPrototype);
-    }(WebElementPrototype, mixin2, generator, scopeGenerator, camelize);
+    }(WebElementPrototype, mixin2, generator, camelize);
     (function() {
         (function(window, document, Object, REGISTER_ELEMENT) {
             "use strict";
@@ -1784,7 +1754,18 @@
             window[HTMLElement] = Element;
         })(window, Object, "HTMLElement");
     })();
-    (function(inherit, mixin, eventsClass, templateManager, WatchJS, camelize, smartCallback, ComponentPreFactory, initAngular, WebElementFactory) {
+    (function(inherit, mixin, eventsClass, templateManager, WatchJS, camelize, smartCallback, ComponentPreFactory, initAngular, scopeGenerator, WebElementFactory) {
+        var componentAttacher = function() {
+            this.synthetic.trigger("attached", [ this.synthetic ]);
+            this.synthetic.__config__.attachedEventFires = true;
+        };
+        var componentCreater = function(componentFactory) {
+            if (this.synthetic) return false;
+            for (var i = 0; i < componentFactory.constructors.length; ++i) {
+                WebElementFactory.inherit(componentFactory.constructors[i]);
+            }
+            var WebElement = new WebElementFactory(this, componentFactory);
+        };
         var regScriptContent = /<script[^>]*>([.\w\d\r\t\n\.\s;'"{}\(\)]*)<\/script>/i, regSyntheticScript = /^[\t\r\s]*Synthetic\(/i;
         var Synthetic = function(element) {
             if ("object" === typeof element.synthetic) {
@@ -1850,22 +1831,34 @@
                 if ("function" === typeof componentFactory.options.engine.initial) {
                     componentFactory.options.engine.initial(Synthetic.$$angularApp);
                 }
+                Synthetic.$$angularApp.directive(camelize(componentOptions.name), function() {
+                    return {
+                        restrict: "A",
+                        scope: {},
+                        compile: function($element, $s) {
+                            Synthetic($element[0]).__config__.$$angularDirectived = true;
+                            return function($scope, $element) {
+                                Synthetic($element[0]).__config__.$$angularDirectived = true;
+                                setTimeout(function() {
+                                    scopeGenerator($element[0].synthetic, angular.element($element).scope());
+                                });
+                            };
+                        },
+                        link: function(scope, iElm, iAttrs) {},
+                        scope: true
+                    };
+                });
             }
             document.registerElement(componentOptions.name, {
                 prototype: Object.create(HTMLElement.prototype, {
                     createdCallback: {
                         value: function() {
-                            if (this.synthetic) return false;
-                            for (var i = 0; i < componentFactory.constructors.length; ++i) {
-                                WebElementFactory.inherit(componentFactory.constructors[i]);
-                            }
-                            var WebElement = new WebElementFactory(this, componentFactory);
+                            componentCreater.call(this, componentFactory);
                         }
                     },
                     attachedCallback: {
                         value: function() {
-                            this.synthetic.trigger("attached", [ this.synthetic ]);
-                            this.synthetic.__config__.attachedEventFires = true;
+                            componentAttacher.call(this);
                         }
                     },
                     detachedCallback: {
@@ -1908,5 +1901,5 @@
         };
         if (window) window.Synthetic = Synthetic;
         return Synthetic;
-    })(inherit2, mixin2, classEvents, null, watch, camelize, smartCallback, preFactory, initAngular, webElementFactory);
+    })(inherit2, mixin2, classEvents, null, watch, camelize, smartCallback, preFactory, initAngular, scopeGenerator, webElementFactory);
 })();

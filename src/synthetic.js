@@ -156,22 +156,20 @@ AMD Synthet
                     componentFactory.options.engine.initial(Synthetic.$$angularApp);
                 }
 
-               
+                
                 Synthetic.$$angularApp.directive(camelize(componentOptions.name), function() {
                     return {
                         restrict: 'A',
                         scope: {},
                         compile: function($element, $s) {
                             
+                            Synthetic($element[0]).__config__.$$angularDirectived = true;
                             return function($scope, $element) {
-                                if ($s.ngRepeat) {
-                                   
-                                    setTimeout(function() {
-                                        scopeGenerator($element[0].synthetic, angular.element($element).scope());
-                                    })
-                                }
-                                else
-                                scopeGenerator($element[0].synthetic, angular.element($element).scope());
+                                Synthetic($element[0]).__config__.$$angularDirectived = true;
+                                
+                                setTimeout(function() {
+                                    scopeGenerator($element[0].synthetic, angular.element($element).scope());
+                                });
                             }
                         },
                         link: function(scope, iElm, iAttrs) {
