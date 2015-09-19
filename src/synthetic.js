@@ -37,7 +37,7 @@ AMD Synthet
              this.synthetic.__config__.attachedEventFires = true;
         }
         var componentCreater = function(componentFactory) {
-
+            console.log('create component element', this);
             /*
             Отклоняем, если по какой то причине этот компонент уже инициализирован
             */
@@ -156,25 +156,32 @@ AMD Synthet
                     componentFactory.options.engine.initial(Synthetic.$$angularApp);
                 }
 
-                
                 Synthetic.$$angularApp.directive(camelize(componentOptions.name), function() {
                     return {
                         restrict: 'A',
+                        priority: 1500,
                         scope: {},
-                        compile: function($element, $s) {
-                            
-                            Synthetic($element[0]).__config__.$$angularDirectived = true;
-                            return function($scope, $element) {
-                                Synthetic($element[0]).__config__.$$angularDirectived = true;
-                                
-                                setTimeout(function() {
-                                    scopeGenerator($element[0].synthetic, angular.element($element).scope());
-                                });
-                            }
+                        transclude: true,
+                        controller: function() {
+                            console.log('controller', arguments);
                         },
-                        link: function(scope, iElm, iAttrs) {
-                            // Hello world
+                        compile: function($element, $rscope, $a, $controllersBoundTransclude) {
+                            console.log('$controllersBoundTransclude', this, arguments);
+                            return {
+                                pre: function($scope) {
+
+                                    console.log('pre', this, arguments);
+                                    Synthetic($element[0]).__config__.$$angularDirectived = true;
+                                    scopeGenerator($element[0].synthetic, $scope);
+                                   
+                                },
+                                post: function() {
+                                    console.group('too late!');
+                                    console.log('post', arguments);
+                                }
+                            }
                             
+                            /**/
                         },
                         scope: true
                     }

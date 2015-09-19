@@ -28,9 +28,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 				В случае, если система ожидает инициализации какого то приложения,
 				функции прослушивания переменных задерживаются до инициализации
 				*/
-				
 				this.$queue(function(args) {
-
 					this.watch.apply(this, args);
 				}.bind(this, arguments));
 				return;
@@ -100,12 +98,12 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 				
 				if ("undefined"===typeof wobject[prop]) wobject[prop] = false;
 				if (Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
-
+					var compiledCallbacker = getDatas(requiredProperties, rprops);
 					try {
 						var unwatcher = self.$injectors.$scope.$watch(rprops.join('.'), function(newValue) {
 
 						this.call(self, false, 'set', newValue);
-						}.bind(getDatas(requiredProperties, rprops)))
+						}.bind(compiledCallbacker))
 						self.$watchersHistory.push({
 							"unwatch": unwatcher
 						});
@@ -114,6 +112,15 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 						window.teste = self.$injectors.$element;
 						console.error('Errors', e, self.$injectors.$element);
 					}
+					/*
+					Событие смены аргумента в angular и так срабатывает при инициализации scope. Но так уже получается, что мы не можем ждать его
+					и нам необходимо его обработать в том же слое времени, что и происходит компиляция. Поэтому, если значение требуемой переменной
+					не является undefined мы сразу же отрабатываем callback
+					*/
+					console.log('compile callbacker', self.$injectors.$scope.attributes.template);
+					var value = getObjectByXPath(self.$injectors.$scope, rprops.join('.'));
+					
+					compiledCallbacker.call(self, false, 'set', value);
 					return unwatcher;
 				} else {
 					/*
@@ -160,9 +167,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 				var self = this;
 				return function() {
 					var nargs = Array.prototype.slice.apply(arguments),context=this;
-					Synthetic.$$angularTimeout(function() {
-						smartCallback.call(self.$injectors, callback, self).apply(context, nargs);
-					});
+					smartCallback.call(self.$injectors, callback, self).apply(context, nargs);
 				}				
 			} else {
 				return smartCallback.call(this.$injectors, callback, this);

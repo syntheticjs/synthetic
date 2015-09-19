@@ -1,25 +1,45 @@
 define([
-	"./WebElementPrototype.js",
-	"abstudio~mixin@0.1.0",
-	"./generator.js",
-	"polyvitamins~polychrome@master/gist/convert/camelize.js",
-	"polyvitamins~polyinherit@master",
+    "./WebElementPrototype.js",
+    "abstudio~mixin@0.1.0",
+    "./generator.js",
+    "polyvitamins~polychrome@master/gist/convert/camelize.js",
+    "polyvitamins~polyinherit@master",
 ], function(WebElementPrototype, mixin, Generator, camelize) {
-	return function(element, component) {
-            
-            if (!~element.className.split(' ').indexOf('synt-loading'))
-            element.className+=' synt-loading';
+    /*
+    Как только элемент попадает в DOM он проходит данную инициализацию.
+    Если работа ведется с angular то этот код должен быть выполнен до
+    того как angular применит compile для этой директивы.
 
+    Когда angular начнет выполнение compile мы должны быть готовы
+    предоставить ей всю необходимую информацию, желательно template и
+    модуль.
+    */
+    return function(element, component) {
+            /*
+            Устанавливаем отладочную идентификацию
+            */
             this.randomId = Math.round(Math.random()*10000000);
-            
+
+            /*
+            Если в качестве движка выбран angular мы должны добавить аттрибут-директиру, которая уже описана при регистрации компонента
+            */
             if (component.options.engine.name==='angular') {
                 element.setAttribute(component.options.name, "exp");
             }
-
+            
+            /*
+            Указываем последнюю factory для элемента
+            */
             Synthetic.$$lastElementFactory = this;
-           
+            
+            /*
+            Привязываем элемент к его контроллеру
+            */
             this.$element = element;
 
+            /*
+            Привязываем контроллер к его элементу
+            */
             Object.defineProperty(element, 'synthetic', {
                 enumerable: false,
                 writable: false,
@@ -27,6 +47,9 @@ define([
                 value: this
             });
 
+            /*
+            Создаем основное системное конфигурационное свойство
+            */
             Object.defineProperty(this, '__config__', {
                 enumerable: false,
                 writable: false,
@@ -43,6 +66,9 @@ define([
                 }, component.options)
             });
 
+            /*
+            Создаем базовый scope
+            */
             this.$$scope = {
                 attributes: {}, // Содержит все аттрибуты элемента
                 properties: {}, // Содержит все аттрибуты data-*
@@ -50,6 +76,10 @@ define([
                 uid: 'syntheticElement'+Math.round(Math.random()*10000)
             };
 
+            /*
+            Создаем доступное свойство scope, которое назависимо от используемого движка
+            вернет текущий scope
+            */
             Object.defineProperty(this, '$scope', {
                 enumberable: true,
                 get: function() {
@@ -57,6 +87,9 @@ define([
                 }.bind(this)
             });
 
+            /*
+            Создаем коллекцию инжекторовы
+            */
             Object.defineProperty(this, '$injectors', {
                 enumerable: false,
                 writable: false,
@@ -69,48 +102,38 @@ define([
                     $generator: new Generator(this)
                 }
             });
+
             /*
-            Если обнаружен angular, то мы создаем новое приложение для него
-            и размещаем контроллер на компоненте.
-            Имя приложения и контроллера создаются рандомно. Для каждого
-            нового экземпляра компонента создается свой экземпляр
-            приложения angular.
-            Имя приложения >> this.$$angularModuleName
-            Имя контроллера >> this.$$angularModuleName+'Controller'
-
-            Когда происходит инициализация экземпляр получается состояние
-            __config__.$$angularInitialedStage = 1 и 
-            __config__.allWaitingForResolve = 'angularResolved';
-
-            При этом все слушатели событий будут задержаны до 
-            инициализации $scope от angular, а произойдет это при 
-            attached.
-            Когда инициализация $scope от angular произойдет состояние
-            __config__.$$angularInitialedStage станет 2 и будет вызвано
-            событие 'angularResolved', все watchers пройдут инициализацию
-            */
-            
+            Комплекс действий по инициализации angular, произойдет это только в том случае если в опциях
+            компонента указано, что он должен использовать angular
+            */            
             if ("object"===typeof angular&&angular.bootstrap&&component.options.engine.name==='angular') {
                 var $self = this;
                 
                 this.$$angularControllerName = 'singular'+(new Date()).getTime()+Math.round(Math.random()*10000);
-                 /*
-                Set element angular integration stage
+                /*
+                Нам наобходимо отслеживать этапы инициализации директивы, покрайней мере на этапе форматирования
+                схемы функционирования интеграции с angular
                 */
                 this.__config__.$$angularInitialedStage = 1;
                 /*
-                Set element waiting for `angularResolved` 
+                Устанавливаем для директивы событие, которое компонент будет ожидать прежде чем продолжить инициализацию.
+                Когда событие angularResolved сработает в scope будут импортированы свойсвта системного scope, а так же
+                будут перенесены системные watchers в angular.
                 */
                 this.__config__.allWaitingForResolve = 'angularResolved';
 
                 /*
-                Если элемент был добавлен не через angular то директива обрабатывающая этот элемент не сработает
-                Нам необходимо подождать до следующего шага ангуляр и если this.__config__.$$angularInitialedStage 
-                так и остался 1, значит необходимо произвести инициализацию в ручную.
-                */
-                
+                Ручная инициализация первого компонента.
+
+                Поскольку наш angular инициализируется не сразу, корневой контроллер может не инициализироваться
+                самостоятельно, поэтому нам следует его инициализировать форсировано.
+
+                TODO: Следует внимательно рассмотреть необходимость этой меры, перед созданием beta-релиза.
+                */                
                 if (Synthetic.$$angularBootstraped) Synthetic.$$angularTimeout(function() {
                     
+                    // Deprecated
                     if (!$self.__config__.$$angularDirectived&&$self.__config__.$$angularInitialedStage<2) {
                         
                         Synthetic.$$angularCompile($self.$element)(angular.element($self.$element).scope());
@@ -137,7 +160,6 @@ define([
                                 console.error('Syntehtic: user func corrupt;', content, e);
                                 return;
                            }
-
                            this.$queue(this.$inject(userfunc));
                        }).call(this, element.childNodes[i].innerHTML);
                     } else {
@@ -145,11 +167,11 @@ define([
                         this.$injectors.$scope.html[camelize(element.childNodes[i].tagName.toLowerCase())] = element.childNodes[i].innerHTML;
                     }
                 }
-            }
-
-           
+            }           
             
             this.$queue(function() {
+
+                console.log('inti component');
                 /*
                 Remove loading class
                 */
@@ -163,9 +185,8 @@ define([
                 this.$element.className+=' synt-loaded';
 
                 /*
-                 Культивируем аттрибуты
-                 */
-                
+                Культивируем аттрибуты
+                */
                 for (var z = 0; z < element.attributes.length; z++) {
                     this.$injectors.$scope.attributes[camelize(element.attributes[z].name)] = element.attributes[z].value;
                     if (element.attributes[z].name.substr(0,5)==='data-') {
@@ -247,7 +268,7 @@ define([
                 /*
                 Переносим наблюдение за scope
                 */    
-
+                console.log('init scope watchers');
                 for (var i = 0;i<component.watchers.length;++i) {
                     this.watch.apply(this, component.watchers[i]);
                 }
