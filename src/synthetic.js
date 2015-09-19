@@ -37,7 +37,7 @@ AMD Synthet
              this.synthetic.__config__.attachedEventFires = true;
         }
         var componentCreater = function(componentFactory) {
-            console.log('create component element', this);
+            
             /*
             Отклоняем, если по какой то причине этот компонент уже инициализирован
             */
@@ -159,25 +159,23 @@ AMD Synthet
                 Synthetic.$$angularApp.directive(camelize(componentOptions.name), function() {
                     return {
                         restrict: 'A',
-                        priority: 1500,
+                        priority: 900,
                         scope: {},
                         transclude: true,
                         controller: function() {
-                            console.log('controller', arguments);
+                            
                         },
                         compile: function($element, $rscope, $a, $controllersBoundTransclude) {
-                            console.log('$controllersBoundTransclude', this, arguments);
+                            
                             return {
-                                pre: function($scope) {
-
-                                    console.log('pre', this, arguments);
-                                    Synthetic($element[0]).__config__.$$angularDirectived = true;
-                                    scopeGenerator($element[0].synthetic, $scope);
+                                pre: function($scope, $jq, $attrs) {
+                                    
                                    
                                 },
-                                post: function() {
-                                    console.group('too late!');
-                                    console.log('post', arguments);
+                                post: function($scope, $element) {
+                                    
+                                    Synthetic($element[0]).__config__.$$angularDirectived = true;
+                                    scopeGenerator($element[0].synthetic, $scope);
                                 }
                             }
                             

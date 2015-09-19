@@ -2,7 +2,7 @@ define([
 	"abstudio~mixin@0.1.0",
     "polyvitamins~polychrome@master/gist/convert/camelize.js"
 ], function(mixin, camelize) {
-	return function($self, $$scope) {
+	return function($self, $$scope, $attrs) {
         /*
         Предотвращаем генерацию контроллера, если элемент уже был удален
         */
@@ -11,7 +11,7 @@ define([
         try {
             angular.extend($$scope, $self.$$scope);
         } catch(e) {
-            console.log('test', $$scope );
+            console.error('test', $$scope );
             throw 'test';
         }
         

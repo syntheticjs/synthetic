@@ -7,6 +7,9 @@ define([
     "polyvitamins~polyinherit@master",
 ],
 function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
+	var getNonScopeValue = function(newValue) {
+		return /^{{[^}}]*}}$/i.test(newValue) ? false : newValue;
+	}
 	/*
 	Модифицируем стандартный classEvents
 	*/
@@ -62,9 +65,9 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 					var alldata = [];
 					for (var x = 0;x<requiredProperties.length;++x) {
 						if (rprops===requiredProperties[x])
-						alldata.push(newValue);
+						alldata.push(getNonScopeValue(newValue));
 						else
-						alldata.push(getObjectByXPath(self.$injectors.$scope, requiredProperties[x]));
+						alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
 					}
 
 					/*
@@ -101,7 +104,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 					var compiledCallbacker = getDatas(requiredProperties, rprops);
 					try {
 						var unwatcher = self.$injectors.$scope.$watch(rprops.join('.'), function(newValue) {
-
+						
 						this.call(self, false, 'set', newValue);
 						}.bind(compiledCallbacker))
 						self.$watchersHistory.push({
@@ -112,17 +115,10 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 						window.teste = self.$injectors.$element;
 						console.error('Errors', e, self.$injectors.$element);
 					}
-					/*
-					Событие смены аргумента в angular и так срабатывает при инициализации scope. Но так уже получается, что мы не можем ждать его
-					и нам необходимо его обработать в том же слое времени, что и происходит компиляция. Поэтому, если значение требуемой переменной
-					не является undefined мы сразу же отрабатываем callback
-					*/
-					console.log('compile callbacker', self.$injectors.$scope.attributes.template);
-					var value = getObjectByXPath(self.$injectors.$scope, rprops.join('.'));
 					
-					compiledCallbacker.call(self, false, 'set', value);
 					return unwatcher;
 				} else {
+
 					/*
 					Запоминаем обработчики, что бы потом можно было их всех затереть
 					*/

@@ -131,14 +131,14 @@ define([
 
                 TODO: Следует внимательно рассмотреть необходимость этой меры, перед созданием beta-релиза.
                 */                
-                if (Synthetic.$$angularBootstraped) Synthetic.$$angularTimeout(function() {
+                /*if (Synthetic.$$angularBootstraped) Synthetic.$$angularTimeout(function() {
                     
                     // Deprecated
                     if (!$self.__config__.$$angularDirectived&&$self.__config__.$$angularInitialedStage<2) {
                         
                         Synthetic.$$angularCompile($self.$element)(angular.element($self.$element).scope());
                     }
-                });
+                });*/
             }
 
             /*
