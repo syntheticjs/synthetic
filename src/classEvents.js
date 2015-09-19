@@ -3,6 +3,7 @@ define([
 ], function(smartCallback) {
 	var Events = function() {
 		this.eventListners = {};
+		this.eventTracks = {};
 	}
 
 	var eventListner = function(own, event, i) {
@@ -40,6 +41,11 @@ define([
 				once: once||false
 			});
 
+			/*
+			Call callback if event already fired
+			*/
+			if ("object"===typeof this.eventTracks[e]) callback.apply(this.eventTracks[e][0], this.eventTracks[e][1]);
+
 			return new eventListner(this, e, this.eventListners[e].length-1);
 		},
 		once : function(e, callback) {
@@ -58,6 +64,9 @@ define([
 			};
 			
 			var response = false;
+
+			
+			this.eventTracks[e]=[this, args];
 
 			if (typeof this.eventListners[e] == 'object' && this.eventListners[e].length>0) {
 				var todelete = [];

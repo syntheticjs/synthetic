@@ -140,6 +140,7 @@
     var classEvents = function(smartCallback) {
         var Events = function() {
             this.eventListners = {};
+            this.eventTracks = {};
         };
         var eventListner = function(own, event, i) {
             this.owner = own;
@@ -171,6 +172,7 @@
                     callback: this.$inject(callback),
                     once: once || false
                 });
+                if ("object" === typeof this.eventTracks[e]) callback.apply(this.eventTracks[e][0], this.eventTracks[e][1]);
                 return new eventListner(this, e, this.eventListners[e].length - 1);
             },
             once: function(e, callback) {
@@ -188,6 +190,7 @@
                     var args = arguments.length > 1 ? arguments[1] : [];
                 }
                 var response = false;
+                this.eventTracks[e] = [ this, args ];
                 if (typeof this.eventListners[e] == "object" && this.eventListners[e].length > 0) {
                     var todelete = [];
                     for (var i = 0; i < this.eventListners[e].length; i++) {
@@ -1162,6 +1165,7 @@
                     return filtered;
                 };
             });
+            Synthetic.trigger("angularModuleInitialed", [ Synthetic.$$angularApp ]);
             Synthetic.$$angularApp.config(function($controllerProvider, $provide, $compileProvider) {
                 Synthetic.$$angularApp._controller = Synthetic.$$angularApp.controller;
                 Synthetic.$$angularApp._service = Synthetic.$$angularApp.service;

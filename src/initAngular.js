@@ -19,7 +19,12 @@ define(function() {
                 
                 return filtered;
             }
-        })
+        });
+
+        /*
+        Вызываем событие оповещающее глобвльно о создании модуля angular
+        */
+        Synthetic.trigger("angularModuleInitialed", [Synthetic.$$angularApp]);
 
         /*
         Этот чанк поможет разрешить проблему постинициализации контроллеров angular

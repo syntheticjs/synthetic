@@ -63,6 +63,7 @@ function(classEvents, minTemplate) {
                         */
                         $self.__config__.$$angularElement.html('').append(test);
                         
+                        
                         $.trigger("DOMChanged");
                         if (module) {
                             $.setup(module);

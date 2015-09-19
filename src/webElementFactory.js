@@ -6,6 +6,7 @@ define([
 	"polyvitamins~polyinherit@master",
 ], function(WebElementPrototype, mixin, Generator, camelize) {
 	return function(element, component) {
+            
             if (!~element.className.split(' ').indexOf('synt-loading'))
             element.className+=' synt-loading';
 
@@ -233,6 +234,8 @@ define([
                 for (var i = 0;i<component.onDetachedCallbacks.length;++i) {
                     this.on("detached", component.onDetachedCallbacks[i]);
                 }
+
+
 
                 /*
                 Переносим callback для detached
