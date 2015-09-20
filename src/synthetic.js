@@ -33,15 +33,28 @@ AMD Synthet
     WebElementFactory
 ) { 
         var componentAttacher = function() {
-             this.synthetic.trigger("attached", [ this.synthetic ]);
-             this.synthetic.__config__.attachedEventFires = true;
+            console.log('attaching', this.synthetic.randomId);
+            /*
+            Если элемент добавлен в дерево 
+            */
+            if (this.synthetic.__config__.$$angularInitialedStage) {
+
+            }
+            
+            this.synthetic.trigger("attached", [ this.synthetic ]);
+            this.synthetic.__config__.attachedEventFires = true;
         }
         var componentCreater = function(componentFactory) {
-            
+            console.log("%ccreated native", "color:brown;font-style:italic;", this);
             /*
-            Отклоняем, если по какой то причине этот компонент уже инициализирован
+            Отклоняем, если по какой то причине этот компонент уже инициализирован.
+            Так же по непонятным причинам компонент дублируется из размещения в DOM,
+            в этом случае мы так же должны его игнорировать.
+            TODO: выяснить причину дублирования
             */
             if (this.synthetic) return false;
+
+           
             
             // inherit constructors
             for (var i = 0;i<componentFactory.constructors.length;++i) {
@@ -156,32 +169,45 @@ AMD Synthet
                     componentFactory.options.engine.initial(Synthetic.$$angularApp);
                 }
 
+               
                 Synthetic.$$angularApp.directive(camelize(componentOptions.name), function() {
                     return {
                         restrict: 'A',
-                        priority: 900,
-                        scope: {},
-                        transclude: true,
-                        controller: function() {
-                            
+                        priority: 998,
+                        scope: true,
+                        controller: function($element) {
+                            console.log("%c<"+$element[0].tagName+">:controller()", "color:blue;font-weight:bold;", $element[0]);
                         },
                         compile: function($element, $rscope, $a, $controllersBoundTransclude) {
-                            
+                            console.log("%c<"+$element[0].tagName+">:compile()", "color:blue;font-weight:bold;", $element[0], $element.parentNode);
                             return {
-                                pre: function($scope, $jq, $attrs) {
+                                pre: function($scope, $element) {
                                     
-                                   Synthetic($element[0]).__config__.$$angularDirectived = true;
+                                    /*
+                                    Если scope для элемента не установлен, то вероятно этот элемент используется в ngRepeat и временно
+                                    пермещен в documentFragment. Такой элемент не нужно инициализировать.
+
+                                    !!! Однако если мы размещаем диерктивы по приоритету ниже чем ng-repeat, то pre не вызывается в принципе.
+                                    TODO: решить это
+                                    */
+                                    /*if (angular.element($element[0]).scope()===undefined) {
+                                        console.log("%c<custom-directive>", "color:blue;font-weight:bold;", 'destroy', $element, $scope);
+                                        Synthetic($element[0]).$destroy();
+                                        return;
+                                    }*/
+                                    console.log("%c<"+$element[0].tagName+">:pre()", "color:blue;font-weight:bold;", $element[0], $scope.attributes);
+                                    
+                                    Synthetic($element[0]).__config__.$$angularDirectived = true;
                                     scopeGenerator($element[0].synthetic, $scope);
+                                   
                                 },
                                 post: function($scope, $element) {
-                                    
-                                    
+                                    console.log("%c<"+$element[0].tagName+">:post()", "color:blue;font-weight:bold;", $element[0]);
                                 }
                             }
                             
                             /**/
-                        },
-                        scope: true
+                        }
                     }
                 });
             }

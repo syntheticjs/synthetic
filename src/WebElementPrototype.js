@@ -20,6 +20,59 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 		this.$watchersHistory = [];
 	}.inherit(classEvents)
 	.proto({
+		read: function() {
+			/*
+			Проверка задержки
+			*/
+			if (this.__config__.allWaitingForResolve) {
+
+				/*
+				В случае, если система ожидает инициализации какого то приложения,
+				функции прослушивания переменных задерживаются до инициализации
+				*/
+				this.$queue(function(args) {
+					this.read.apply(this, args);
+				}.bind(this, arguments));
+				return;
+			}
+
+			var self=this,objectXPath=false, properties, callback;
+			;(arguments.length>2) ? (objectXPath=arguments[0],properties=arguments[1],callback=arguments[2]) : (properties=arguments[0],callback=arguments[1]);
+
+			/*
+			Формируем полные пути свойств
+			*/
+			var xpath = objectXPath?objectXPath.split('.'):[];
+			requiredProperties = [];
+			
+			for (var i = 0;i<properties.length;++i) {
+				requiredProperties.push(xpath.concat(properties[i].split('.')));
+			}
+
+			var alldata = [];
+			for (var x = 0;x<requiredProperties.length;++x) {
+				alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
+			}
+
+			/*
+			Если наблюдение происходит на несколькими переменными одновременно, то 
+			срабатывание функции обработчика будет происходит каждый раз когда одна из 
+			переменных изменится. Но когда это изменение происходит по эвенту инициализации
+			мы получим такой результат, когда функция обработчик будет вызвана несколько раз с
+			одними и теми же данными. Что бы это предотвратить необходимо сравниваться предыдущее
+			состояние ответа с новым. И если они равны, то вызов callback производится не будет.
+			*/
+			var jstr = JSON.stringify(alldata),rstr=JSON.stringify(requiredProperties);
+			
+			/*
+			Если предыдущий ответ точно соответствует теукущему, то мы его игнорируем.
+			*/
+			if (self.$scopeSnaps[rstr]&&jstr===self.$scopeSnaps[rstr]) { return; }
+			self.$scopeSnaps[rstr] = jstr;
+			
+			
+			self.$inject(callback).apply(self, alldata);
+		},
 		watch: function() {
 
 			/*
@@ -43,7 +96,6 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 			var self=this,objectXPath=false, properties, callback;
 			;(arguments.length>2) ? (objectXPath=arguments[0],properties=arguments[1],callback=arguments[2]) : (properties=arguments[0],callback=arguments[1]);
 			
-			
 			/*
 			Формируем полные пути свойств
 			*/
@@ -58,8 +110,6 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 			Начинаем наблюдение за переменной
 			*/
 			var getDatas = function(requiredProperties, rprops) {
-
-				
 				return function(prop, action, newValue) {
 					
 					var alldata = [];
@@ -78,9 +128,13 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 					одними и теми же данными. Что бы это предотвратить необходимо сравниваться предыдущее
 					состояние ответа с новым. И если они равны, то вызов callback производится не будет.
 					*/
-					var jstr = JSON.stringify(alldata);
-					if (jstr===lastTrack) { return; }
-					lastTrack = jstr;
+					var jstr = JSON.stringify(alldata),rstr=JSON.stringify(requiredProperties);
+					
+					/*
+					Если предыдущий ответ точно соответствует теукущему, то мы его игнорируем.
+					*/
+					if (self.$scopeSnaps[rstr]&&jstr===self.$scopeSnaps[rstr]) { return; }
+					self.$scopeSnaps[rstr] = jstr;
 					
 					self.$inject(callback).apply(self, alldata);
 				}
@@ -94,7 +148,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 			
 			*/
 			//if (!Synthetic.$$angularApp) { 
-				getDatas.call(self, requiredProperties, false).call(self);
+				//getDatas.call(self, requiredProperties, false).call(self);
 			//}
 
 			var watchFabric = function(rprops, wobject, prop) {
@@ -103,6 +157,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 				if (Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
 					var compiledCallbacker = getDatas(requiredProperties, rprops);
 					try {
+						console.log("%cwatch", "font-weight:bold;", self.$element, rprops.join('.'));
 						var unwatcher = self.$injectors.$scope.$watch(rprops.join('.'), function(newValue) {
 						
 						this.call(self, false, 'set', newValue);

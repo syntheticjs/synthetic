@@ -32,6 +32,11 @@ define([
             Указываем последнюю factory для элемента
             */
             Synthetic.$$lastElementFactory = this;
+
+            /*
+            Устанавливаем пямять для запросов к данным scope
+            */
+            this.$scopeSnaps = {};
             
             /*
             Привязываем элемент к его контроллеру
@@ -266,11 +271,17 @@ define([
 
                 /*
                 Переносим наблюдение за scope
-                */  
+                */
                 for (var i = 0;i<component.watchers.length;++i) {
                     this.watch.apply(this, component.watchers[i]);
                 }
 
+                /*
+                После того как wathers назначены, необходимо немедленно проверить их значение
+                */
+                for (var i = 0;i<component.watchers.length;++i) {
+                    this.read.apply(this, component.watchers[i]);
+                }
 
             });
 
