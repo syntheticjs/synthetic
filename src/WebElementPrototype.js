@@ -191,7 +191,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 			return this;
 		},
 		$apply: function(callback){
-			this.$inject(callback)();
+			Synthetic.$$angularTimeout(this.$inject(callback));
 		},
 		$template: function(content) {
 			this.$injectors.$generator.template(content);

@@ -52,7 +52,8 @@ function(classEvents, minTemplate) {
                 if (this.$.__config__.$$angularInitialedStage>1) {
                     
                     this.$inject(function($self, template, module) {
-                       console.log("%cgenerator", "color:blue;", template, $self.__config__.$$angularScope, $self.__config__.$$angularElement);
+                       //console.log("%cgenerator", "color:blue;", template, $self.__config__.$$angularScope, $self.__config__.$$angularElement);
+                        
                         var test = Synthetic.$$angularCompile(template, undefined, undefined)($self.__config__.$$angularScope);
                         /*
                         Надо обратить внимание на тот факт, что в случае если к странице подключен jquery angular
@@ -62,7 +63,7 @@ function(classEvents, minTemplate) {
                         append предварительно очищая элемент с помощью html('').
                         */
                         $self.__config__.$$angularElement.html('').append(test);
-                        
+                        console.log('compile element', $self.__config__.$$angularElement[0]);
                         
                         $.trigger("DOMChanged");
                         if (module) {

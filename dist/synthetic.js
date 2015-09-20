@@ -935,7 +935,7 @@
                 return this;
             },
             $apply: function(callback) {
-                this.$inject(callback)();
+                Synthetic.$$angularTimeout(this.$inject(callback));
             },
             $template: function(content) {
                 this.$injectors.$generator.template(content);
@@ -996,9 +996,9 @@
                 this.configuration.module = "function" === typeof module ? module : false;
                 if (this.$.__config__.$$angularInitialedStage > 1) {
                     this.$inject(function($self, template, module) {
-                        console.log("%cgenerator", "color:blue;", template, $self.__config__.$$angularScope, $self.__config__.$$angularElement);
                         var test = Synthetic.$$angularCompile(template, undefined, undefined)($self.__config__.$$angularScope);
                         $self.__config__.$$angularElement.html("").append(test);
+                        console.log("compile element", $self.__config__.$$angularElement[0]);
                         $.trigger("DOMChanged");
                         if (module) {
                             $.setup(module);
@@ -1244,6 +1244,7 @@
             this.randomId = Math.round(Math.random() * 1e7);
             if (component.options.engine.name === "angular") {
                 element.setAttribute(component.options.name, "exp");
+                element.setAttribute("rid", this.randomId);
             }
             Synthetic.$$lastElementFactory = this;
             this.$element = element;
@@ -1318,7 +1319,6 @@
                 }
             }
             this.$queue(function() {
-                console.log("inti component");
                 if (!~this.$element.className.split(" ").indexOf("synt-loaded")) this.$element.className += " synt-loaded";
                 for (var z = 0; z < element.attributes.length; z++) {
                     this.$injectors.$scope.attributes[camelize(element.attributes[z].name)] = element.attributes[z].value;
@@ -1362,7 +1362,6 @@
                 for (var i = 0; i < component.onAttributeChangedCallbacks.length; ++i) {
                     this.on("attributeChanged", component.onAttributeChangedCallbacks[i]);
                 }
-                console.log("init scope watchers");
                 for (var i = 0; i < component.watchers.length; ++i) {
                     this.watch.apply(this, component.watchers[i]);
                 }
@@ -1849,11 +1848,11 @@
                         controller: function() {},
                         compile: function($element, $rscope, $a, $controllersBoundTransclude) {
                             return {
-                                pre: function($scope, $jq, $attrs) {},
-                                post: function($scope, $element) {
+                                pre: function($scope, $jq, $attrs) {
                                     Synthetic($element[0]).__config__.$$angularDirectived = true;
                                     scopeGenerator($element[0].synthetic, $scope);
-                                }
+                                },
+                                post: function($scope, $element) {}
                             };
                         },
                         scope: true

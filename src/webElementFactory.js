@@ -25,6 +25,7 @@ define([
             */
             if (component.options.engine.name==='angular') {
                 element.setAttribute(component.options.name, "exp");
+                element.setAttribute("rid", this.randomId);
             }
             
             /*
@@ -170,8 +171,6 @@ define([
             }           
             
             this.$queue(function() {
-
-                console.log('inti component');
                 /*
                 Remove loading class
                 */
@@ -267,8 +266,7 @@ define([
 
                 /*
                 Переносим наблюдение за scope
-                */    
-                console.log('init scope watchers');
+                */  
                 for (var i = 0;i<component.watchers.length;++i) {
                     this.watch.apply(this, component.watchers[i]);
                 }

@@ -170,12 +170,12 @@ AMD Synthet
                             return {
                                 pre: function($scope, $jq, $attrs) {
                                     
-                                   
+                                   Synthetic($element[0]).__config__.$$angularDirectived = true;
+                                    scopeGenerator($element[0].synthetic, $scope);
                                 },
                                 post: function($scope, $element) {
                                     
-                                    Synthetic($element[0]).__config__.$$angularDirectived = true;
-                                    scopeGenerator($element[0].synthetic, $scope);
+                                    
                                 }
                             }
                             
