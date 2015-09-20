@@ -62,8 +62,8 @@ function(classEvents, minTemplate) {
                         append предварительно очищая элемент с помощью html('').
                         */
                         $self.__config__.$$angularElement.html('').append(test);
-                        
-                        $.trigger("DOMChanged");
+
+                        $.$.trigger("rendered");
                         if (module) {
                             $.setup(module);
                         }
@@ -74,7 +74,7 @@ function(classEvents, minTemplate) {
                     if (this.configuration.module) {
                         $.setup(this.configuration.module);
                     }
-                    this.trigger("DOMChanged");
+                    this.$.trigger("rendered");
                 }
             },
             setup: function(module) {

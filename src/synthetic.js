@@ -244,7 +244,7 @@ AMD Synthet
                             */
                             if ("object"===typeof Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage>1) {
                                 if (previousValue !== value) {
-                                    
+                                    console.log("%cargument changed", "color:gray;", name, value);
                                     Synthetic.$$angularTimeout(function() {
                                         this.$apply(function($self, $scope) {
                                             $scope.attributes[camelize(name)] = value;

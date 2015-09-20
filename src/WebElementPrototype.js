@@ -64,12 +64,15 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 			*/
 			var jstr = JSON.stringify(alldata),rstr=JSON.stringify(requiredProperties);
 			
+
+
 			/*
 			Если предыдущий ответ точно соответствует теукущему, то мы его игнорируем.
 			*/
 			if (self.$scopeSnaps[rstr]&&jstr===self.$scopeSnaps[rstr]) { return; }
 			self.$scopeSnaps[rstr] = jstr;
 			
+			console.log("%cread", "font-weight:bold;color:red;", self.$element, rstr, jstr);
 			
 			self.$inject(callback).apply(self, alldata);
 		},
