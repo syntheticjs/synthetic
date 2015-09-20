@@ -832,6 +832,9 @@
         };
     }(getObjectByXPath);
     var WebElementPrototype = function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
+        var getNonScopeValue = function(newValue) {
+            return /^{{[^}}]*}}$/i.test(newValue) ? false : newValue;
+        };
         return function() {
             this.$watchersHistory = [];
         }.inherit(classEvents).proto({
@@ -856,7 +859,7 @@
                     return function(prop, action, newValue) {
                         var alldata = [];
                         for (var x = 0; x < requiredProperties.length; ++x) {
-                            if (rprops === requiredProperties[x]) alldata.push(newValue); else alldata.push(getObjectByXPath(self.$injectors.$scope, requiredProperties[x]));
+                            if (rprops === requiredProperties[x]) alldata.push(getNonScopeValue(newValue)); else alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
                         }
                         var jstr = JSON.stringify(alldata);
                         if (jstr === lastTrack) {
@@ -870,10 +873,11 @@
                 var watchFabric = function(rprops, wobject, prop) {
                     if ("undefined" === typeof wobject[prop]) wobject[prop] = false;
                     if (Synthetic.$$angularApp) {
+                        var compiledCallbacker = getDatas(requiredProperties, rprops);
                         try {
                             var unwatcher = self.$injectors.$scope.$watch(rprops.join("."), function(newValue) {
                                 this.call(self, false, "set", newValue);
-                            }.bind(getDatas(requiredProperties, rprops)));
+                            }.bind(compiledCallbacker));
                             self.$watchersHistory.push({
                                 unwatch: unwatcher
                             });
@@ -909,9 +913,7 @@
                     var self = this;
                     return function() {
                         var nargs = Array.prototype.slice.apply(arguments), context = this;
-                        Synthetic.$$angularTimeout(function() {
-                            smartCallback.call(self.$injectors, callback, self).apply(context, nargs);
-                        });
+                        smartCallback.call(self.$injectors, callback, self).apply(context, nargs);
                     };
                 } else {
                     return smartCallback.call(this.$injectors, callback, this);
@@ -994,6 +996,7 @@
                 this.configuration.module = "function" === typeof module ? module : false;
                 if (this.$.__config__.$$angularInitialedStage > 1) {
                     this.$inject(function($self, template, module) {
+                        console.log("%cgenerator", "color:blue;", template, $self.__config__.$$angularScope, $self.__config__.$$angularElement);
                         var test = Synthetic.$$angularCompile(template, undefined, undefined)($self.__config__.$$angularScope);
                         $self.__config__.$$angularElement.html("").append(test);
                         $.trigger("DOMChanged");
@@ -1002,6 +1005,7 @@
                         }
                     })(this.configuration.template, this.configuration.module);
                 } else {
+                    console.log("angular undefined!!!!!");
                     this.$.$injectors.$element.innerHTML = this.$.$injectors.$element.innerHTML = minTemplate(this.configuration.template, this.$.$injectors.$scope);
                     if (this.configuration.module) {
                         $.setup(this.configuration.module);
@@ -1213,9 +1217,14 @@
         };
     }();
     var scopeGenerator = function(mixin, camelize) {
-        return function($self, $$scope) {
+        return function($self, $$scope, $attrs) {
             if ($self.$destroyed) return false;
-            angular.extend($$scope, $self.$$scope);
+            try {
+                angular.extend($$scope, $self.$$scope);
+            } catch (e) {
+                console.error("test", $$scope);
+                throw "test";
+            }
             $self.$injectors.$scope = $$scope;
             $self.__config__.allWaitingForResolve = false;
             $self.__config__.$$angularElement = angular.element($self.$element);
@@ -1232,7 +1241,6 @@
     }(mixin2, camelize);
     var webElementFactory = function(WebElementPrototype, mixin, Generator, camelize) {
         return function(element, component) {
-            if (!~element.className.split(" ").indexOf("synt-loading")) element.className += " synt-loading";
             this.randomId = Math.round(Math.random() * 1e7);
             if (component.options.engine.name === "angular") {
                 element.setAttribute(component.options.name, "exp");
@@ -1288,11 +1296,6 @@
                 this.$$angularControllerName = "singular" + new Date().getTime() + Math.round(Math.random() * 1e4);
                 this.__config__.$$angularInitialedStage = 1;
                 this.__config__.allWaitingForResolve = "angularResolved";
-                if (Synthetic.$$angularBootstraped) Synthetic.$$angularTimeout(function() {
-                    if (!$self.__config__.$$angularDirectived && $self.__config__.$$angularInitialedStage < 2) {
-                        Synthetic.$$angularCompile($self.$element)(angular.element($self.$element).scope());
-                    }
-                });
             }
             for (var i = 0; i < element.childNodes.length; ++i) {
                 if (element.childNodes[i].nodeType === 1) {
@@ -1315,6 +1318,7 @@
                 }
             }
             this.$queue(function() {
+                console.log("inti component");
                 if (!~this.$element.className.split(" ").indexOf("synt-loaded")) this.$element.className += " synt-loaded";
                 for (var z = 0; z < element.attributes.length; z++) {
                     this.$injectors.$scope.attributes[camelize(element.attributes[z].name)] = element.attributes[z].value;
@@ -1358,6 +1362,7 @@
                 for (var i = 0; i < component.onAttributeChangedCallbacks.length; ++i) {
                     this.on("attributeChanged", component.onAttributeChangedCallbacks[i]);
                 }
+                console.log("init scope watchers");
                 for (var i = 0; i < component.watchers.length; ++i) {
                     this.watch.apply(this, component.watchers[i]);
                 }
@@ -1838,17 +1843,19 @@
                 Synthetic.$$angularApp.directive(camelize(componentOptions.name), function() {
                     return {
                         restrict: "A",
+                        priority: 900,
                         scope: {},
-                        compile: function($element, $s) {
-                            Synthetic($element[0]).__config__.$$angularDirectived = true;
-                            return function($scope, $element) {
-                                Synthetic($element[0]).__config__.$$angularDirectived = true;
-                                setTimeout(function() {
-                                    scopeGenerator($element[0].synthetic, angular.element($element).scope());
-                                });
+                        transclude: true,
+                        controller: function() {},
+                        compile: function($element, $rscope, $a, $controllersBoundTransclude) {
+                            return {
+                                pre: function($scope, $jq, $attrs) {},
+                                post: function($scope, $element) {
+                                    Synthetic($element[0]).__config__.$$angularDirectived = true;
+                                    scopeGenerator($element[0].synthetic, $scope);
+                                }
                             };
                         },
-                        link: function(scope, iElm, iAttrs) {},
                         scope: true
                     };
                 });
