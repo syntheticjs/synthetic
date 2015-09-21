@@ -55,6 +55,19 @@ define([
 		config: function(useroptions) {
 			this.options = mixin(this.options, useroptions);
 			return this;
+		},
+		utilits: {
+			/* Функуция добавляет или удаляет элемент из массива */
+			toggleAppend: function(collection, value, force) {
+				if ("boolean"!==typeof force) force = !~collection.indexOf(value);
+				if (force) {
+					collection.push(value);
+					return true;
+				} else {
+					collection.splice(collection.indexOf(value), 1);
+					return false;
+				}
+			}
 		}
 	}
 

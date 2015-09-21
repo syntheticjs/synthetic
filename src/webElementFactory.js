@@ -45,6 +45,11 @@ define([
             this.$element = element;
 
             /*
+            Привязываем образ компонента
+            */
+            this.component = component;
+
+            /*
             Привязываем контроллер к его элементу
             */
             Object.defineProperty(element, 'synthetic', {

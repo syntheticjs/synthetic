@@ -9,6 +9,11 @@ define([
         if ($self.$destroyed) return false;
 
         angular.extend($$scope, $self.$$scope);
+
+        /*
+        Добавляем общие утиилиты
+        */
+        $$scope._utils = $self.component.utilits;
         
         $self.$injectors.$scope = $$scope;
         

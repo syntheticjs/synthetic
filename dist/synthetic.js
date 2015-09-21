@@ -1187,6 +1187,18 @@
             config: function(useroptions) {
                 this.options = mixin(this.options, useroptions);
                 return this;
+            },
+            utilits: {
+                toggleAppend: function(collection, value, force) {
+                    if ("boolean" !== typeof force) force = !~collection.indexOf(value);
+                    if (force) {
+                        collection.push(value);
+                        return true;
+                    } else {
+                        collection.splice(collection.indexOf(value), 1);
+                        return false;
+                    }
+                }
             }
         };
         return preFactory;
@@ -1257,6 +1269,7 @@
         return function($self, $$scope, $attrs) {
             if ($self.$destroyed) return false;
             angular.extend($$scope, $self.$$scope);
+            $$scope._utils = $self.component.utilits;
             $self.$injectors.$scope = $$scope;
             $self.__config__.allWaitingForResolve = false;
             $self.__config__.$$angularElement = angular.element($self.$element);
@@ -1282,6 +1295,7 @@
             Synthetic.$$lastElementFactory = this;
             this.$scopeSnaps = {};
             this.$element = element;
+            this.component = component;
             Object.defineProperty(element, "synthetic", {
                 enumerable: false,
                 writable: false,
