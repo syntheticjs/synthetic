@@ -8,12 +8,7 @@ define([
         */
         if ($self.$destroyed) return false;
 
-        try {
-            angular.extend($$scope, $self.$$scope);
-        } catch(e) {
-            console.error('test', $$scope );
-            throw 'test';
-        }
+        angular.extend($$scope, $self.$$scope);
         
         $self.$injectors.$scope = $$scope;
         

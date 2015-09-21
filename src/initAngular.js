@@ -119,6 +119,7 @@ define(function() {
                 }
             );
 
+            document.body.setAttribute('ng-jq', '');
             document.body.setAttribute('ng-controller', 'syntheticController');
 
             angular.element(document.body).ready(function() {

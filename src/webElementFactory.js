@@ -26,6 +26,7 @@ define([
             if (component.options.engine.name==='angular') {
                 element.setAttribute(component.options.name, "exp");
                 element.setAttribute("rid", this.randomId);
+                this.$$attrsWatchers = {}; // Дополнительный ресурс для watchers, ускоряющий работу за отслеживанием аттрибутов
             }
             
             /*
@@ -137,14 +138,14 @@ define([
 
                 TODO: Следует внимательно рассмотреть необходимость этой меры, перед созданием beta-релиза.
                 */                
-                /*if (Synthetic.$$angularBootstraped) Synthetic.$$angularTimeout(function() {
+                if (Synthetic.$$angularBootstraped) Synthetic.$$angularTimeout(function() {
                     
                     // Deprecated
                     if (!$self.__config__.$$angularDirectived&&$self.__config__.$$angularInitialedStage<2) {
                         
                         Synthetic.$$angularCompile($self.$element)(angular.element($self.$element).scope());
                     }
-                });*/
+                });
             }
 
             /*

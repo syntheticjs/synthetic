@@ -838,10 +838,10 @@
         return function() {
             this.$watchersHistory = [];
         }.inherit(classEvents).proto({
-            watch: function() {
+            read: function() {
                 if (this.__config__.allWaitingForResolve) {
                     this.$queue(function(args) {
-                        this.watch.apply(this, args);
+                        this.read.apply(this, args);
                     }.bind(this, arguments));
                     return;
                 }
@@ -854,6 +854,34 @@
                 for (var i = 0; i < properties.length; ++i) {
                     requiredProperties.push(xpath.concat(properties[i].split(".")));
                 }
+                var alldata = [];
+                for (var x = 0; x < requiredProperties.length; ++x) {
+                    alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
+                }
+                var jstr = JSON.stringify(alldata), rstr = JSON.stringify(requiredProperties);
+                if (self.$scopeSnaps[rstr] && jstr === self.$scopeSnaps[rstr]) {
+                    return;
+                }
+                self.$scopeSnaps[rstr] = jstr;
+                self.$inject(callback).apply(self, alldata);
+            },
+            watch: function() {
+                if (this.__config__.allWaitingForResolve) {
+                    this.$queue(function(args) {
+                        this.watch.apply(this, args);
+                    }.bind(this, arguments));
+                    return;
+                }
+                var self = this, objectXPath = false, properties, callback;
+                arguments.length > 2 ? (objectXPath = arguments[0], 
+                properties = arguments[1], callback = arguments[2]) : (properties = arguments[0], 
+                callback = arguments[1]);
+                if (!(properties instanceof Array)) properties = [ properties ];
+                var xpath = objectXPath ? objectXPath.split(".") : [];
+                requiredProperties = [];
+                for (var i = 0; i < properties.length; ++i) {
+                    requiredProperties.push(xpath.concat(properties[i].split(".")));
+                }
                 var lastTrack = {};
                 var getDatas = function(requiredProperties, rprops) {
                     return function(prop, action, newValue) {
@@ -861,15 +889,14 @@
                         for (var x = 0; x < requiredProperties.length; ++x) {
                             if (rprops === requiredProperties[x]) alldata.push(getNonScopeValue(newValue)); else alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
                         }
-                        var jstr = JSON.stringify(alldata);
-                        if (jstr === lastTrack) {
+                        var jstr = JSON.stringify(alldata), rstr = JSON.stringify(requiredProperties);
+                        if (self.$scopeSnaps[rstr] && jstr === self.$scopeSnaps[rstr]) {
                             return;
                         }
-                        lastTrack = jstr;
+                        self.$scopeSnaps[rstr] = jstr;
                         self.$inject(callback).apply(self, alldata);
                     };
                 };
-                getDatas.call(self, requiredProperties, false).call(self);
                 var watchFabric = function(rprops, wobject, prop) {
                     if ("undefined" === typeof wobject[prop]) wobject[prop] = false;
                     if (Synthetic.$$angularApp) {
@@ -878,6 +905,16 @@
                             var unwatcher = self.$injectors.$scope.$watch(rprops.join("."), function(newValue) {
                                 this.call(self, false, "set", newValue);
                             }.bind(compiledCallbacker));
+                            if (rprops[0] === "properties" || rprops[0] === "attributes") {
+                                var attrn = rprops[0] === "properties" ? "data" + rprops[1].charAt(0).toUpperCase() + rprops[1].substr(1) : rprops[1];
+                                if ("object" !== typeof self.$$attrsWatchers[attrn]) self.$$attrsWatchers[attrn] = [];
+                                self.$$attrsWatchers[attrn].push(compiledCallbacker);
+                                self.$watchersHistory.push({
+                                    unwatch: function(i) {
+                                        this[i] = null;
+                                    }.bind(self.$$attrsWatchers[attrn], self.$$attrsWatchers[attrn].length - 1)
+                                });
+                            }
                             self.$watchersHistory.push({
                                 unwatch: unwatcher
                             });
@@ -920,7 +957,7 @@
                 }
             },
             $injector: function(cb) {
-                return $inject(cb)();
+                return this.$inject(cb)();
             },
             $queue: function(callback) {
                 var self = this;
@@ -998,19 +1035,18 @@
                     this.$inject(function($self, template, module) {
                         var test = Synthetic.$$angularCompile(template, undefined, undefined)($self.__config__.$$angularScope);
                         $self.__config__.$$angularElement.html("").append(test);
-                        console.log("compile element", $self.__config__.$$angularElement[0]);
-                        $.trigger("DOMChanged");
+                        $self.__config__.$$angularScope.$digest();
+                        $.$.trigger("rendered");
                         if (module) {
                             $.setup(module);
                         }
                     })(this.configuration.template, this.configuration.module);
                 } else {
-                    console.log("angular undefined!!!!!");
                     this.$.$injectors.$element.innerHTML = this.$.$injectors.$element.innerHTML = minTemplate(this.configuration.template, this.$.$injectors.$scope);
                     if (this.configuration.module) {
                         $.setup(this.configuration.module);
                     }
-                    this.trigger("DOMChanged");
+                    this.$.trigger("rendered");
                 }
             },
             setup: function(module) {
@@ -1205,6 +1241,7 @@
             });
             if ("object" !== typeof angular.element(document.body).injector()) {
                 Synthetic.$$angularApp.controller("syntheticController", function($element, $scope) {});
+                document.body.setAttribute("ng-jq", "");
                 document.body.setAttribute("ng-controller", "syntheticController");
                 angular.element(document.body).ready(function() {
                     setTimeout(function() {
@@ -1219,12 +1256,7 @@
     var scopeGenerator = function(mixin, camelize) {
         return function($self, $$scope, $attrs) {
             if ($self.$destroyed) return false;
-            try {
-                angular.extend($$scope, $self.$$scope);
-            } catch (e) {
-                console.error("test", $$scope);
-                throw "test";
-            }
+            angular.extend($$scope, $self.$$scope);
             $self.$injectors.$scope = $$scope;
             $self.__config__.allWaitingForResolve = false;
             $self.__config__.$$angularElement = angular.element($self.$element);
@@ -1245,8 +1277,10 @@
             if (component.options.engine.name === "angular") {
                 element.setAttribute(component.options.name, "exp");
                 element.setAttribute("rid", this.randomId);
+                this.$$attrsWatchers = {};
             }
             Synthetic.$$lastElementFactory = this;
+            this.$scopeSnaps = {};
             this.$element = element;
             Object.defineProperty(element, "synthetic", {
                 enumerable: false,
@@ -1297,6 +1331,11 @@
                 this.$$angularControllerName = "singular" + new Date().getTime() + Math.round(Math.random() * 1e4);
                 this.__config__.$$angularInitialedStage = 1;
                 this.__config__.allWaitingForResolve = "angularResolved";
+                if (Synthetic.$$angularBootstraped) Synthetic.$$angularTimeout(function() {
+                    if (!$self.__config__.$$angularDirectived && $self.__config__.$$angularInitialedStage < 2) {
+                        Synthetic.$$angularCompile($self.$element)(angular.element($self.$element).scope());
+                    }
+                });
             }
             for (var i = 0; i < element.childNodes.length; ++i) {
                 if (element.childNodes[i].nodeType === 1) {
@@ -1364,6 +1403,9 @@
                 }
                 for (var i = 0; i < component.watchers.length; ++i) {
                     this.watch.apply(this, component.watchers[i]);
+                }
+                for (var i = 0; i < component.watchers.length; ++i) {
+                    this.read.apply(this, component.watchers[i]);
                 }
             });
         }.inherit(WebElementPrototype);
@@ -1764,6 +1806,7 @@
     })();
     (function(inherit, mixin, eventsClass, templateManager, WatchJS, camelize, smartCallback, ComponentPreFactory, initAngular, scopeGenerator, WebElementFactory) {
         var componentAttacher = function() {
+            if (this.synthetic.__config__.$$angularInitialedStage) {}
             this.synthetic.trigger("attached", [ this.synthetic ]);
             this.synthetic.__config__.attachedEventFires = true;
         };
@@ -1842,20 +1885,19 @@
                 Synthetic.$$angularApp.directive(camelize(componentOptions.name), function() {
                     return {
                         restrict: "A",
-                        priority: 900,
-                        scope: {},
-                        transclude: true,
-                        controller: function() {},
+                        priority: 998,
+                        scope: true,
+                        controller: function($element) {},
                         compile: function($element, $rscope, $a, $controllersBoundTransclude) {
+                            Synthetic($element[0]).__config__.$$angularDirectived = true;
                             return {
-                                pre: function($scope, $jq, $attrs) {
+                                pre: function($scope, $element) {
                                     Synthetic($element[0]).__config__.$$angularDirectived = true;
                                     scopeGenerator($element[0].synthetic, $scope);
                                 },
                                 post: function($scope, $element) {}
                             };
-                        },
-                        scope: true
+                        }
                     };
                 });
             }
@@ -1881,18 +1923,23 @@
                         writable: true,
                         enumerable: true,
                         value: function(name, previousValue, value) {
+                            var camelized = camelize(name);
                             if (this.synthetic.destoryed) return false;
                             if ("object" === typeof Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage > 1) {
                                 if (previousValue !== value) {
-                                    Synthetic.$$angularTimeout(function() {
-                                        this.$apply(function($self, $scope) {
-                                            $scope.attributes[camelize(name)] = value;
-                                            if (name.substr(0, 5) === "data-") {
-                                                $scope.properties[camelize(name.substr(5))] = value;
-                                            }
-                                            $self.trigger("attributeChanged", [ $self, name, previousValue, value ]);
-                                        });
-                                    }.bind(this.synthetic));
+                                    var testS = new Date();
+                                    this.synthetic.$apply(function($self, $scope) {
+                                        $scope.attributes[camelized] = value;
+                                        if (name.substr(0, 5) === "data-") {
+                                            $scope.properties[camelize(name.substr(5))] = value;
+                                        }
+                                    });
+                                    if (this.synthetic.$$attrsWatchers[camelized]) {
+                                        for (var i = 0; i < this.synthetic.$$attrsWatchers[camelized].length; ++i) {
+                                            this.synthetic.$$attrsWatchers[camelized][i].call(this.synthetic, false, "set", value);
+                                        }
+                                    }
+                                    this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
                                 }
                             } else {
                                 if (previousValue !== value) {

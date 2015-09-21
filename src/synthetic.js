@@ -33,7 +33,6 @@ AMD Synthet
     WebElementFactory
 ) { 
         var componentAttacher = function() {
-            console.log('attaching', this.synthetic.randomId);
             /*
             Если элемент добавлен в дерево 
             */
@@ -45,7 +44,6 @@ AMD Synthet
             this.synthetic.__config__.attachedEventFires = true;
         }
         var componentCreater = function(componentFactory) {
-            console.log("%ccreated native", "color:brown;font-style:italic;", this);
             /*
             Отклоняем, если по какой то причине этот компонент уже инициализирован.
             Так же по непонятным причинам компонент дублируется из размещения в DOM,
@@ -176,10 +174,12 @@ AMD Synthet
                         priority: 998,
                         scope: true,
                         controller: function($element) {
-                            console.log("%c<"+$element[0].tagName+">:controller()", "color:blue;font-weight:bold;", $element[0]);
+                            
+                            
                         },
                         compile: function($element, $rscope, $a, $controllersBoundTransclude) {
-                            console.log("%c<"+$element[0].tagName+">:compile()", "color:blue;font-weight:bold;", $element[0], $element.parentNode);
+                            Synthetic($element[0]).__config__.$$angularDirectived = true;
+                            
                             return {
                                 pre: function($scope, $element) {
                                     
@@ -195,14 +195,14 @@ AMD Synthet
                                         Synthetic($element[0]).$destroy();
                                         return;
                                     }*/
-                                    console.log("%c<"+$element[0].tagName+">:pre()", "color:blue;font-weight:bold;", $element[0], $scope.attributes);
+                                    
                                     
                                     Synthetic($element[0]).__config__.$$angularDirectived = true;
                                     scopeGenerator($element[0].synthetic, $scope);
                                    
                                 },
                                 post: function($scope, $element) {
-                                    console.log("%c<"+$element[0].tagName+">:post()", "color:blue;font-weight:bold;", $element[0]);
+                                    
                                 }
                             }
                             
@@ -234,6 +234,7 @@ AMD Synthet
                         writable: true,
                         enumerable: true,
                         value: function(name, previousValue, value) {
+                            var camelized = camelize(name);
                             /*
                             Останавливаем отслеживание аттрибутов, если компонент удален или в процессе 
                             удаления
@@ -244,18 +245,25 @@ AMD Synthet
                             */
                             if ("object"===typeof Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage>1) {
                                 if (previousValue !== value) {
-                                    console.log("%cargument changed", "color:gray;", name, value);
-                                    Synthetic.$$angularTimeout(function() {
-                                        this.$apply(function($self, $scope) {
-                                            $scope.attributes[camelize(name)] = value;
+                                    
+                                        var testS = new Date();
+                                        this.synthetic.$apply(function($self, $scope) {
+                                            
+                                            $scope.attributes[camelized] = value;
                                             if (name.substr(0,5)==='data-') {
                                                
                                                     $scope.properties[camelize(name.substr(5))] = value;
                                                
                                             }
-                                            $self.trigger("attributeChanged", [ $self, name, previousValue, value ]);
                                         });
-                                    }.bind(this.synthetic));                                    
+
+                                    if (this.synthetic.$$attrsWatchers[camelized]) {
+                                        for (var i = 0;i<this.synthetic.$$attrsWatchers[camelized].length;++i) {
+                                            
+                                            this.synthetic.$$attrsWatchers[camelized][i].call(this.synthetic, false, 'set', value);
+                                        }
+                                    }
+                                    this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);                                                                    
                                 }
                             } else {
                                 if (previousValue !== value) {

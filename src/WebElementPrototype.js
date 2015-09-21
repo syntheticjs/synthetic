@@ -72,7 +72,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 			if (self.$scopeSnaps[rstr]&&jstr===self.$scopeSnaps[rstr]) { return; }
 			self.$scopeSnaps[rstr] = jstr;
 			
-			console.log("%cread", "font-weight:bold;color:red;", self.$element, rstr, jstr);
+			
 			
 			self.$inject(callback).apply(self, alldata);
 		},
@@ -99,6 +99,8 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 			var self=this,objectXPath=false, properties, callback;
 			;(arguments.length>2) ? (objectXPath=arguments[0],properties=arguments[1],callback=arguments[2]) : (properties=arguments[0],callback=arguments[1]);
 			
+			if (!(properties instanceof Array)) properties = [properties];
+
 			/*
 			Формируем полные пути свойств
 			*/
@@ -160,11 +162,29 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 				if (Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
 					var compiledCallbacker = getDatas(requiredProperties, rprops);
 					try {
-						console.log("%cwatch", "font-weight:bold;", self.$element, rprops.join('.'));
-						var unwatcher = self.$injectors.$scope.$watch(rprops.join('.'), function(newValue) {
 						
-						this.call(self, false, 'set', newValue);
-						}.bind(compiledCallbacker))
+						var unwatcher = self.$injectors.$scope.$watch(rprops.join('.'), function(newValue) {
+							this.call(self, false, 'set', newValue);
+						}.bind(compiledCallbacker));
+
+						/*
+						Что бы ускорить работу вочеров при обращении к аттрибутом, помимо вочеров angular мы дополняем их собственными
+						вочерами, основанными на событиях.
+						Вметсе с этой методом прослушивания создается и функция самоуничтожения
+						TODO: придумать другой способ самоуничтожения, отличный от null
+						*/
+						if (rprops[0]==='properties'||rprops[0]==='attributes') {
+							var attrn = rprops[0]==='properties'?'data'+rprops[1].charAt(0).toUpperCase()+rprops[1].substr(1):rprops[1];
+							if ("object"!==typeof self.$$attrsWatchers[attrn]) self.$$attrsWatchers[attrn] = [];
+							self.$$attrsWatchers[attrn].push(compiledCallbacker);
+							self.$watchersHistory.push({
+								"unwatch": function(i) {
+									this[i] = null;
+								}.bind(self.$$attrsWatchers[attrn], self.$$attrsWatchers[attrn].length-1)
+							});
+						}
+						
+
 						self.$watchersHistory.push({
 							"unwatch": unwatcher
 						});
@@ -229,7 +249,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 			
 		},
 		$injector: function(cb) {
-			return $inject(cb)();
+			return this.$inject(cb)();
 		},
 		/*
 		Добавляет функцию в очередь. Она будет выполнена когда компонент будет

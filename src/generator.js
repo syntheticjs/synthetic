@@ -46,13 +46,15 @@ function(classEvents, minTemplate) {
                 this.render();
             },
             render: function(template, module) {
+
+                
                 var $ = this;
                 if (template) this.configuration.template = template;
                 this.configuration.module = "function"===typeof module?module:false;
                 if (this.$.__config__.$$angularInitialedStage>1) {
                     
                     this.$inject(function($self, template, module) {
-                       
+                        //if ($self.__config__.$$angularScope.$id==22) debugger;
                         var test = Synthetic.$$angularCompile(template, undefined, undefined)($self.__config__.$$angularScope);
                         /*
                         Надо обратить внимание на тот факт, что в случае если к странице подключен jquery angular
@@ -61,7 +63,13 @@ function(classEvents, minTemplate) {
                         данные ввиде массива node. Поэтому для присвоения нового html необходимо использовать
                         append предварительно очищая элемент с помощью html('').
                         */
+                        
                         $self.__config__.$$angularElement.html('').append(test);
+
+                        /*
+                        После установки шаблона необходимо произвести пересмотр scope
+                        */
+                        $self.__config__.$$angularScope.$digest();
 
                         $.$.trigger("rendered");
                         if (module) {
