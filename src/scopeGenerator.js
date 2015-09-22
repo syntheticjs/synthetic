@@ -1,7 +1,8 @@
 define([
 	"abstudio~mixin@0.1.0",
-    "polyvitamins~polychrome@master/gist/convert/camelize.js"
-], function(mixin, camelize) {
+    "polyvitamins~polychrome@master/gist/convert/camelize.js",
+    "./scopeUtilits.js"
+], function(mixin, camelize, scopeUtilits) {
 	return function($self, $$scope, $attrs) {
         /*
         Предотвращаем генерацию контроллера, если элемент уже был удален
@@ -13,7 +14,7 @@ define([
         /*
         Добавляем общие утиилиты
         */
-        $$scope._utils = $self.component.utilits;
+        $$scope._ = new scopeUtilits($self);
         
         $self.$injectors.$scope = $$scope;
         

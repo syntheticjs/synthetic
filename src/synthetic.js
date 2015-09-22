@@ -32,6 +32,14 @@ AMD Synthet
     scopeGenerator,
     WebElementFactory
 ) { 
+        function getRandomColor() {
+            var letters = '0123456789ABCDEF'.split('');
+            var color = '#';
+            for (var i = 0; i < 6; i++ ) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
         var componentAttacher = function() {
             /*
             Если элемент добавлен в дерево 
@@ -167,15 +175,16 @@ AMD Synthet
                     componentFactory.options.engine.initial(Synthetic.$$angularApp);
                 }
 
-               
+                var rcolor = getRandomColor();
                 Synthetic.$$angularApp.directive(camelize(componentOptions.name), function() {
                     return {
                         restrict: 'A',
                         priority: 998,
                         scope: true,
                         controller: function($element) {
+                             
                             
-                            
+
                         },
                         compile: function($element, $rscope, $a, $controllersBoundTransclude) {
                             Synthetic($element[0]).__config__.$$angularDirectived = true;
@@ -257,6 +266,7 @@ AMD Synthet
                                             }
                                         });
 
+                                    if (value==='') value = false;
                                     if (this.synthetic.$$attrsWatchers[camelized]) {
                                         for (var i = 0;i<this.synthetic.$$attrsWatchers[camelized].length;++i) {
                                             

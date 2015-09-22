@@ -4,12 +4,11 @@ define([
 	"./smartCallback.js",
 	"./classEvents.js",	
 	"polyvitamins~polychrome@master/gist/convert/camelize.js",
+	"./getNonScopeValue.js",
     "polyvitamins~polyinherit@master",
 ],
-function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
-	var getNonScopeValue = function(newValue) {
-		return /^{{[^}}]*}}$/i.test(newValue) ? false : newValue;
-	}
+function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNonScopeValue) {
+	
 	/*
 	Модифицируем стандартный classEvents
 	*/
@@ -125,6 +124,8 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 						alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
 					}
 
+					
+
 					/*
 					Если наблюдение происходит на несколькими переменными одновременно, то 
 					срабатывание функции обработчика будет происходит каждый раз когда одна из 
@@ -164,6 +165,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
 					try {
 						
 						var unwatcher = self.$injectors.$scope.$watch(rprops.join('.'), function(newValue) {
+
 							this.call(self, false, 'set', newValue);
 						}.bind(compiledCallbacker));
 

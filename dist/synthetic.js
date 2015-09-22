@@ -223,6 +223,11 @@
             return start;
         };
     }();
+    var getNonScopeValue = function() {
+        return function(newValue) {
+            return /^{{[^}}]*}}$/i.test(newValue) || newValue === undefined ? false : newValue;
+        };
+    }();
     var watch = function() {
         "use strict";
         var WatchJS = {
@@ -831,10 +836,23 @@
             return template;
         };
     }(getObjectByXPath);
-    var WebElementPrototype = function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize) {
-        var getNonScopeValue = function(newValue) {
-            return /^{{[^}}]*}}$/i.test(newValue) ? false : newValue;
-        };
+    var scopeUtilits = function() {
+        return function($) {
+            this.$ = $;
+        }.proto({
+            toggleAppend: function(collection, value, force) {
+                this.$.$apply(function() {
+                    if ("boolean" !== typeof force) force = !~collection.indexOf(value);
+                    if (force) {
+                        collection.push(value);
+                    } else {
+                        collection.splice(collection.indexOf(value), 1);
+                    }
+                });
+            }
+        });
+    }();
+    var WebElementPrototype = function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNonScopeValue) {
         return function() {
             this.$watchersHistory = [];
         }.inherit(classEvents).proto({
@@ -995,7 +1013,7 @@
                 this.__config__ = {};
             }
         });
-    }(getObjectByXPath, watch, smartCallback, classEvents, camelize);
+    }(getObjectByXPath, watch, smartCallback, classEvents, camelize, getNonScopeValue);
     var generator = function(classEvents, minTemplate) {
         var synthetModule = function($synthet) {
             this.$synthet = $synthet;
@@ -1187,18 +1205,6 @@
             config: function(useroptions) {
                 this.options = mixin(this.options, useroptions);
                 return this;
-            },
-            utilits: {
-                toggleAppend: function(collection, value, force) {
-                    if ("boolean" !== typeof force) force = !~collection.indexOf(value);
-                    if (force) {
-                        collection.push(value);
-                        return true;
-                    } else {
-                        collection.splice(collection.indexOf(value), 1);
-                        return false;
-                    }
-                }
             }
         };
         return preFactory;
@@ -1265,11 +1271,11 @@
             }
         };
     }();
-    var scopeGenerator = function(mixin, camelize) {
+    var scopeGenerator = function(mixin, camelize, scopeUtilits) {
         return function($self, $$scope, $attrs) {
             if ($self.$destroyed) return false;
             angular.extend($$scope, $self.$$scope);
-            $$scope._utils = $self.component.utilits;
+            $$scope._ = new scopeUtilits($self);
             $self.$injectors.$scope = $$scope;
             $self.__config__.allWaitingForResolve = false;
             $self.__config__.$$angularElement = angular.element($self.$element);
@@ -1283,8 +1289,8 @@
                 value: Synthetic.$$angularApp
             });
         };
-    }(mixin2, camelize);
-    var webElementFactory = function(WebElementPrototype, mixin, Generator, camelize) {
+    }(mixin2, camelize, scopeUtilits);
+    var webElementFactory = function(WebElementPrototype, mixin, Generator, camelize, getNonScopeValue) {
         return function(element, component) {
             this.randomId = Math.round(Math.random() * 1e7);
             if (component.options.engine.name === "angular") {
@@ -1374,9 +1380,10 @@
             this.$queue(function() {
                 if (!~this.$element.className.split(" ").indexOf("synt-loaded")) this.$element.className += " synt-loaded";
                 for (var z = 0; z < element.attributes.length; z++) {
-                    this.$injectors.$scope.attributes[camelize(element.attributes[z].name)] = element.attributes[z].value;
+                    var value = getNonScopeValue(element.attributes[z].value);
+                    this.$injectors.$scope.attributes[camelize(element.attributes[z].name)] = value;
                     if (element.attributes[z].name.substr(0, 5) === "data-") {
-                        this.$injectors.$scope.properties[camelize(element.attributes[z].name.substr(5))] = element.attributes[z].value;
+                        this.$injectors.$scope.properties[camelize(element.attributes[z].name.substr(5))] = value;
                     }
                 }
                 for (var i = 0; i < component.prototypes.length; ++i) {
@@ -1423,7 +1430,7 @@
                 }
             });
         }.inherit(WebElementPrototype);
-    }(WebElementPrototype, mixin2, generator, camelize);
+    }(WebElementPrototype, mixin2, generator, camelize, getNonScopeValue);
     (function() {
         (function(window, document, Object, REGISTER_ELEMENT) {
             "use strict";
@@ -1819,6 +1826,14 @@
         })(window, Object, "HTMLElement");
     })();
     (function(inherit, mixin, eventsClass, templateManager, WatchJS, camelize, smartCallback, ComponentPreFactory, initAngular, scopeGenerator, WebElementFactory) {
+        function getRandomColor() {
+            var letters = "0123456789ABCDEF".split("");
+            var color = "#";
+            for (var i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
         var componentAttacher = function() {
             if (this.synthetic.__config__.$$angularInitialedStage) {}
             this.synthetic.trigger("attached", [ this.synthetic ]);
@@ -1896,6 +1911,7 @@
                 if ("function" === typeof componentFactory.options.engine.initial) {
                     componentFactory.options.engine.initial(Synthetic.$$angularApp);
                 }
+                var rcolor = getRandomColor();
                 Synthetic.$$angularApp.directive(camelize(componentOptions.name), function() {
                     return {
                         restrict: "A",
@@ -1948,6 +1964,7 @@
                                             $scope.properties[camelize(name.substr(5))] = value;
                                         }
                                     });
+                                    if (value === "") value = false;
                                     if (this.synthetic.$$attrsWatchers[camelized]) {
                                         for (var i = 0; i < this.synthetic.$$attrsWatchers[camelized].length; ++i) {
                                             this.synthetic.$$attrsWatchers[camelized][i].call(this.synthetic, false, "set", value);

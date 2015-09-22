@@ -3,8 +3,9 @@ define([
     "abstudio~mixin@0.1.0",
     "./generator.js",
     "polyvitamins~polychrome@master/gist/convert/camelize.js",
+    "./getNonScopeValue.js",
     "polyvitamins~polyinherit@master",
-], function(WebElementPrototype, mixin, Generator, camelize) {
+], function(WebElementPrototype, mixin, Generator, camelize, getNonScopeValue) {
     /*
     Как только элемент попадает в DOM он проходит данную инициализацию.
     Если работа ведется с angular то этот код должен быть выполнен до
@@ -198,10 +199,11 @@ define([
                 Культивируем аттрибуты
                 */
                 for (var z = 0; z < element.attributes.length; z++) {
-                    this.$injectors.$scope.attributes[camelize(element.attributes[z].name)] = element.attributes[z].value;
+                    var value = getNonScopeValue(element.attributes[z].value);
+                    this.$injectors.$scope.attributes[camelize(element.attributes[z].name)] = value;
                     if (element.attributes[z].name.substr(0,5)==='data-') {
                         
-                        this.$injectors.$scope.properties[camelize(element.attributes[z].name.substr(5))] = element.attributes[z].value;
+                        this.$injectors.$scope.properties[camelize(element.attributes[z].name.substr(5))] = value;
                     }
                 }
 
