@@ -44,8 +44,8 @@ AMD Synthet
             /*
             Если элемент добавлен в дерево 
             */
-            if (this.synthetic.__config__.$$angularInitialedStage) {
-
+            if (this.synthetic.__config__.$$angularInitialedStage>2) {
+                //console.log("%cpostAttached", "font-weight:bold;", this);
             }
             
             this.synthetic.trigger("attached", [ this.synthetic ]);
@@ -182,11 +182,10 @@ AMD Synthet
                         priority: 998,
                         scope: true,
                         controller: function($element) {
-                             
-                            
 
                         },
                         compile: function($element, $rscope, $a, $controllersBoundTransclude) {
+
                             Synthetic($element[0]).__config__.$$angularDirectived = true;
                             
                             return {
@@ -204,14 +203,22 @@ AMD Synthet
                                         Synthetic($element[0]).$destroy();
                                         return;
                                     }*/
+
+
                                     
                                     
                                     Synthetic($element[0]).__config__.$$angularDirectived = true;
                                     scopeGenerator($element[0].synthetic, $scope);
+
+                                    return function(scope) {
+                                        //console.log('prePost', scope);
+                                    }
                                    
                                 },
                                 post: function($scope, $element) {
-                                    
+                                    // 3 этап инициализации angular означает, что объект полностью
+                                    // инициализирован
+                                    Synthetic($element[0]).__config__.$$angularInitialedStage = 3;
                                 }
                             }
                             
@@ -225,16 +232,22 @@ AMD Synthet
                 prototype: Object.create(HTMLElement.prototype, {
                     createdCallback: {
                         value: function() {
+                            
                             componentCreater.call(this, componentFactory);
                         }
                     },
                     attachedCallback: {
                         value: function() {
+                            
+                            this.synthetic.trigger('attached');
+                            if (this.synthetic.__config__.allWaitingForResolve==='attached')
+                                this.synthetic.__config__.allWaitingForResolve = false;
                             componentAttacher.call(this);                           
                         }
                     },
                     detachedCallback: {
                         value: function() {
+                            this.synthetic.__config__.allWaitingForResolve = 'attached';
                             this.synthetic.trigger("detached", [ this.synthetic ]);
                         }
                     },

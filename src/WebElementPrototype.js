@@ -243,7 +243,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 				var self = this;
 				return function() {
 					var nargs = Array.prototype.slice.apply(arguments),context=this;
-					smartCallback.call(self.$injectors, callback, self).apply(context, nargs);
+					return smartCallback.call(self.$injectors, callback, self).apply(context, nargs);
 				}				
 			} else {
 				return smartCallback.call(this.$injectors, callback, this);
@@ -279,6 +279,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 		$destroy: function() {
 			
 			if (this.$destroyed) return true;
+			this.trigger('$destroy');
 			this.$destroyed = true;
 			/*
 			Запускаем destroy функцию собственных надстроек

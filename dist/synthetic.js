@@ -968,7 +968,7 @@
                     var self = this;
                     return function() {
                         var nargs = Array.prototype.slice.apply(arguments), context = this;
-                        smartCallback.call(self.$injectors, callback, self).apply(context, nargs);
+                        return smartCallback.call(self.$injectors, callback, self).apply(context, nargs);
                     };
                 } else {
                     return smartCallback.call(this.$injectors, callback, this);
@@ -997,6 +997,7 @@
             },
             $destroy: function() {
                 if (this.$destroyed) return true;
+                this.trigger("$destroy");
                 this.$destroyed = true;
                 if ("function" === typeof this.destroy) {
                     this.destroy();
@@ -1352,8 +1353,13 @@
                 this.__config__.$$angularInitialedStage = 1;
                 this.__config__.allWaitingForResolve = "angularResolved";
                 if (Synthetic.$$angularBootstraped) Synthetic.$$angularTimeout(function() {
+                    if ($self.$destroyed) return;
                     if (!$self.__config__.$$angularDirectived && $self.__config__.$$angularInitialedStage < 2) {
-                        Synthetic.$$angularCompile($self.$element)(angular.element($self.$element).scope());
+                        try {
+                            Synthetic.$$angularCompile($self.$element)(angular.element($self.$element).scope());
+                        } catch (e) {
+                            console.error(e, $self.$element);
+                        }
                     }
                 });
             }
@@ -1428,6 +1434,7 @@
                 for (var i = 0; i < component.watchers.length; ++i) {
                     this.read.apply(this, component.watchers[i]);
                 }
+                this.trigger("rendered", [ this.$element ]);
             });
         }.inherit(WebElementPrototype);
     }(WebElementPrototype, mixin2, generator, camelize, getNonScopeValue);
@@ -1835,7 +1842,7 @@
             return color;
         }
         var componentAttacher = function() {
-            if (this.synthetic.__config__.$$angularInitialedStage) {}
+            if (this.synthetic.__config__.$$angularInitialedStage > 2) {}
             this.synthetic.trigger("attached", [ this.synthetic ]);
             this.synthetic.__config__.attachedEventFires = true;
         };
@@ -1924,8 +1931,11 @@
                                 pre: function($scope, $element) {
                                     Synthetic($element[0]).__config__.$$angularDirectived = true;
                                     scopeGenerator($element[0].synthetic, $scope);
+                                    return function(scope) {};
                                 },
-                                post: function($scope, $element) {}
+                                post: function($scope, $element) {
+                                    Synthetic($element[0]).__config__.$$angularInitialedStage = 3;
+                                }
                             };
                         }
                     };
@@ -1940,11 +1950,14 @@
                     },
                     attachedCallback: {
                         value: function() {
+                            this.synthetic.trigger("attached");
+                            if (this.synthetic.__config__.allWaitingForResolve === "attached") this.synthetic.__config__.allWaitingForResolve = false;
                             componentAttacher.call(this);
                         }
                     },
                     detachedCallback: {
                         value: function() {
+                            this.synthetic.__config__.allWaitingForResolve = "attached";
                             this.synthetic.trigger("detached", [ this.synthetic ]);
                         }
                     },

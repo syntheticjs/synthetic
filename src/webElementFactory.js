@@ -146,11 +146,17 @@ define([
                 */                
                 if (Synthetic.$$angularBootstraped) Synthetic.$$angularTimeout(function() {
                     
-                    // Deprecated
-                    if (!$self.__config__.$$angularDirectived&&$self.__config__.$$angularInitialedStage<2) {
+                        if ($self.$destroyed) return;
                         
-                        Synthetic.$$angularCompile($self.$element)(angular.element($self.$element).scope());
-                    }
+                        if (!$self.__config__.$$angularDirectived&&$self.__config__.$$angularInitialedStage<2) {
+                            
+                            try {
+                                Synthetic.$$angularCompile($self.$element)(angular.element($self.$element).scope());
+                            } catch(e) {
+                                console.error(e, $self.$element);
+                            }
+                        }
+                    
                 });
             }
 
@@ -290,6 +296,11 @@ define([
                 for (var i = 0;i<component.watchers.length;++i) {
                     this.read.apply(this, component.watchers[i]);
                 }
+
+                /*
+                Будем считать что элемент первично отрендерен
+                */
+                this.trigger("rendered", [this.$element]);
 
             });
 
