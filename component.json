@@ -14,7 +14,8 @@
     "abstudio/inherit": "0.1.4",
     "abstudio/classEvents": "0.1.0",
     "polyvitamins/polychrome": "master",
-    "polyvitamins/polyinherit": "master"
+    "polyvitamins/polyinherit": "master",
+    "polyvitamins/extend": "master"
   },
   "scripts": [
     "src/synthetic.js",

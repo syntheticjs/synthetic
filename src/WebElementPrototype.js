@@ -17,9 +17,13 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 		Этот массив содержит объекты с методом unwatch на каждое из наблюдений
 		*/
 		this.$watchersHistory = [];
+		/*
+		Hitchers
+		*/
+		this.$hitchers = [];
 	}.inherit(classEvents)
 	.proto({
-		read: function() {
+		$read: function() {
 			/*
 			Проверка задержки
 			*/
@@ -42,16 +46,26 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 			Формируем полные пути свойств
 			*/
 			var xpath = objectXPath?objectXPath.split('.'):[];
-			requiredProperties = [];
+			var requiredProperties = [];
+
+			if ("object"!==typeof properties) properties = [properties];
 			
 			for (var i = 0;i<properties.length;++i) {
 				requiredProperties.push(xpath.concat(properties[i].split('.')));
 			}
 
 			var alldata = [];
-			for (var x = 0;x<requiredProperties.length;++x) {
-				alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
+			if (self.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp)
+			{
+				for (var x = 0;x<requiredProperties.length;++x) {
+					alldata.push(getNonScopeValue(self.$injectors.$scope.$eval(requiredProperties[x].join('.'))));
+				}
+			} else {
+				for (var x = 0;x<requiredProperties.length;++x) {
+					alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
+				}
 			}
+
 
 			/*
 			Если наблюдение происходит на несколькими переменными одновременно, то 
@@ -75,7 +89,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 			
 			self.$inject(callback).apply(self, alldata);
 		},
-		watch: function() {
+		$watch: function() {
 
 			/*
 			Проверка задержки
@@ -104,12 +118,23 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 			Формируем полные пути свойств
 			*/
 			var xpath = objectXPath?objectXPath.split('.'):[];
-			requiredProperties = [];
+			var requiredProperties = [];
 			
 			for (var i = 0;i<properties.length;++i) {
 				requiredProperties.push(xpath.concat(properties[i].split('.')));
 			}
+
 			var lastTrack = {}; // Последнее состояние срабатываения
+
+            /*
+            Если рендеринг уже произошел, то нам, помимо наблюдения, необходимо выполнить чтение немедленно,
+            что бы обработка данных могла произойти не дождидаясь их изменения. Это нужно потому что
+            к моменту рендеринга как правило все данные уже устанавлиаются и простое выполнение watch
+            не вызовет callback.
+            */
+            if (this.__config__.rendered)
+            this.$read.apply(this, Array.prototype.slice.apply(arguments));
+
 			/*
 			Начинаем наблюдение за переменной
 			*/
@@ -118,13 +143,17 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 					
 					var alldata = [];
 					for (var x = 0;x<requiredProperties.length;++x) {
-						if (rprops===requiredProperties[x])
-						alldata.push(getNonScopeValue(newValue));
-						else
-						alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
+						if (rprops===requiredProperties[x]) {
+							alldata.push(getNonScopeValue(newValue));
+						}
+						else {
+							if (self.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp) {
+								alldata.push(getNonScopeValue(self.$injectors.$scope.$eval(requiredProperties[x].join('.'))));
+							} else {
+								alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
+							}
+						}
 					}
-
-					
 
 					/*
 					Если наблюдение происходит на несколькими переменными одновременно, то 
@@ -160,10 +189,12 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 			var watchFabric = function(rprops, wobject, prop) {
 				
 				if ("undefined"===typeof wobject[prop]) wobject[prop] = false;
-				if (Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
+				if (self.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
 					var compiledCallbacker = getDatas(requiredProperties, rprops);
+
+
 					try {
-						
+
 						var unwatcher = self.$injectors.$scope.$watch(rprops.join('.'), function(newValue) {
 
 							this.call(self, false, 'set', newValue);
@@ -193,7 +224,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 						
 					} catch(e) {
 						window.teste = self.$injectors.$element;
-						console.error('Errors', e, self.$injectors.$element);
+						console.error('Errors', e, rprops, wobject, self.$injectors.$element);
 					}
 					
 					return unwatcher;
@@ -226,8 +257,9 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 				};
 			};
 			var unwacthers = function() {}; // Эта функция будет содержат функции для уничтожения наблюдений
+
 			for (var i = 0;i<requiredProperties.length;++i) {
-				
+
 				unwacthers.inherit(watchFabric(requiredProperties[i], getObjectByXPath(this.$injectors.$scope, requiredProperties[i].slice(0, requiredProperties[i].length-1)), requiredProperties[i][requiredProperties[i].length-1]));
 			}
 			return unwacthers;
@@ -250,7 +282,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 			}
 			
 		},
-		$injector: function(cb) {
+		$run: function(cb) {
 			return this.$inject(cb)();
 		},
 		/*
@@ -271,7 +303,10 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 			return this;
 		},
 		$apply: function(callback){
+			if (this.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp)
 			Synthetic.$$angularTimeout(this.$inject(callback));
+			else
+			setTimeout(this.$inject(callback));
 		},
 		$template: function(content) {
 			this.$injectors.$generator.template(content);
@@ -281,6 +316,12 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 			if (this.$destroyed) return true;
 			this.trigger('$destroy');
 			this.$destroyed = true;
+			/*
+			Удаляем себя из списка чилдов родительского компонента
+			*/
+			if (this.$parent) {
+				this.$parent.$$unRegisterChild(this);
+			}
 			/*
 			Запускаем destroy функцию собственных надстроек
 			*/
@@ -299,6 +340,15 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 					this.$watchersHistory[i].unwatch();
 				}
 			}
+
+			/*
+			Очищаем hitchers
+			*/
+			for (var i = 0;i<this.$hitchers.length;++i) {
+				if ("function"===typeof this.$hitchers[i]) {
+					this.$hitchers[i].call(this);
+				}
+			}
 			
 			/*
 			Удаляем generator
@@ -308,11 +358,43 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 			/*
 			Удаляем привязку объекта к элементу
 			*/
-			this.$injectors.$element.synthetic = null;
+			this.$element.synthetic = null;
 			/*
 			Очищаем собственные данные конфигурации
 			*/
 			this.__config__ = {};
+			/*
+			Удаляем элемент DOM, если он еще существует
+			*/
+			if (this.$element&&this.$element.parentNode!==null) {
+				this.$element.remove();
+			}
+		},
+		/*
+		Данная функция выполняет некую процедуру, остаточные объектвы которые будут удалены
+		возвращаемой функцийей
+		*/
+		$hitch: function(cb) {
+			this.$hitchers.push(cb.apply(this));
+			return function(i) {
+				this.$hitchers[i].call(this); this.$hitchers[i] = null;
+			}.bind(this, this.$hitchers.length-1)
+		},
+		/*
+		Регистрирует новый child
+		*/
+		$$registerChild: function($ctrl) {
+			this.$childs[$ctrl.$sid] = $ctrl;
+			return this;
+		},
+		/*
+		Анулирует child
+		*/
+		$$unRegisterChild: function($ctrl) {
+			if (this.$childs[$ctrl.$sid]) {
+				delete this.$childs[$ctrl.$sid];
+			}
+			return this;
 		}
 	});
 });

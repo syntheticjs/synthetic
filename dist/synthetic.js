@@ -85,7 +85,6 @@
             superprototype.constructor = superconstructor;
             var Mixin = function() {
                 if (this.constructor && this.constructor.__disableContructor__) {
-                    console.log("ESCAPE CONSTRUCTOR");
                     this.constructor.__disableContructor__ = false;
                     return false;
                 }
@@ -130,6 +129,13 @@
         mixin(this.prototype, proto);
         return this;
     };
+    Function.prototype.construct = function() {
+        this.__disableContructor__ = true;
+        var module = new this();
+        var args = arguments[0] instanceof Array ? arguments[0] : [];
+        this.apply(module, args);
+        return module;
+    };
     var camelize = function() {
         return function(text) {
             return text.replace(/-([\da-z])/gi, function(all, letter) {
@@ -140,6 +146,8 @@
     var classEvents = function(smartCallback) {
         var Events = function() {
             this.eventListners = {};
+            this.bubblingListners = {};
+            this.surfacingListners = {};
             this.eventTracks = {};
         };
         var eventListner = function(own, event, i) {
@@ -156,14 +164,130 @@
                 this.index = null;
             }
         };
+        var bubblingListner = function(own, event, i) {
+            this.owner = own;
+            this.event = event;
+            this.index = i;
+        };
+        bubblingListner.prototype = {
+            constructor: bubblingListner,
+            destroy: function() {
+                this.owner.bubblingListners[this.event][this.index] = null;
+                this.owner = null;
+                this.event = null;
+                this.index = null;
+            }
+        };
+        var surfacingListner = function(own, event, i) {
+            this.owner = own;
+            this.event = event;
+            this.index = i;
+        };
+        surfacingListner.prototype = {
+            constructor: surfacingListner,
+            destroy: function() {
+                this.owner.surfacingListners[this.event][this.index] = null;
+                this.owner = null;
+                this.event = null;
+                this.index = null;
+            }
+        };
         Events.prototype = {
             constructor: Events,
+            capture: function(e, callback, once) {
+                if (typeof this.surfacingListners[e] != "object") this.surfacingListners[e] = [];
+                this.surfacingListners[e].push({
+                    callback: this.$inject(callback),
+                    once: once || false
+                });
+                return new surfacingListner(this, e, this.surfacingListners[e].length - 1);
+            },
+            uncapture: function(e, handler) {
+                if (this.surfacingListners[e]) {
+                    if ("undefined" === typeof handler) delete this.surfacingListners[e]; else for (var i = 0; i < this.surfacingListners[e].length; ++i) {
+                        if (this.surfacingListners[e][i] && this.surfacingListners[e][i].callback === handler) this.surfacingListners[e][i] = null;
+                    }
+                }
+                return this;
+            },
+            surface: function(e, args) {
+                var response = null;
+                if (typeof this.surfacingListners[e] == "object" && this.surfacingListners[e].length > 0) {
+                    var todelete = [];
+                    for (var i = 0; i < this.surfacingListners[e].length; i++) {
+                        if (this.surfacingListners[e][i] !== null) {
+                            if (typeof this.surfacingListners[e][i].callback === "function") response = this.surfacingListners[e][i].callback.apply(this, args);
+                            if (this.surfacingListners[e][i].once) {
+                                todelete.push(i);
+                            }
+                            if (response === false) {
+                                return response;
+                            }
+                        }
+                    }
+                    if (todelete.length > 0) for (var i in todelete) {
+                        this.surfacingListners[e][todelete[i]] = null;
+                    }
+                }
+                if (this.$childs) {
+                    for (var i = 0; i < this.$childs.length; ++i) {
+                        this.$childs[i].surface(e, args);
+                    }
+                }
+                return response;
+            },
+            sense: function(e, callback, once) {
+                if (typeof this.bubblingListners[e] != "object") this.bubblingListners[e] = [];
+                this.bubblingListners[e].push({
+                    callback: this.$inject(callback),
+                    once: once || false
+                });
+                return new bubblingListner(this, e, this.bubblingListners[e].length - 1);
+            },
+            unsense: function(e, handler) {
+                if (this.bubblingListners[e]) {
+                    if ("undefined" === typeof handler) delete this.bubblingListners[e]; else for (var i = 0; i < this.bubblingListners[e].length; ++i) {
+                        if (this.bubblingListners[e][i] && this.bubblingListners[e][i].callback === handler) this.bubblingListners[e][i] = null;
+                    }
+                }
+                return this;
+            },
+            bubbling: function(e, args) {
+                var response = null;
+                if (typeof this.bubblingListners[e] == "object" && this.bubblingListners[e].length > 0) {
+                    var todelete = [];
+                    for (var i = 0; i < this.bubblingListners[e].length; i++) {
+                        if (this.bubblingListners[e][i] !== null) {
+                            if (typeof this.bubblingListners[e][i].callback === "function") response = this.bubblingListners[e][i].callback.apply(this, args);
+                            if (this.bubblingListners[e][i].once) {
+                                todelete.push(i);
+                            }
+                            if (response === false) {
+                                return response;
+                            }
+                        }
+                    }
+                    if (todelete.length > 0) for (var i in todelete) {
+                        this.bubblingListners[e][todelete[i]] = null;
+                    }
+                }
+                if (this.$parent) this.$parent.bubbling(e, args);
+                return response;
+            },
             bind: function(e, callback, once) {
                 if (typeof this.eventListners[e] != "object") this.eventListners[e] = [];
                 this.eventListners[e].push({
                     callback: callback,
                     once: once
                 });
+                return this;
+            },
+            unbind: function(e, handler) {
+                if (this.eventListners[e]) {
+                    if ("undefined" === typeof handler) delete this.eventListners[e]; else for (var i = 0; i < this.eventListners[e].length; ++i) {
+                        if (this.eventListners[e][i] && this.surfacingListners[e][i].callback === handler) this.surfacingListners[e][i] = null;
+                    }
+                }
                 return this;
             },
             on: function(e, callback, once) {
@@ -836,6 +960,27 @@
             return template;
         };
     }(getObjectByXPath);
+    var modulePrototype = function() {
+        return function() {
+            this.$hitchers = [];
+            this.bind("destroy", function() {
+                for (var i = 0; i < this.$hitchers.length; ++i) {
+                    this.$hitchers();
+                }
+            });
+        }.proto({
+            $apply: function(cb) {
+                return this.$.$apply(cb);
+            },
+            $hitch: function(cb) {
+                this.$hitchers.push(this.$.$run(cb));
+                return function(i) {
+                    this.$hitchers[i].call(this);
+                    this.$hitchers[i] = null;
+                }.bind(this, this.$hitchers.length - 1);
+            }
+        });
+    }();
     var scopeUtilits = function() {
         return function($) {
             this.$ = $;
@@ -855,8 +1000,9 @@
     var WebElementPrototype = function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNonScopeValue) {
         return function() {
             this.$watchersHistory = [];
+            this.$hitchers = [];
         }.inherit(classEvents).proto({
-            read: function() {
+            $read: function() {
                 if (this.__config__.allWaitingForResolve) {
                     this.$queue(function(args) {
                         this.read.apply(this, args);
@@ -868,13 +1014,20 @@
                 properties = arguments[1], callback = arguments[2]) : (properties = arguments[0], 
                 callback = arguments[1]);
                 var xpath = objectXPath ? objectXPath.split(".") : [];
-                requiredProperties = [];
+                var requiredProperties = [];
+                if ("object" !== typeof properties) properties = [ properties ];
                 for (var i = 0; i < properties.length; ++i) {
                     requiredProperties.push(xpath.concat(properties[i].split(".")));
                 }
                 var alldata = [];
-                for (var x = 0; x < requiredProperties.length; ++x) {
-                    alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
+                if (self.$injectors.$component.options.engine.name === "angular" && Synthetic.$$angularApp) {
+                    for (var x = 0; x < requiredProperties.length; ++x) {
+                        alldata.push(getNonScopeValue(self.$injectors.$scope.$eval(requiredProperties[x].join("."))));
+                    }
+                } else {
+                    for (var x = 0; x < requiredProperties.length; ++x) {
+                        alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
+                    }
                 }
                 var jstr = JSON.stringify(alldata), rstr = JSON.stringify(requiredProperties);
                 if (self.$scopeSnaps[rstr] && jstr === self.$scopeSnaps[rstr]) {
@@ -883,7 +1036,7 @@
                 self.$scopeSnaps[rstr] = jstr;
                 self.$inject(callback).apply(self, alldata);
             },
-            watch: function() {
+            $watch: function() {
                 if (this.__config__.allWaitingForResolve) {
                     this.$queue(function(args) {
                         this.watch.apply(this, args);
@@ -896,16 +1049,25 @@
                 callback = arguments[1]);
                 if (!(properties instanceof Array)) properties = [ properties ];
                 var xpath = objectXPath ? objectXPath.split(".") : [];
-                requiredProperties = [];
+                var requiredProperties = [];
                 for (var i = 0; i < properties.length; ++i) {
                     requiredProperties.push(xpath.concat(properties[i].split(".")));
                 }
                 var lastTrack = {};
+                if (this.__config__.rendered) this.$read.apply(this, Array.prototype.slice.apply(arguments));
                 var getDatas = function(requiredProperties, rprops) {
                     return function(prop, action, newValue) {
                         var alldata = [];
                         for (var x = 0; x < requiredProperties.length; ++x) {
-                            if (rprops === requiredProperties[x]) alldata.push(getNonScopeValue(newValue)); else alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
+                            if (rprops === requiredProperties[x]) {
+                                alldata.push(getNonScopeValue(newValue));
+                            } else {
+                                if (self.$injectors.$component.options.engine.name === "angular" && Synthetic.$$angularApp) {
+                                    alldata.push(getNonScopeValue(self.$injectors.$scope.$eval(requiredProperties[x].join("."))));
+                                } else {
+                                    alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
+                                }
+                            }
                         }
                         var jstr = JSON.stringify(alldata), rstr = JSON.stringify(requiredProperties);
                         if (self.$scopeSnaps[rstr] && jstr === self.$scopeSnaps[rstr]) {
@@ -917,7 +1079,7 @@
                 };
                 var watchFabric = function(rprops, wobject, prop) {
                     if ("undefined" === typeof wobject[prop]) wobject[prop] = false;
-                    if (Synthetic.$$angularApp) {
+                    if (self.$injectors.$component.options.engine.name === "angular" && Synthetic.$$angularApp) {
                         var compiledCallbacker = getDatas(requiredProperties, rprops);
                         try {
                             var unwatcher = self.$injectors.$scope.$watch(rprops.join("."), function(newValue) {
@@ -938,7 +1100,7 @@
                             });
                         } catch (e) {
                             window.teste = self.$injectors.$element;
-                            console.error("Errors", e, self.$injectors.$element);
+                            console.error("Errors", e, rprops, wobject, self.$injectors.$element);
                         }
                         return unwatcher;
                     } else {
@@ -974,7 +1136,7 @@
                     return smartCallback.call(this.$injectors, callback, this);
                 }
             },
-            $injector: function(cb) {
+            $run: function(cb) {
                 return this.$inject(cb)();
             },
             $queue: function(callback) {
@@ -990,7 +1152,7 @@
                 return this;
             },
             $apply: function(callback) {
-                Synthetic.$$angularTimeout(this.$inject(callback));
+                if (this.$injectors.$component.options.engine.name === "angular" && Synthetic.$$angularApp) Synthetic.$$angularTimeout(this.$inject(callback)); else setTimeout(this.$inject(callback));
             },
             $template: function(content) {
                 this.$injectors.$generator.template(content);
@@ -999,6 +1161,9 @@
                 if (this.$destroyed) return true;
                 this.trigger("$destroy");
                 this.$destroyed = true;
+                if (this.$parent) {
+                    this.$parent.$$unRegisterChild(this);
+                }
                 if ("function" === typeof this.destroy) {
                     this.destroy();
                 }
@@ -1008,21 +1173,97 @@
                         this.$watchersHistory[i].unwatch();
                     }
                 }
+                for (var i = 0; i < this.$hitchers.length; ++i) {
+                    if ("function" === typeof this.$hitchers[i]) {
+                        this.$hitchers[i].call(this);
+                    }
+                }
                 this.$injectors.$generator.destroy();
                 this.$injectors.$generator = null;
-                this.$injectors.$element.synthetic = null;
+                this.$element.synthetic = null;
                 this.__config__ = {};
+                if (this.$element && this.$element.parentNode !== null) {
+                    this.$element.remove();
+                }
+            },
+            $hitch: function(cb) {
+                this.$hitchers.push(cb.apply(this));
+                return function(i) {
+                    this.$hitchers[i].call(this);
+                    this.$hitchers[i] = null;
+                }.bind(this, this.$hitchers.length - 1);
+            },
+            $$registerChild: function($ctrl) {
+                this.$childs[$ctrl.$sid] = $ctrl;
+                return this;
+            },
+            $$unRegisterChild: function($ctrl) {
+                if (this.$childs[$ctrl.$sid]) {
+                    delete this.$childs[$ctrl.$sid];
+                }
+                return this;
             }
         });
     }(getObjectByXPath, watch, smartCallback, classEvents, camelize, getNonScopeValue);
-    var generator = function(classEvents, minTemplate) {
-        var synthetModule = function($synthet) {
-            this.$synthet = $synthet;
-            this.$controller = $synthet;
-            this.$apply = function(cb) {
-                return $synthet.$apply(cb);
-            };
+    var extend = function() {
+        var hasOwn = Object.prototype.hasOwnProperty;
+        var toStr = Object.prototype.toString;
+        var isArray = function isArray(arr) {
+            if (typeof Array.isArray === "function") {
+                return Array.isArray(arr);
+            }
+            return toStr.call(arr) === "[object Array]";
         };
+        var isPlainObject = function isPlainObject(obj) {
+            "use strict";
+            if (!obj || toStr.call(obj) !== "[object Object]") {
+                return false;
+            }
+            var has_own_constructor = hasOwn.call(obj, "constructor");
+            var has_is_property_of_method = obj.constructor && obj.constructor.prototype && hasOwn.call(obj.constructor.prototype, "isPrototypeOf");
+            if (obj.constructor && !has_own_constructor && !has_is_property_of_method) {
+                return false;
+            }
+            var key;
+            for (key in obj) {}
+            return typeof key === "undefined" || hasOwn.call(obj, key);
+        };
+        return function extend() {
+            "use strict";
+            var options, name, src, copy, copyIsArray, clone, target = arguments[0], i = 1, length = arguments.length, deep = false;
+            if (typeof target === "boolean") {
+                deep = target;
+                target = arguments[1] || {};
+                i = 2;
+            } else if (typeof target !== "object" && typeof target !== "function" || target == null) {
+                target = {};
+            }
+            for (;i < length; ++i) {
+                options = arguments[i];
+                if (options != null) {
+                    for (name in options) {
+                        src = target[name];
+                        copy = options[name];
+                        if (target !== copy) {
+                            if (deep && copy && (isPlainObject(copy) || (copyIsArray = isArray(copy)))) {
+                                if (copyIsArray) {
+                                    copyIsArray = false;
+                                    clone = src && isArray(src) ? src : [];
+                                } else {
+                                    clone = src && isPlainObject(src) ? src : {};
+                                }
+                                if (copy.constructor.name !== "Ref") target[name] = extend(deep, clone, copy);
+                            } else if (typeof copy !== "undefined") {
+                                target[name] = copy;
+                            }
+                        }
+                    }
+                }
+            }
+            return target;
+        };
+    }();
+    var generator = function(classEvents, minTemplate, synthetModule) {
         return function(synthet) {
             this.$ = synthet;
             this.configuration = {
@@ -1046,18 +1287,19 @@
                 this.configuration.module = "function" === typeof module ? module : false;
                 this.render();
             },
-            render: function(template, module) {
+            render: function(template, module, args) {
                 var $ = this;
                 if (template) this.configuration.template = template;
                 this.configuration.module = "function" === typeof module ? module : false;
                 if (this.$.__config__.$$angularInitialedStage > 1) {
                     this.$inject(function($self, template, module) {
                         var test = Synthetic.$$angularCompile(template, undefined, undefined)($self.__config__.$$angularScope);
-                        $self.__config__.$$angularElement.html("").append(test);
+                        $self.__config__.$$angularElement.empty().append(test);
                         $self.__config__.$$angularScope.$digest();
                         $.$.trigger("rendered");
+                        $.$.surface("shake");
                         if (module) {
-                            $.setup(module);
+                            $.setup(module, args);
                         }
                     })(this.configuration.template, this.configuration.module);
                 } else {
@@ -1066,17 +1308,27 @@
                         $.setup(this.configuration.module);
                     }
                     this.$.trigger("rendered");
+                    this.$.$$shake();
                 }
             },
-            setup: function(module) {
-                var nm = function($synthet) {}.inherit(module).inherit(synthetModule);
+            setup: function(module, args) {
+                var $synthet = this.$;
+                var init = function() {
+                    this.$ = $synthet;
+                    this.$controller = $synthet;
+                };
+                var nm = function() {}.inherit(synthetModule).inherit(module).inherit(init);
                 if ("function" === typeof this.$.__config__.templateModulePrototype) {
-                    nm = nm.inherit();
+                    nm = nm.inherit(this.$.__config__.templateModulePrototype);
                 } else if ("object" === typeof this.$.__config__.templateModulePrototype) {
                     var overMod = function() {}.proto(this.$.__config__.templateModulePrototype);
                     nm = nm.inherit(overMod);
                 }
-                this.$.module = new nm(this.$);
+                if (args) {
+                    this.$.module = nm.construct(args);
+                } else {
+                    this.$.module = new nm();
+                }
             },
             destroy: function() {
                 if ("object" === typeof this.module && "function" === typeof this.module.destory) {
@@ -1089,7 +1341,7 @@
                 this.clearEventListners();
             }
         });
-    }(classEvents, min);
+    }(classEvents, min, modulePrototype);
     var inherit2 = function(mixin) {
         return function(aClass, classes) {
             if (!(classes instanceof Array)) classes = [ classes ];
@@ -1212,18 +1464,7 @@
     }(mixin2);
     var initAngular = function() {
         return function() {
-            Synthetic.$$angularApp = angular.module("syntheticApp", [], function() {}.bind(this)).filter("tester", function() {
-                var args = arguments;
-                return function(items, property, value) {
-                    var filtered = [], to;
-                    if ("undefined" === typeof items) return false;
-                    for (var i = 0; i < items.length; ++i) {
-                        to = sx.cache.getSync("entity", items[i].objectId);
-                        if (to && to[property] === value) filtered.push(items[i]);
-                    }
-                    return filtered;
-                };
-            });
+            Synthetic.$$angularApp = angular.module("syntheticApp", [], function() {}.bind(this));
             Synthetic.trigger("angularModuleInitialed", [ Synthetic.$$angularApp ]);
             Synthetic.$$angularApp.config(function($controllerProvider, $provide, $compileProvider) {
                 Synthetic.$$angularApp._controller = Synthetic.$$angularApp.controller;
@@ -1277,6 +1518,19 @@
             if ($self.$destroyed) return false;
             angular.extend($$scope, $self.$$scope);
             $$scope._ = new scopeUtilits($self);
+            $$scope.$module = {};
+            Object.defineProperty($$scope, "$module", {
+                enumerable: false,
+                cofigurable: false,
+                editable: false,
+                get: function() {
+                    return $self.module;
+                },
+                set: function() {
+                    return false;
+                }
+            });
+            $$scope.$sid = $self.$sid;
             $self.$injectors.$scope = $$scope;
             $self.__config__.allWaitingForResolve = false;
             $self.__config__.$$angularElement = angular.element($self.$element);
@@ -1291,15 +1545,16 @@
             });
         };
     }(mixin2, camelize, scopeUtilits);
-    var webElementFactory = function(WebElementPrototype, mixin, Generator, camelize, getNonScopeValue) {
+    var webElementFactory = function(WebElementPrototype, mixin, extend, Generator, camelize, getNonScopeValue) {
         return function(element, component) {
-            this.randomId = Math.round(Math.random() * 1e7);
+            this.$sid = "sid" + new Date().getTime() + Math.round(Math.random() * 1e7);
             if (component.options.engine.name === "angular") {
-                element.setAttribute(component.options.name, "exp");
-                element.setAttribute("rid", this.randomId);
+                element.setAttribute("sid", this.$sid);
                 this.$$attrsWatchers = {};
             }
             Synthetic.$$lastElementFactory = this;
+            this.$parent = false;
+            this.$childs = {};
             this.$scopeSnaps = {};
             this.$element = element;
             this.component = component;
@@ -1320,15 +1575,19 @@
                     $$angularDirectived: false,
                     createdEventFires: false,
                     attachedEventFires: false,
-                    templateModulePrototype: false
+                    templateModulePrototype: false,
+                    rendered: false
                 }, component.options)
             });
             this.$$scope = {
                 attributes: {},
                 properties: {},
-                html: {},
+                $shadowTemplate: null,
                 uid: "syntheticElement" + Math.round(Math.random() * 1e4)
             };
+            if ("object" === typeof component.options.scope) {
+                this.$$scope = extend(this.$$scope, component.options.scope);
+            }
             Object.defineProperty(this, "$scope", {
                 enumberable: true,
                 get: function() {
@@ -1349,7 +1608,6 @@
             });
             if ("object" === typeof angular && angular.bootstrap && component.options.engine.name === "angular") {
                 var $self = this;
-                this.$$angularControllerName = "singular" + new Date().getTime() + Math.round(Math.random() * 1e4);
                 this.__config__.$$angularInitialedStage = 1;
                 this.__config__.allWaitingForResolve = "angularResolved";
                 if (Synthetic.$$angularBootstraped) Synthetic.$$angularTimeout(function() {
@@ -1378,8 +1636,11 @@
                             }
                             this.$queue(this.$inject(userfunc));
                         }).call(this, element.childNodes[i].innerHTML);
-                    } else {
-                        this.$injectors.$scope.html[camelize(element.childNodes[i].tagName.toLowerCase())] = element.childNodes[i].innerHTML;
+                    } else {}
+                } else if (element.childNodes[i].nodeType === 8) {
+                    var nv = element.childNodes[i].nodeValue.trim();
+                    if (nv.substr(0, 9) === "template:") {
+                        this.$$scope.$shadowTemplate = nv.substr(9);
                     }
                 }
             }
@@ -1429,15 +1690,17 @@
                     this.on("attributeChanged", component.onAttributeChangedCallbacks[i]);
                 }
                 for (var i = 0; i < component.watchers.length; ++i) {
-                    this.watch.apply(this, component.watchers[i]);
+                    this.$watch.apply(this, component.watchers[i]);
                 }
                 for (var i = 0; i < component.watchers.length; ++i) {
-                    this.read.apply(this, component.watchers[i]);
+                    this.$read.apply(this, component.watchers[i]);
                 }
                 this.trigger("rendered", [ this.$element ]);
+                this.__config__.rendered = true;
+                this.bubbling("shake");
             });
         }.inherit(WebElementPrototype);
-    }(WebElementPrototype, mixin2, generator, camelize, getNonScopeValue);
+    }(WebElementPrototype, mixin2, extend, generator, camelize, getNonScopeValue);
     (function() {
         (function(window, document, Object, REGISTER_ELEMENT) {
             "use strict";
@@ -1843,6 +2106,17 @@
         }
         var componentAttacher = function() {
             if (this.synthetic.__config__.$$angularInitialedStage > 2) {}
+            if (!this.synthetic.__config__.permanent) {
+                var pe = this.synthetic.$element.parentNode;
+                while (!(pe === null || "undefined" !== typeof pe.synthetic)) {
+                    pe = pe.parentNode;
+                }
+                if (this.synthetic.$parent) {
+                    this.synthetic.$parent.$$unRegisterChild(this.synthetic);
+                }
+                this.synthetic.$parent = pe !== null && "object" === typeof pe.synthetic ? pe.synthetic : false;
+                if (this.synthetic.$parent) this.synthetic.$parent.$$registerChild(this.synthetic);
+            }
             this.synthetic.trigger("attached", [ this.synthetic ]);
             this.synthetic.__config__.attachedEventFires = true;
         };
@@ -1869,6 +2143,12 @@
         };
         Synthetic.prototype = {
             construct: Synthetic
+        };
+        Synthetic.search = function(element) {
+            while (element !== null && "object" !== typeof element.synthetic) {
+                element = element.parentNode;
+            }
+            return element !== null && element.synthetic ? element.synthetic : false;
         };
         for (var prop in eventsClass.prototype) {
             if (eventsClass.prototype.hasOwnProperty(prop) && "function" === typeof eventsClass.prototype[prop]) {
@@ -1921,7 +2201,7 @@
                 var rcolor = getRandomColor();
                 Synthetic.$$angularApp.directive(camelize(componentOptions.name), function() {
                     return {
-                        restrict: "A",
+                        restrict: "E",
                         priority: 998,
                         scope: true,
                         controller: function($element) {},

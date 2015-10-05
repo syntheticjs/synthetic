@@ -1,19 +1,10 @@
 define([
     "./classEvents.js",
-    "./templaters/min.js"
+    "./templaters/min.js",
+    "./modulePrototype.js"
 ],
-function(classEvents, minTemplate) {
-    /*
-    Этим классом будут расширяться все входящие модули темплейтов
-    Он дает минимальный API для работы с компонентом
-    */
-    var synthetModule = function($synthet) {
-        this.$synthet = $synthet;
-        this.$controller = $synthet;
-        this.$apply = function(cb) {
-            return $synthet.$apply(cb);
-        }
-    }
+function(classEvents, minTemplate, synthetModule) {
+
     return function(synthet) {
         this.$ = synthet;
         this.configuration = {
@@ -45,7 +36,7 @@ function(classEvents, minTemplate) {
                 this.configuration.module = "function"===typeof module?module:false;
                 this.render();
             },
-            render: function(template, module) {
+            render: function(template, module, args) {
 
                 
                 var $ = this;
@@ -63,8 +54,8 @@ function(classEvents, minTemplate) {
                         данные ввиде массива node. Поэтому для присвоения нового html необходимо использовать
                         append предварительно очищая элемент с помощью html('').
                         */
-                        
-                        $self.__config__.$$angularElement.html('').append(test);
+
+                        $self.__config__.$$angularElement.empty().append(test);
 
                         /*
                         После установки шаблона необходимо произвести пересмотр scope
@@ -72,8 +63,11 @@ function(classEvents, minTemplate) {
                         $self.__config__.$$angularScope.$digest();
 
                         $.$.trigger("rendered");
+                        $.$.surface('shake'); // Shake all roots
+
                         if (module) {
-                            $.setup(module);
+
+                            $.setup(module, args);
                         }
                     })(this.configuration.template, this.configuration.module);
                 } else {
@@ -83,25 +77,42 @@ function(classEvents, minTemplate) {
                         $.setup(this.configuration.module);
                     }
                     this.$.trigger("rendered");
+                    this.$.$$shake(); // Shake all roots
                 }
             },
-            setup: function(module) {
+            setup: function(module, args) {
 
-                var nm = function($synthet) {
-                    
-                }.inherit(module)
-                .inherit(synthetModule);
+                var $synthet = this.$;
+
+                var init = function() {
+                    this.$ = $synthet;
+                    this.$controller = $synthet;
+                };
+
+                var nm = function() {
+
+                }
+                .inherit(synthetModule)
+                    .inherit(module)
+                    .inherit(init);
 
                 /*
                 Расширение модуля прототипом указанном в опциях
                 */
                 if ("function"===typeof this.$.__config__.templateModulePrototype) {
-                    nm = nm.inherit();
+                    nm = nm.inherit(this.$.__config__.templateModulePrototype);
                 } else if ("object"===typeof this.$.__config__.templateModulePrototype) {
                     var overMod = function() { }.proto(this.$.__config__.templateModulePrototype);
                     nm = nm.inherit(overMod);
                 }
-                this.$.module = new nm(this.$);
+                if (args) {
+
+                    this.$.module = nm.construct(args);
+                } else {
+                    this.$.module = new nm();
+                }
+
+                //this.$.$injectors.$scope.$module = this.$.module;
             },
             destroy: function() {
                 /*

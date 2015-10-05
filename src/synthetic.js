@@ -47,7 +47,39 @@ AMD Synthet
             if (this.synthetic.__config__.$$angularInitialedStage>2) {
                 //console.log("%cpostAttached", "font-weight:bold;", this);
             }
-            
+
+            // Search parent synthetic element
+            if (!this.synthetic.__config__.permanent) {
+                /*
+                Только если отключена опция permanent мы меняем информацию о старшем компоненте
+                В режиме permanent объект должен всегда находится в изначальном состоянии,
+                даже если был был перемещен
+                */
+                var pe = this.synthetic.$element.parentNode;
+
+                while (!(pe === null || "undefined" !== typeof pe.synthetic)) {
+                    pe = pe.parentNode
+                }
+
+                /*
+                Удаляем себя из предыдущего $parent
+                */
+                if (this.synthetic.$parent) {
+                    this.synthetic.$parent.$$unRegisterChild(this.synthetic);
+                }
+
+                this.synthetic.$parent = (pe !== null && "object" === typeof pe.synthetic) ? pe.synthetic : false;
+
+
+                /*
+                Регистрируем себя в parentComponent
+                */
+                if (this.synthetic.$parent)
+                this.synthetic.$parent.$$registerChild(this.synthetic);
+
+            }
+
+            // Fires event
             this.synthetic.trigger("attached", [ this.synthetic ]);
             this.synthetic.__config__.attachedEventFires = true;
         }
@@ -87,6 +119,16 @@ AMD Synthet
         Synthetic.prototype = {
             construct: Synthetic
         };
+
+        /*
+        Находит компонент в состав которого входит данный элемент
+        */
+        Synthetic.search = function(element) {
+            while (element!==null && "object"!==typeof element.synthetic) {
+                element = element.parentNode;
+            }
+            return (element!==null && element.synthetic) ? element.synthetic : false;
+        }
 
         /*
         CHARGE IT BY EVENT EMITTER * * * * *
@@ -178,7 +220,7 @@ AMD Synthet
                 var rcolor = getRandomColor();
                 Synthetic.$$angularApp.directive(camelize(componentOptions.name), function() {
                     return {
-                        restrict: 'A',
+                        restrict: 'E',
                         priority: 998,
                         scope: true,
                         controller: function($element) {
@@ -205,8 +247,6 @@ AMD Synthet
                                     }*/
 
 
-                                    
-                                    
                                     Synthetic($element[0]).__config__.$$angularDirectived = true;
                                     scopeGenerator($element[0].synthetic, $scope);
 

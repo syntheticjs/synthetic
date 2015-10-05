@@ -5,21 +5,7 @@ define(function() {
         */
         Synthetic.$$angularApp = angular.module('syntheticApp', [], function() {
                                                         
-        }.bind(this))
-        .filter('tester', function() {
-            var args =  arguments;
-            return function(items, property, value) {
-                
-                var filtered = [],to;
-                if ("undefined"===typeof items) return false;
-                for (var i = 0;i<items.length;++i) {
-                    to=sx.cache.getSync('entity', items[i].objectId);
-                    if (to&&to[property]===value) filtered.push(items[i])
-                }
-                
-                return filtered;
-            }
-        });
+        }.bind(this));
 
         /*
         Вызываем событие оповещающее глобвльно о создании модуля angular
@@ -127,7 +113,6 @@ define(function() {
                         angular.bootstrap(document.body, 
                         ['syntheticApp']);
                         Synthetic.$$angularBootstraped = true;
-                        
                         Synthetic.trigger('angularBootstraped');
                     }, 100);
             }.bind(this));
