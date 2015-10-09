@@ -88,7 +88,10 @@ define([
             }
             return this;
         },
-        surface: function(e, args) {
+        surface: function() {
+          this.plunge.apply(this, arguments);
+        },
+        plunge: function(e, args) {
             var response = null;
             if (typeof this.surfacingListners[e] == 'object' && this.surfacingListners[e].length>0) {
                 var todelete = [];

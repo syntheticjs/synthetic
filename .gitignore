@@ -1,4 +1,2 @@
-components
-.idea
 .DS_Store
-reptile.log
+node_modules

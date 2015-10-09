@@ -210,7 +210,10 @@
                 }
                 return this;
             },
-            surface: function(e, args) {
+            surface: function() {
+                this.plunge.apply(this, arguments);
+            },
+            plunge: function(e, args) {
                 var response = null;
                 if (typeof this.surfacingListners[e] == "object" && this.surfacingListners[e].length > 0) {
                     var todelete = [];
@@ -1297,7 +1300,7 @@
                         $self.__config__.$$angularElement.empty().append(test);
                         $self.__config__.$$angularScope.$digest();
                         $.$.trigger("rendered");
-                        $.$.surface("shake");
+                        $.$.bubbling("shake");
                         if (module) {
                             $.setup(module, args);
                         }
@@ -1308,7 +1311,7 @@
                         $.setup(this.configuration.module);
                     }
                     this.$.trigger("rendered");
-                    this.$.$$shake();
+                    this.$.bubbling("shake");
                 }
             },
             setup: function(module, args) {
@@ -1518,13 +1521,23 @@
             if ($self.$destroyed) return false;
             angular.extend($$scope, $self.$$scope);
             $$scope._ = new scopeUtilits($self);
-            $$scope.$module = {};
             Object.defineProperty($$scope, "$module", {
                 enumerable: false,
                 cofigurable: false,
                 editable: false,
                 get: function() {
                     return $self.module;
+                },
+                set: function() {
+                    return false;
+                }
+            });
+            Object.defineProperty($$scope, "$synth", {
+                enumerable: false,
+                cofigurable: false,
+                editable: false,
+                get: function() {
+                    return $self;
                 },
                 set: function() {
                     return false;

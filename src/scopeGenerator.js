@@ -17,15 +17,27 @@ define([
         $$scope._ = new scopeUtilits($self);
 
         /*
-         Добавляем ссылку на специальный объект module
-         */
-        $$scope.$module = {};
+        Добавляем ссылку на специальный объект module
+        */
         Object.defineProperty($$scope, '$module', {
             enumerable: false,
             cofigurable: false,
             editable: false,
             get: function() {
                 return $self.module;
+            },
+            set: function(){
+                return false;
+            }
+        });
+
+        Object.defineProperty($$scope, '$synth', {
+            enumerable: false,
+            cofigurable: false,
+            editable: false,
+            get: function() {
+
+                return $self;
             },
             set: function(){
                 return false;

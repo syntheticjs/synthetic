@@ -63,7 +63,7 @@ function(classEvents, minTemplate, synthetModule) {
                         $self.__config__.$$angularScope.$digest();
 
                         $.$.trigger("rendered");
-                        $.$.surface('shake'); // Shake all roots
+                        $.$.bubbling('shake'); // Shake all roots
 
                         if (module) {
 
@@ -77,7 +77,7 @@ function(classEvents, minTemplate, synthetModule) {
                         $.setup(this.configuration.module);
                     }
                     this.$.trigger("rendered");
-                    this.$.$$shake(); // Shake all roots
+                    this.$.bubbling('shake'); // Shake all roots
                 }
             },
             setup: function(module, args) {
