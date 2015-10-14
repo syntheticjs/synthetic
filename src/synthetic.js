@@ -40,6 +40,22 @@ AMD Synthet
             }
             return color;
         }
+        /*
+        Функция направлена на полное дублирование proto в target без
+        связей
+        */
+        var startextend = function(target, proto) {
+            for (var prop in proto) {
+                if (proto.hasOwnProperty(prop)) {
+                    if ("object"===typeof proto[prop]) {
+                        target[prop] = proto[prop] instanceof Array ? [] : {};
+                        startextend(target[prop], proto[prop]);
+                    } else {
+                        target[prop] = proto[prop];
+                    }
+                }
+            }
+        }
         var componentAttacher = function() {
             /*
             Если элемент добавлен в дерево 
@@ -74,8 +90,10 @@ AMD Synthet
                 /*
                 Регистрируем себя в parentComponent
                 */
-                if (this.synthetic.$parent)
-                this.synthetic.$parent.$$registerChild(this.synthetic);
+                if (this.synthetic.$parent) {
+                    this.synthetic.$parent.$$registerChild(this.synthetic);
+                    this.synthetic.trigger('parentDefined');
+                }
 
             }
 
@@ -203,6 +221,9 @@ AMD Synthet
                 componentFactory.construct(prototype);
             }
 
+            // Normalize scope
+            componentOptions.scope = "object"===typeof componentOptions.scope ? componentOptions.scope : {};
+
             /*
             Если мы используем angular, то помимо копонента мы создаем минимальную директиву,
             задача которой будет создавать изолированный scope для каждого компонента
@@ -229,9 +250,25 @@ AMD Synthet
                         compile: function($element, $rscope, $a, $controllersBoundTransclude) {
 
                             Synthetic($element[0]).__config__.$$angularDirectived = true;
+
                             
                             return {
                                 pre: function($scope, $element) {
+                                    /*
+                                    В данной ситуации пришлось отказаться от использования extend для
+                                    создания дефолтного значения scope на основе предустановок;
+                                    Странно, но даже при использовании extend, который является близкой копией extend
+                                    из jQuery, некоторые свойства источника передаются по ссылке, а не копируются, что 
+                                    приводит к катастрофическим ошибкам, связанным с записью данных в источник.
+
+                                    Функция startextend гарантирует, что все копируемые свойства будут перевоссозданы заново,
+                                    однако эта функция не осуствляет миксим с существующими значениями $scope, поэтому ее можно
+                                    использовать только при первичной инициализации.
+
+                                    Желательно выяснить по какой причине extend не создает требуемых копий свойств.
+                                    */
+                                    startextend($scope, componentOptions.scope);
+
                                     
                                     /*
                                     Если scope для элемента не установлен, то вероятно этот элемент используется в ngRepeat и временно

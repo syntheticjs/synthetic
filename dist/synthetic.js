@@ -1598,9 +1598,6 @@
                 $shadowTemplate: null,
                 uid: "syntheticElement" + Math.round(Math.random() * 1e4)
             };
-            if ("object" === typeof component.options.scope) {
-                this.$$scope = extend(this.$$scope, component.options.scope);
-            }
             Object.defineProperty(this, "$scope", {
                 enumberable: true,
                 get: function() {
@@ -1658,6 +1655,15 @@
                 }
             }
             this.$queue(function() {
+                var pe = this.$element.parentNode;
+                while (!(pe === null || "undefined" !== typeof pe.synthetic)) {
+                    pe = pe.parentNode;
+                }
+                this.$parent = pe !== null && "object" === typeof pe.synthetic ? pe.synthetic : false;
+                if (this.$parent) {
+                    this.$parent.$$registerChild(this);
+                    this.trigger("parentDefined");
+                }
                 if (!~this.$element.className.split(" ").indexOf("synt-loaded")) this.$element.className += " synt-loaded";
                 for (var z = 0; z < element.attributes.length; z++) {
                     var value = getNonScopeValue(element.attributes[z].value);
@@ -1702,11 +1708,20 @@
                 for (var i = 0; i < component.onAttributeChangedCallbacks.length; ++i) {
                     this.on("attributeChanged", component.onAttributeChangedCallbacks[i]);
                 }
-                for (var i = 0; i < component.watchers.length; ++i) {
-                    this.$watch.apply(this, component.watchers[i]);
-                }
-                for (var i = 0; i < component.watchers.length; ++i) {
-                    this.$read.apply(this, component.watchers[i]);
+                var evalWatchers = function() {
+                    for (var i = 0; i < component.watchers.length; ++i) {
+                        this.$watch.apply(this, component.watchers[i]);
+                    }
+                    for (var i = 0; i < component.watchers.length; ++i) {
+                        this.$read.apply(this, component.watchers[i]);
+                    }
+                };
+                if (!this.$parent) {
+                    this.bind("parentDefined", function() {
+                        evalWatchers.call(this);
+                    }, true);
+                } else {
+                    evalWatchers.call(this);
                 }
                 this.trigger("rendered", [ this.$element ]);
                 this.__config__.rendered = true;
@@ -2117,6 +2132,18 @@
             }
             return color;
         }
+        var startextend = function(target, proto) {
+            for (var prop in proto) {
+                if (proto.hasOwnProperty(prop)) {
+                    if ("object" === typeof proto[prop]) {
+                        target[prop] = proto[prop] instanceof Array ? [] : {};
+                        startextend(target[prop], proto[prop]);
+                    } else {
+                        target[prop] = proto[prop];
+                    }
+                }
+            }
+        };
         var componentAttacher = function() {
             if (this.synthetic.__config__.$$angularInitialedStage > 2) {}
             if (!this.synthetic.__config__.permanent) {
@@ -2128,7 +2155,10 @@
                     this.synthetic.$parent.$$unRegisterChild(this.synthetic);
                 }
                 this.synthetic.$parent = pe !== null && "object" === typeof pe.synthetic ? pe.synthetic : false;
-                if (this.synthetic.$parent) this.synthetic.$parent.$$registerChild(this.synthetic);
+                if (this.synthetic.$parent) {
+                    this.synthetic.$parent.$$registerChild(this.synthetic);
+                    this.synthetic.trigger("parentDefined");
+                }
             }
             this.synthetic.trigger("attached", [ this.synthetic ]);
             this.synthetic.__config__.attachedEventFires = true;
@@ -2204,6 +2234,7 @@
             } else if ("function" === typeof prototype) {
                 componentFactory.construct(prototype);
             }
+            componentOptions.scope = "object" === typeof componentOptions.scope ? componentOptions.scope : {};
             if (componentOptions.engine.name === "angular") {
                 if ("undefined" === typeof Synthetic.$$angularApp) {
                     initAngular();
@@ -2222,6 +2253,7 @@
                             Synthetic($element[0]).__config__.$$angularDirectived = true;
                             return {
                                 pre: function($scope, $element) {
+                                    startextend($scope, componentOptions.scope);
                                     Synthetic($element[0]).__config__.$$angularDirectived = true;
                                     scopeGenerator($element[0].synthetic, $scope);
                                     return function(scope) {};

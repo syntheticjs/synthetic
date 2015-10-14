@@ -105,10 +105,12 @@ define([
 
         /*
         Расширяем scope пользовательскими настройками
+        DEPRICATED - Формирование дефолтного скоуп будет происходить
+        на уровне директивы
          */
-        if ("object"===typeof component.options.scope) {
+        /*if ("object"===typeof component.options.scope) {
             this.$$scope = extend(this.$$scope, component.options.scope);
-        }
+        }*/
 
         /*
          Создаем доступное свойство scope, которое назависимо от используемого движка
@@ -224,6 +226,24 @@ define([
         this.$queue(function() {
 
             /*
+            На данном этапе мы уже должны обязательно подготовить данные о $parent
+            */
+            var pe = this.$element.parentNode;
+
+            while (!(pe === null || "undefined" !== typeof pe.synthetic)) {
+                pe = pe.parentNode;
+            }
+
+            this.$parent = (pe !== null && "object" === typeof pe.synthetic) ? pe.synthetic : false;
+            /*
+            Регистрируем себя в parentComponent
+            */
+            if (this.$parent) {
+                this.$parent.$$registerChild(this);
+                this.trigger('parentDefined');
+            }
+
+            /*
              Remove loading class
              */
             /*var i =this.$element.className.split(' ').indexOf('synt-loading')
@@ -318,23 +338,38 @@ define([
                 this.on("attributeChanged", component.onAttributeChangedCallbacks[i]);
             }
 
-            /*
-             Переносим наблюдение за scope
-             */
-            for (var i = 0;i<component.watchers.length;++i) {
-                this.$watch.apply(this, component.watchers[i]);
+            var evalWatchers = function() {
+                /*
+                 Переносим наблюдение за scope
+                 */
+                for (var i = 0;i<component.watchers.length;++i) {
+                    this.$watch.apply(this, component.watchers[i]);
+                }
+
+                /*
+                 После того как wathers назначены, необходимо немедленно проверить их значение
+                 */
+                for (var i = 0;i<component.watchers.length;++i) {
+                    this.$read.apply(this, component.watchers[i]);
+                }
+
+                /*
+                 Будем считать что элемент первично отрендерен
+                 */
             }
 
             /*
-             После того как wathers назначены, необходимо немедленно проверить их значение
-             */
-            for (var i = 0;i<component.watchers.length;++i) {
-                this.$read.apply(this, component.watchers[i]);
+            Задерживаем выполнение наблюдателей до момента инициализации нашего местоположения
+            */
+            if (!this.$parent) {
+                this.bind('parentDefined', function() {
+                    evalWatchers.call(this);   
+                }, true);
+            } else {
+                evalWatchers.call(this);
             }
 
-            /*
-             Будем считать что элемент первично отрендерен
-             */
+            
             this.trigger("rendered", [this.$element]);
             this.__config__.rendered = true;
             this.bubbling('shake'); // Shake all roots
