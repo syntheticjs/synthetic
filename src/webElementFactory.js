@@ -178,7 +178,15 @@ define([
                     try {
                         Synthetic.$$angularCompile($self.$element)(angular.element($self.$element).scope());
                     } catch(e) {
-                        console.error(e, $self.$element);
+                        try {
+                            /*
+                            Если мы попали сюда, то вероятно объект был создан в корне дерева, нам нужно создать
+                            для него scope самостоятельно
+                            */
+                            Synthetic.$$angularCompile($self.$element)(Synthetic.$$angularRootScope.$new());
+                        } catch(e) {
+                            console.error('damn', e, $self.$element);
+                        }
                     }
                 }
 

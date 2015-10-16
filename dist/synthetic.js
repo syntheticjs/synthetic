@@ -965,22 +965,26 @@
     }(getObjectByXPath);
     var modulePrototype = function() {
         return function() {
-            this.$hitchers = [];
-            this.bind("destroy", function() {
-                for (var i = 0; i < this.$hitchers.length; ++i) {
-                    this.$hitchers();
-                }
-            });
+            console.debug("DEBUG ME: because im starting after module initialization. This is very baaad.");
         }.proto({
             $apply: function(cb) {
                 return this.$.$apply(cb);
             },
             $hitch: function(cb) {
-                this.$hitchers.push(this.$.$run(cb));
+                var fkey = cb.toString();
+                if ("function" === typeof this.$hitchers[fkey]) this.$hitchers[fkey].call(this);
+                this.$hitchers[fkey] = this.$.$run(cb);
                 return function(i) {
                     this.$hitchers[i].call(this);
-                    this.$hitchers[i] = null;
-                }.bind(this, this.$hitchers.length - 1);
+                    delete this.$hitchers[i];
+                }.bind(this, fkey);
+            },
+            $destroy: function() {
+                for (var i in this.$hitchers) {
+                    if (this.$hitchers.hasOwnProperty(i) && "function" === typeof this.$hitchers[i]) {
+                        this.$hitchers[i].call(this);
+                    }
+                }
             }
         });
     }();
@@ -1003,7 +1007,8 @@
     var WebElementPrototype = function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNonScopeValue) {
         return function() {
             this.$watchersHistory = [];
-            this.$hitchers = [];
+            this.$applyLeaders = {};
+            this.$hitchers = {};
         }.inherit(classEvents).proto({
             $read: function() {
                 if (this.__config__.allWaitingForResolve) {
@@ -1082,6 +1087,7 @@
                 };
                 var watchFabric = function(rprops, wobject, prop) {
                     if ("undefined" === typeof wobject[prop]) wobject[prop] = false;
+                    self.$scopeSnaps[JSON.stringify(requiredProperties)] = false;
                     if (self.$injectors.$component.options.engine.name === "angular" && Synthetic.$$angularApp) {
                         var compiledCallbacker = getDatas(requiredProperties, rprops);
                         try {
@@ -1122,9 +1128,11 @@
                         return unwatcher;
                     }
                 };
-                var unwacthers = function() {};
+                var unwacthers = function() {
+                    "empty unwatcher";
+                };
                 for (var i = 0; i < requiredProperties.length; ++i) {
-                    unwacthers.inherit(watchFabric(requiredProperties[i], getObjectByXPath(this.$injectors.$scope, requiredProperties[i].slice(0, requiredProperties[i].length - 1)), requiredProperties[i][requiredProperties[i].length - 1]));
+                    unwacthers = unwacthers.inherit(watchFabric(requiredProperties[i], getObjectByXPath(this.$injectors.$scope, requiredProperties[i].slice(0, requiredProperties[i].length - 1)), requiredProperties[i][requiredProperties[i].length - 1]));
                 }
                 return unwacthers;
             },
@@ -1154,11 +1162,33 @@
                 }
                 return this;
             },
-            $apply: function(callback) {
-                if (this.$injectors.$component.options.engine.name === "angular" && Synthetic.$$angularApp) Synthetic.$$angularTimeout(this.$inject(callback)); else setTimeout(this.$inject(callback));
+            $apply: function($as, callback, destructor) {
+                arguments.length === 1 && (callback = $as, $as = false, 
+                destructor = false);
+                if ($as) {
+                    if (this.$applyLeaders[$as]) {
+                        this.$applyLeaders[$as]();
+                    }
+                    var allowApply = true, component = this, allowDestructor = function() {
+                        allowApply = false;
+                        delete component.$applyLeaders[$as];
+                        if ("function" === typeof destructor) destructor();
+                    }, boundApply = this.$inject(callback), realCallback = function() {
+                        if (allowApply) {
+                            delete component.$applyLeaders[$as];
+                            return boundApply();
+                        }
+                        return false;
+                    };
+                    this.$applyLeaders[$as] = allowDestructor;
+                } else {
+                    var realCallback = this.$inject(callback);
+                }
+                if (this.$injectors.$component.options.engine.name === "angular" && Synthetic.$$angularApp) Synthetic.$$angularTimeout(realCallback); else setTimeout(realCallback);
             },
             $template: function(content) {
                 this.$injectors.$generator.template(content);
+                return this;
             },
             $destroy: function() {
                 if (this.$destroyed) return true;
@@ -1176,8 +1206,8 @@
                         this.$watchersHistory[i].unwatch();
                     }
                 }
-                for (var i = 0; i < this.$hitchers.length; ++i) {
-                    if ("function" === typeof this.$hitchers[i]) {
+                for (var i in this.$hitchers) {
+                    if (this.$hitchers.hasOwnProperty(i) && "function" === typeof this.$hitchers[i]) {
                         this.$hitchers[i].call(this);
                     }
                 }
@@ -1190,11 +1220,13 @@
                 }
             },
             $hitch: function(cb) {
-                this.$hitchers.push(cb.apply(this));
+                var fkey = cb.toString();
+                if ("function" === typeof this.$hitchers[fkey]) this.$hitchers[fkey].call(this);
+                this.$hitchers[fkey] = this.$run(cb);
                 return function(i) {
                     this.$hitchers[i].call(this);
-                    this.$hitchers[i] = null;
-                }.bind(this, this.$hitchers.length - 1);
+                    delete this.$hitchers[i];
+                }.bind(this, fkey);
             },
             $$registerChild: function($ctrl) {
                 this.$childs[$ctrl.$sid] = $ctrl;
@@ -1316,6 +1348,9 @@
             },
             setup: function(module, args) {
                 var $synthet = this.$;
+                if ("object" === typeof this.$.module && "function" === typeof this.$.module.$destroy) {
+                    this.$.module.$destroy();
+                }
                 var init = function() {
                     this.$ = $synthet;
                     this.$controller = $synthet;
@@ -1334,10 +1369,13 @@
                 }
             },
             destroy: function() {
-                if ("object" === typeof this.module && "function" === typeof this.module.destory) {
-                    this.module.destory();
-                    this.module = null;
+                if ("object" === typeof this.$.module && "function" === typeof this.$.module.destory) {
+                    this.$.module.destory();
                 }
+                if ("object" === typeof this.$.module && "function" === typeof this.$.module.$destroy) {
+                    this.$.module.$destroy();
+                }
+                this.$.module = null;
                 for (var i = 0; i < this.watchers.length; ++i) {
                     his.watchers[i]();
                 }
@@ -1626,7 +1664,11 @@
                         try {
                             Synthetic.$$angularCompile($self.$element)(angular.element($self.$element).scope());
                         } catch (e) {
-                            console.error(e, $self.$element);
+                            try {
+                                Synthetic.$$angularCompile($self.$element)(Synthetic.$$angularRootScope.$new());
+                            } catch (e) {
+                                console.error("damn", e, $self.$element);
+                            }
                         }
                     }
                 });

@@ -18,9 +18,13 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 		*/
 		this.$watchersHistory = [];
 		/*
+		Очередь лидеров на изменение свойств $scope
+		*/
+		this.$applyLeaders = {};
+		/*
 		Hitchers
 		*/
-		this.$hitchers = [];
+		this.$hitchers = {};
 	}.inherit(classEvents)
 	.proto({
 		$read: function() {
@@ -189,8 +193,13 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 			var watchFabric = function(rprops, wobject, prop) {
 				
 				if ("undefined"===typeof wobject[prop]) wobject[prop] = false;
+
+				// Обнуляем snaps
+				self.$scopeSnaps[JSON.stringify(requiredProperties)] = false;
+
 				if (self.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
 					var compiledCallbacker = getDatas(requiredProperties, rprops);
+
 
 
 					try {
@@ -256,11 +265,11 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 					return unwatcher;
 				};
 			};
-			var unwacthers = function() {}; // Эта функция будет содержат функции для уничтожения наблюдений
-
+			var unwacthers = function() { "empty unwatcher"; }; // Эта функция будет содержат функции для уничтожения наблюдений
+			
 			for (var i = 0;i<requiredProperties.length;++i) {
 
-				unwacthers.inherit(watchFabric(requiredProperties[i], getObjectByXPath(this.$injectors.$scope, requiredProperties[i].slice(0, requiredProperties[i].length-1)), requiredProperties[i][requiredProperties[i].length-1]));
+				unwacthers = unwacthers.inherit(watchFabric(requiredProperties[i], getObjectByXPath(this.$injectors.$scope, requiredProperties[i].slice(0, requiredProperties[i].length-1)), requiredProperties[i][requiredProperties[i].length-1]));
 			}
 			return unwacthers;
 		},
@@ -302,14 +311,59 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 			}
 			return this;
 		},
-		$apply: function(callback){
+		$apply: function($as, callback, destructor){
+			/*
+			Вызов функцции может быть перегружен тремя объектами сразу
+			0 - свойство scope
+			1 - функция apply
+			2 - деструктор преинициализации
+
+			Или же функция может принять только один аргумент - функция apply
+			*/
+			;(arguments.length===1) && (callback=$as,$as=false,destructor=false);
+
+			if ($as) {
+				if (this.$applyLeaders[$as]) {
+					/*
+					Предотвращает выполнение предыдущего apply
+					*/
+					this.$applyLeaders[$as]();
+				}
+
+				var allowApply = true, component = this,
+				/*
+				Функция запрещающая выполнение $apply, вызывается
+				если по отношению к этому expression применен еще 
+				один $apply
+				*/
+				allowDestructor = function() {
+					allowApply = false;
+					delete component.$applyLeaders[$as];
+					if ("function"===typeof destructor) destructor();
+				},
+				boundApply = this.$inject(callback),
+				realCallback = function() {
+					if (allowApply) {
+						delete component.$applyLeaders[$as];
+						return boundApply();
+					}
+					return false;
+				};
+				this.$applyLeaders[$as] = allowDestructor;
+			} else {
+				var realCallback = this.$inject(callback);
+			}
+
+			
+
 			if (this.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp)
-			Synthetic.$$angularTimeout(this.$inject(callback));
+			Synthetic.$$angularTimeout(realCallback);
 			else
-			setTimeout(this.$inject(callback));
+			setTimeout(realCallback);
 		},
 		$template: function(content) {
 			this.$injectors.$generator.template(content);
+			return this;
 		},
 		$destroy: function() {
 			
@@ -344,8 +398,8 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 			/*
 			Очищаем hitchers
 			*/
-			for (var i = 0;i<this.$hitchers.length;++i) {
-				if ("function"===typeof this.$hitchers[i]) {
+			for (var i in this.$hitchers) {
+				if (this.$hitchers.hasOwnProperty(i)&&"function"===typeof this.$hitchers[i]) {
 					this.$hitchers[i].call(this);
 				}
 			}
@@ -353,6 +407,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 			/*
 			Удаляем generator
 			*/
+
 			this.$injectors.$generator.destroy();
 			this.$injectors.$generator = null;
 			/*
@@ -375,10 +430,12 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 		возвращаемой функцийей
 		*/
 		$hitch: function(cb) {
-			this.$hitchers.push(cb.apply(this));
-			return function(i) {
-				this.$hitchers[i].call(this); this.$hitchers[i] = null;
-			}.bind(this, this.$hitchers.length-1)
+			var fkey = cb.toString();
+            if ("function"===typeof this.$hitchers[fkey]) this.$hitchers[fkey].call(this);
+            this.$hitchers[fkey] = this.$run(cb);
+            return function(i) {
+                this.$hitchers[i].call(this); delete this.$hitchers[i];
+            }.bind(this, fkey)
 		},
 		/*
 		Регистрирует новый child

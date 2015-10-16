@@ -84,6 +84,13 @@ function(classEvents, minTemplate, synthetModule) {
 
                 var $synthet = this.$;
 
+                /*
+                Для начала запускаем дестроер для старого модуля, если он есть
+                */
+                if ("object"===typeof this.$.module&&"function"===typeof this.$.module.$destroy) {
+                    this.$.module.$destroy();
+                }
+
                 var init = function() {
                     this.$ = $synthet;
                     this.$controller = $synthet;
@@ -105,6 +112,7 @@ function(classEvents, minTemplate, synthetModule) {
                     var overMod = function() { }.proto(this.$.__config__.templateModulePrototype);
                     nm = nm.inherit(overMod);
                 }
+
                 if (args) {
 
                     this.$.module = nm.construct(args);
@@ -118,10 +126,16 @@ function(classEvents, minTemplate, synthetModule) {
                 /*
                 Очищаем модуль
                 */
-                if ("object"===typeof this.module&&"function"===typeof this.module.destory) {
-                    this.module.destory();
-                    this.module = null;
+                
+                if ("object"===typeof this.$.module&&"function"===typeof this.$.module.destory) {
+                    this.$.module.destory();
                 }
+                
+                if ("object"===typeof this.$.module&&"function"===typeof this.$.module.$destroy) {
+                    this.$.module.$destroy();
+                }
+
+                this.$.module = null;
                 /*
                 Очищаем наблюдвтелей
                 */

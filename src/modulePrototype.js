@@ -1,12 +1,6 @@
 define(function() {
     return function() {
-
-            this.$hitchers = [];
-            this.bind('destroy', function() {
-                for (var i = 0;i<this.$hitchers.length;++i) {
-                    this.$hitchers();
-                }
-            });
+            console.debug('DEBUG ME: because im starting after module initialization. This is very baaad.');
         }.proto({
             $apply: function(cb) {
                 return this.$.$apply(cb);
@@ -16,10 +10,29 @@ define(function() {
              возвращаемой функцийей
              */
             $hitch: function(cb) {
-                this.$hitchers.push(this.$.$run(cb));
+                
+                var fkey = cb.toString();
+                
+                if ("function"===typeof this.$hitchers[fkey]) this.$hitchers[fkey].call(this);
+                this.$hitchers[fkey] = this.$.$run(cb);
+
                 return function(i) {
-                    this.$hitchers[i].call(this); this.$hitchers[i] = null;
-                }.bind(this, this.$hitchers.length-1)
+                    
+                    this.$hitchers[i].call(this); delete this.$hitchers[i];
+                }.bind(this, fkey)
+            },
+            $destroy: function() {
+                
+                
+                /*
+                Очищаем hitchers
+                */
+                for (var i in this.$hitchers) {
+                   
+                    if (this.$hitchers.hasOwnProperty(i)&&"function"===typeof this.$hitchers[i]) {
+                        this.$hitchers[i].call(this);
+                    }
+                }
             }
         });
 });
