@@ -324,6 +324,7 @@ AMD Synthet
                     },
                     detachedCallback: {
                         value: function() {
+                            
                             this.synthetic.__config__.allWaitingForResolve = 'attached';
                             this.synthetic.trigger("detached", [ this.synthetic ]);
                         }

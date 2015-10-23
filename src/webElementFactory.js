@@ -116,11 +116,12 @@ define([
          Создаем доступное свойство scope, которое назависимо от используемого движка
          вернет текущий scope
          */
+         var self = this;
         Object.defineProperty(this, '$scope', {
             enumberable: true,
             get: function() {
-                return this.$injectors.$scope;
-            }.bind(this)
+                return self.$injectors.$scope;
+            }
         });
 
         /*

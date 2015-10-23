@@ -24,7 +24,7 @@ define([
             cofigurable: false,
             editable: false,
             get: function() {
-                return $self.module;
+                return (!$self.module) ? $self.$scope.$parent.$module : $self.module;
             },
             set: function(){
                 return false;
@@ -36,7 +36,6 @@ define([
             cofigurable: false,
             editable: false,
             get: function() {
-
                 return $self;
             },
             set: function(){

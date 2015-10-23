@@ -99,6 +99,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 			Проверка задержки
 			*/
 			if (this.__config__.allWaitingForResolve) {
+				console.log('allWaitingForResolve', this.__config__.allWaitingForResolve);
 
 				/*
 				В случае, если система ожидает инициализации какого то приложения,
@@ -281,10 +282,10 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 		*/
 		$inject: function(callback) {
 			if (Synthetic.$$angularApp&&this.__config__.$$angularScope&&this.__config__.$$angularInitialedStage>1) {
-				var self = this;
+				var self = this, injected = smartCallback.call(self.$injectors, callback, self);
 				return function() {
 					var nargs = Array.prototype.slice.apply(arguments),context=this;
-					return smartCallback.call(self.$injectors, callback, self).apply(context, nargs);
+					return injected.apply(context, nargs);
 				}				
 			} else {
 				return smartCallback.call(this.$injectors, callback, this);
@@ -429,8 +430,8 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 		Данная функция выполняет некую процедуру, остаточные объектвы которые будут удалены
 		возвращаемой функцийей
 		*/
-		$hitch: function(cb) {
-			var fkey = cb.toString();
+		$hitch: function(cb, keys) {
+			var fkey = cb.toString()+("object"===typeof keys ? JSON.stringify(keys) : (keys ? keys.toString() : '') );
             if ("function"===typeof this.$hitchers[fkey]) this.$hitchers[fkey].call(this);
             this.$hitchers[fkey] = this.$run(cb);
             return function(i) {

@@ -9,21 +9,18 @@ define(function() {
              Данная функция выполняет некую процедуру, остаточные объектвы которые будут удалены
              возвращаемой функцийей
              */
-            $hitch: function(cb) {
+            $hitch: function(cb, keys) {
                 
-                var fkey = cb.toString();
+                var fkey = cb.toString()+("object"===typeof keys ? JSON.stringify(keys) : (keys ? keys.toString() : '') );
                 
                 if ("function"===typeof this.$hitchers[fkey]) this.$hitchers[fkey].call(this);
                 this.$hitchers[fkey] = this.$.$run(cb);
 
                 return function(i) {
-                    
                     this.$hitchers[i].call(this); delete this.$hitchers[i];
                 }.bind(this, fkey)
             },
             $destroy: function() {
-                
-                
                 /*
                 Очищаем hitchers
                 */

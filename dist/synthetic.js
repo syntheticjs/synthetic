@@ -970,8 +970,8 @@
             $apply: function(cb) {
                 return this.$.$apply(cb);
             },
-            $hitch: function(cb) {
-                var fkey = cb.toString();
+            $hitch: function(cb, keys) {
+                var fkey = cb.toString() + ("object" === typeof keys ? JSON.stringify(keys) : keys ? keys.toString() : "");
                 if ("function" === typeof this.$hitchers[fkey]) this.$hitchers[fkey].call(this);
                 this.$hitchers[fkey] = this.$.$run(cb);
                 return function(i) {
@@ -1046,6 +1046,7 @@
             },
             $watch: function() {
                 if (this.__config__.allWaitingForResolve) {
+                    console.log("allWaitingForResolve", this.__config__.allWaitingForResolve);
                     this.$queue(function(args) {
                         this.watch.apply(this, args);
                     }.bind(this, arguments));
@@ -1138,10 +1139,10 @@
             },
             $inject: function(callback) {
                 if (Synthetic.$$angularApp && this.__config__.$$angularScope && this.__config__.$$angularInitialedStage > 1) {
-                    var self = this;
+                    var self = this, injected = smartCallback.call(self.$injectors, callback, self);
                     return function() {
                         var nargs = Array.prototype.slice.apply(arguments), context = this;
-                        return smartCallback.call(self.$injectors, callback, self).apply(context, nargs);
+                        return injected.apply(context, nargs);
                     };
                 } else {
                     return smartCallback.call(this.$injectors, callback, this);
@@ -1219,8 +1220,8 @@
                     this.$element.remove();
                 }
             },
-            $hitch: function(cb) {
-                var fkey = cb.toString();
+            $hitch: function(cb, keys) {
+                var fkey = cb.toString() + ("object" === typeof keys ? JSON.stringify(keys) : keys ? keys.toString() : "");
                 if ("function" === typeof this.$hitchers[fkey]) this.$hitchers[fkey].call(this);
                 this.$hitchers[fkey] = this.$run(cb);
                 return function(i) {
@@ -1564,7 +1565,7 @@
                 cofigurable: false,
                 editable: false,
                 get: function() {
-                    return $self.module;
+                    return !$self.module ? $self.$scope.$parent.$module : $self.module;
                 },
                 set: function() {
                     return false;
@@ -1636,11 +1637,12 @@
                 $shadowTemplate: null,
                 uid: "syntheticElement" + Math.round(Math.random() * 1e4)
             };
+            var self = this;
             Object.defineProperty(this, "$scope", {
                 enumberable: true,
                 get: function() {
-                    return this.$injectors.$scope;
-                }.bind(this)
+                    return self.$injectors.$scope;
+                }
             });
             Object.defineProperty(this, "$injectors", {
                 enumerable: false,
