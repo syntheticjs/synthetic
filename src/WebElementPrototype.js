@@ -1,13 +1,12 @@
 define([
 	"./getObjectByXPath.js",
-	"./d3party/watchJS/watch.js",
 	"./smartCallback.js",
 	"./classEvents.js",	
 	"polyvitamins~polychrome@master/gist/convert/camelize.js",
 	"./getNonScopeValue.js",
     "polyvitamins~polyinherit@master",
 ],
-function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNonScopeValue) {
+function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValue) {
 	
 	/*
 	Модифицируем стандартный classEvents
@@ -25,6 +24,11 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 		Hitchers
 		*/
 		this.$hitchers = {};
+
+		this.$$applyPortions = {
+			applies: [],
+			timer: 0
+		}
 	}.inherit(classEvents)
 	.proto({
 		$read: function() {
@@ -99,16 +103,20 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 			Проверка задержки
 			*/
 			if (this.__config__.allWaitingForResolve) {
-				console.log('allWaitingForResolve', this.__config__.allWaitingForResolve);
 
 				/*
 				В случае, если система ожидает инициализации какого то приложения,
 				функции прослушивания переменных задерживаются до инициализации
 				*/
-				this.$queue(function(args) {
-					this.watch.apply(this, args);
-				}.bind(this, arguments));
-				return;
+
+				var unwatcher = this.$queue(function(args) {
+					unwatcher = this.$watch.apply(this, args);
+				}.bind(this, arguments)),
+				here=this;
+
+				return function() {
+					unwatcher.apply(here, arguments);
+				}
 			}
 
 			/*
@@ -144,7 +152,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 			Начинаем наблюдение за переменной
 			*/
 			var getDatas = function(requiredProperties, rprops) {
-				return function(prop, action, newValue) {
+				return function(prop, action, newValue, unwatcher) {
 					
 					var alldata = [];
 					for (var x = 0;x<requiredProperties.length;++x) {
@@ -176,7 +184,9 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 					if (self.$scopeSnaps[rstr]&&jstr===self.$scopeSnaps[rstr]) { return; }
 					self.$scopeSnaps[rstr] = jstr;
 					
-					self.$inject(callback).apply(self, alldata);
+					self.$inject(callback, {
+						$unwatch: unwatcher
+					}).apply(self, alldata);
 				}
 			};
 
@@ -207,7 +217,7 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 
 						var unwatcher = self.$injectors.$scope.$watch(rprops.join('.'), function(newValue) {
 
-							this.call(self, false, 'set', newValue);
+							this.call(self, false, 'set', newValue, unwatcher);
 						}.bind(compiledCallbacker));
 
 						/*
@@ -280,15 +290,16 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 		Родные аргументы смещаются вправо
 		В случае интеграции с angularjs функция так же обертывается в $timeout
 		*/
-		$inject: function(callback) {
+		$inject: function(callback, $injectors) {
+			
 			if (Synthetic.$$angularApp&&this.__config__.$$angularScope&&this.__config__.$$angularInitialedStage>1) {
-				var self = this, injected = smartCallback.call(self.$injectors, callback, self);
+				var self = this, injected = smartCallback.call($injectors ? [self.$injectors, $injectors] : self.$injectors, callback, self);
 				return function() {
 					var nargs = Array.prototype.slice.apply(arguments),context=this;
 					return injected.apply(context, nargs);
 				}				
 			} else {
-				return smartCallback.call(this.$injectors, callback, this);
+				return smartCallback.call("object"===typeof $injectors ? [this.$injectors, $injectors] : this.$injectors, callback, this);
 			}
 			
 		},
@@ -302,15 +313,14 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 		$queue: function(callback) {
 			var self = this;
 			if (this.__config__.allWaitingForResolve) {
-				this.bind(this.__config__.allWaitingForResolve, function() {
+				return this.on(this.__config__.allWaitingForResolve, function() {
 					if (self.$destroyed) return false;
 					callback.apply(this, arguments);
-				});
+				}, true);
 			} else {
 
-				callback.apply(this);
+				return callback.apply(this);
 			}
-			return this;
 		},
 		$apply: function($as, callback, destructor){
 			/*
@@ -358,10 +368,11 @@ function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNon
 			
 
 			if (this.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp)
-			Synthetic.$$angularTimeout(realCallback);
+			this.$scope.$applyAsync(realCallback);
 			else
 			setTimeout(realCallback);
 		},
+		
 		$template: function(content) {
 			this.$injectors.$generator.template(content);
 			return this;

@@ -29,7 +29,13 @@
         return function(callback, context) {
             var prefixedArguments = [], requiredArguments = getFunctionArguments(callback.toString());
             for (var i = 0; i < requiredArguments.length; ++i) {
-                if (this.hasOwnProperty(requiredArguments[i]) && "object" === typeof this[requiredArguments[i]]) {
+                if (this instanceof Array) {
+                    for (var j = 0; j < this.length; ++j) {
+                        if (this[j].hasOwnProperty(requiredArguments[i]) && ("object" === typeof this[j][requiredArguments[i]] || "function" === typeof this[j][requiredArguments[i]])) {
+                            prefixedArguments[i] = this[j][requiredArguments[i]];
+                        }
+                    }
+                } else if (this.hasOwnProperty(requiredArguments[i]) && ("object" === typeof this[requiredArguments[i]] || "function" === typeof this[requiredArguments[i]])) {
                     prefixedArguments[i] = this[requiredArguments[i]];
                 }
             }
@@ -355,596 +361,6 @@
             return /^{{[^}}]*}}$/i.test(newValue) || newValue === undefined ? false : newValue;
         };
     }();
-    var watch = function() {
-        "use strict";
-        var WatchJS = {
-            noMore: false,
-            useDirtyCheck: false
-        }, lengthsubjects = [];
-        var dirtyChecklist = [];
-        var pendingChanges = [];
-        var supportDefineProperty = false;
-        try {
-            supportDefineProperty = Object.defineProperty && Object.defineProperty({}, "x", {});
-        } catch (ex) {}
-        var isFunction = function(functionToCheck) {
-            var getType = {};
-            return functionToCheck && getType.toString.call(functionToCheck) == "[object Function]";
-        };
-        var isInt = function(x) {
-            return x % 1 === 0;
-        };
-        var isArray = function(obj) {
-            return Object.prototype.toString.call(obj) === "[object Array]";
-        };
-        var isObject = function(obj) {
-            return {}.toString.apply(obj) === "[object Object]";
-        };
-        var getObjDiff = function(a, b) {
-            var aplus = [], bplus = [];
-            if (!(typeof a == "string") && !(typeof b == "string")) {
-                if (isArray(a)) {
-                    for (var i = 0; i < a.length; i++) {
-                        if (b[i] === undefined) aplus.push(i);
-                    }
-                } else {
-                    for (var i in a) {
-                        if (a.hasOwnProperty(i)) {
-                            if (b[i] === undefined) {
-                                aplus.push(i);
-                            }
-                        }
-                    }
-                }
-                if (isArray(b)) {
-                    for (var j = 0; j < b.length; j++) {
-                        if (a[j] === undefined) bplus.push(j);
-                    }
-                } else {
-                    for (var j in b) {
-                        if (b.hasOwnProperty(j)) {
-                            if (a[j] === undefined) {
-                                bplus.push(j);
-                            }
-                        }
-                    }
-                }
-            }
-            return {
-                added: aplus,
-                removed: bplus
-            };
-        };
-        var clone = function(obj) {
-            if (null == obj || "object" != typeof obj) {
-                return obj;
-            }
-            var copy = obj.constructor();
-            for (var attr in obj) {
-                copy[attr] = obj[attr];
-            }
-            return copy;
-        };
-        var defineGetAndSet = function(obj, propName, getter, setter) {
-            try {
-                Object.observe(obj, function(changes) {
-                    changes.forEach(function(change) {
-                        if (change.name === propName) {
-                            setter(change.object[change.name]);
-                        }
-                    });
-                });
-            } catch (e) {
-                try {
-                    Object.defineProperty(obj, propName, {
-                        get: getter,
-                        set: function(value) {
-                            setter.call(this, value, true);
-                        },
-                        enumerable: true,
-                        configurable: true
-                    });
-                } catch (e2) {
-                    try {
-                        Object.prototype.__defineGetter__.call(obj, propName, getter);
-                        Object.prototype.__defineSetter__.call(obj, propName, function(value) {
-                            setter.call(this, value, true);
-                        });
-                    } catch (e3) {
-                        observeDirtyChanges(obj, propName, setter);
-                    }
-                }
-            }
-        };
-        var defineProp = function(obj, propName, value) {
-            try {
-                Object.defineProperty(obj, propName, {
-                    enumerable: false,
-                    configurable: true,
-                    writable: false,
-                    value: value
-                });
-            } catch (error) {
-                obj[propName] = value;
-            }
-        };
-        var observeDirtyChanges = function(obj, propName, setter) {
-            dirtyChecklist[dirtyChecklist.length] = {
-                prop: propName,
-                object: obj,
-                orig: clone(obj[propName]),
-                callback: setter
-            };
-        };
-        var watch = function() {
-            if (isFunction(arguments[1])) {
-                watchAll.apply(this, arguments);
-            } else if (isArray(arguments[1])) {
-                watchMany.apply(this, arguments);
-            } else {
-                watchOne.apply(this, arguments);
-            }
-        };
-        var watchAll = function(obj, watcher, level, addNRemove) {
-            if (typeof obj == "string" || !(obj instanceof Object) && !isArray(obj)) {
-                return;
-            }
-            if (isArray(obj)) {
-                defineWatcher(obj, "__watchall__", watcher, level);
-                if (level === undefined || level > 0) {
-                    for (var prop = 0; prop < obj.length; prop++) {
-                        watchAll(obj[prop], watcher, level, addNRemove);
-                    }
-                }
-            } else {
-                var prop, props = [];
-                for (prop in obj) {
-                    if (prop == "$val" || !supportDefineProperty && prop === "watchers") {
-                        continue;
-                    }
-                    if (Object.prototype.hasOwnProperty.call(obj, prop)) {
-                        props.push(prop);
-                    }
-                }
-                watchMany(obj, props, watcher, level, addNRemove);
-            }
-            if (addNRemove) {
-                pushToLengthSubjects(obj, "$$watchlengthsubjectroot", watcher, level);
-            }
-        };
-        var watchMany = function(obj, props, watcher, level, addNRemove) {
-            if (typeof obj == "string" || !(obj instanceof Object) && !isArray(obj)) {
-                return;
-            }
-            for (var i = 0; i < props.length; i++) {
-                var prop = props[i];
-                watchOne(obj, prop, watcher, level, addNRemove);
-            }
-        };
-        var watchOne = function(obj, prop, watcher, level, addNRemove) {
-            if (typeof obj == "string" || !(obj instanceof Object) && !isArray(obj)) {
-                return;
-            }
-            if (isFunction(obj[prop])) {
-                return;
-            }
-            if (obj[prop] != null && (level === undefined || level > 0)) {
-                watchAll(obj[prop], watcher, level !== undefined ? level - 1 : level);
-            }
-            defineWatcher(obj, prop, watcher, level);
-            if (addNRemove && (level === undefined || level > 0)) {
-                pushToLengthSubjects(obj, prop, watcher, level);
-            }
-        };
-        var unwatch = function() {
-            if (isFunction(arguments[1])) {
-                unwatchAll.apply(this, arguments);
-            } else if (isArray(arguments[1])) {
-                unwatchMany.apply(this, arguments);
-            } else {
-                unwatchOne.apply(this, arguments);
-            }
-        };
-        var unwatchAll = function(obj, watcher) {
-            if (obj instanceof String || !(obj instanceof Object) && !isArray(obj)) {
-                return;
-            }
-            if (isArray(obj)) {
-                var props = [ "__watchall__" ];
-                for (var prop = 0; prop < obj.length; prop++) {
-                    props.push(prop);
-                }
-                unwatchMany(obj, props, watcher);
-            } else {
-                var unwatchPropsInObject = function(obj2) {
-                    var props = [];
-                    for (var prop2 in obj2) {
-                        if (obj2.hasOwnProperty(prop2)) {
-                            if (obj2[prop2] instanceof Object) {
-                                unwatchPropsInObject(obj2[prop2]);
-                            } else {
-                                props.push(prop2);
-                            }
-                        }
-                    }
-                    unwatchMany(obj2, props, watcher);
-                };
-                unwatchPropsInObject(obj);
-            }
-        };
-        var unwatchMany = function(obj, props, watcher) {
-            for (var prop2 in props) {
-                if (props.hasOwnProperty(prop2)) {
-                    unwatchOne(obj, props[prop2], watcher);
-                }
-            }
-        };
-        var timeouts = [], timerID = null;
-        function clearTimerID() {
-            timerID = null;
-            for (var i = 0; i < timeouts.length; i++) {
-                timeouts[i]();
-            }
-            timeouts.length = 0;
-        }
-        var getTimerID = function() {
-            if (!timerID) {
-                timerID = setTimeout(clearTimerID);
-            }
-            return timerID;
-        };
-        var registerTimeout = function(fn) {
-            if (timerID == null) getTimerID();
-            timeouts[timeouts.length] = fn;
-        };
-        var trackChange = function() {
-            var fn = isFunction(arguments[2]) ? trackProperty : trackObject;
-            fn.apply(this, arguments);
-        };
-        var trackObject = function(obj, callback, recursive, addNRemove) {
-            var change = null, lastTimerID = -1;
-            var isArr = isArray(obj);
-            var level, fn = function(prop, action, newValue, oldValue) {
-                var timerID = getTimerID();
-                if (lastTimerID !== timerID) {
-                    lastTimerID = timerID;
-                    change = {
-                        type: "update"
-                    };
-                    change["value"] = obj;
-                    change["splices"] = null;
-                    registerTimeout(function() {
-                        callback.call(this, change);
-                        change = null;
-                    });
-                }
-                if (isArr && obj === this && change !== null) {
-                    if (action === "pop" || action === "shift") {
-                        newValue = [];
-                        oldValue = [ oldValue ];
-                    } else if (action === "push" || action === "unshift") {
-                        newValue = [ newValue ];
-                        oldValue = [];
-                    } else if (action !== "splice") {
-                        return;
-                    }
-                    if (!change.splices) change.splices = [];
-                    change.splices[change.splices.length] = {
-                        index: prop,
-                        deleteCount: oldValue ? oldValue.length : 0,
-                        addedCount: newValue ? newValue.length : 0,
-                        added: newValue,
-                        deleted: oldValue
-                    };
-                }
-            };
-            level = recursive == true ? undefined : 0;
-            watchAll(obj, fn, level, addNRemove);
-        };
-        var trackProperty = function(obj, prop, callback, recursive, addNRemove) {
-            if (obj && prop) {
-                watchOne(obj, prop, function(prop, action, newvalue, oldvalue) {
-                    var change = {
-                        type: "update"
-                    };
-                    change["value"] = newvalue;
-                    change["oldvalue"] = oldvalue;
-                    if (recursive && isObject(newvalue) || isArray(newvalue)) {
-                        trackObject(newvalue, callback, recursive, addNRemove);
-                    }
-                    callback.call(this, change);
-                }, 0);
-                if (recursive && isObject(obj[prop]) || isArray(obj[prop])) {
-                    trackObject(obj[prop], callback, recursive, addNRemove);
-                }
-            }
-        };
-        var defineWatcher = function(obj, prop, watcher, level) {
-            var newWatcher = false;
-            var isArr = isArray(obj);
-            if (!obj.watchers) {
-                defineProp(obj, "watchers", {});
-                if (isArr) {
-                    watchFunctions(obj, function(index, action, newValue, oldValue) {
-                        addPendingChange(obj, index, action, newValue, oldValue);
-                        if (level !== 0 && newValue && (isObject(newValue) || isArray(newValue))) {
-                            var i, n, ln, wAll, watchList = obj.watchers[prop];
-                            if (wAll = obj.watchers["__watchall__"]) {
-                                watchList = watchList ? watchList.concat(wAll) : wAll;
-                            }
-                            ln = watchList ? watchList.length : 0;
-                            for (i = 0; i < ln; i++) {
-                                if (action !== "splice") {
-                                    watchAll(newValue, watchList[i], level === undefined ? level : level - 1);
-                                } else {
-                                    for (n = 0; n < newValue.length; n++) {
-                                        watchAll(newValue[n], watchList[i], level === undefined ? level : level - 1);
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-            }
-            if (!obj.watchers[prop]) {
-                obj.watchers[prop] = [];
-                if (!isArr) newWatcher = true;
-            }
-            for (var i = 0; i < obj.watchers[prop].length; i++) {
-                if (obj.watchers[prop][i] === watcher) {
-                    return;
-                }
-            }
-            obj.watchers[prop].push(watcher);
-            if (newWatcher) {
-                var val = obj[prop];
-                var getter = function() {
-                    return val;
-                };
-                var setter = function(newval, delayWatcher) {
-                    var oldval = val;
-                    val = newval;
-                    if (level !== 0 && obj[prop] && (isObject(obj[prop]) || isArray(obj[prop])) && !obj[prop].watchers) {
-                        var i, ln = obj.watchers[prop].length;
-                        for (i = 0; i < ln; i++) {
-                            watchAll(obj[prop], obj.watchers[prop][i], level === undefined ? level : level - 1);
-                        }
-                    }
-                    if (isSuspended(obj, prop)) {
-                        resume(obj, prop);
-                        return;
-                    }
-                    if (!WatchJS.noMore) {
-                        if (oldval !== newval) {
-                            if (!delayWatcher) {
-                                callWatchers(obj, prop, "set", newval, oldval);
-                            } else {
-                                addPendingChange(obj, prop, "set", newval, oldval);
-                            }
-                            WatchJS.noMore = false;
-                        }
-                    }
-                };
-                if (WatchJS.useDirtyCheck) {
-                    observeDirtyChanges(obj, prop, setter);
-                } else {
-                    defineGetAndSet(obj, prop, getter, setter);
-                }
-            }
-        };
-        var callWatchers = function(obj, prop, action, newval, oldval) {
-            if (prop !== undefined) {
-                var ln, wl, watchList = obj.watchers[prop];
-                if (wl = obj.watchers["__watchall__"]) {
-                    watchList = watchList ? watchList.concat(wl) : wl;
-                }
-                ln = watchList ? watchList.length : 0;
-                for (var wr = 0; wr < ln; wr++) {
-                    watchList[wr].call(obj, prop, action, newval, oldval);
-                }
-            } else {
-                for (var prop in obj) {
-                    if (obj.hasOwnProperty(prop)) {
-                        callWatchers(obj, prop, action, newval, oldval);
-                    }
-                }
-            }
-        };
-        var methodNames = [ "pop", "push", "reverse", "shift", "sort", "slice", "unshift", "splice" ];
-        var defineArrayMethodWatcher = function(obj, original, methodName, callback) {
-            defineProp(obj, methodName, function() {
-                var index = 0;
-                var i, newValue, oldValue, response;
-                if (methodName === "splice") {
-                    var start = arguments[0];
-                    var end = start + arguments[1];
-                    oldValue = obj.slice(start, end);
-                    newValue = [];
-                    for (i = 2; i < arguments.length; i++) {
-                        newValue[i - 2] = arguments[i];
-                    }
-                    index = start;
-                } else {
-                    newValue = arguments.length > 0 ? arguments[0] : undefined;
-                }
-                response = original.apply(obj, arguments);
-                if (methodName !== "slice") {
-                    if (methodName === "pop") {
-                        oldValue = response;
-                        index = obj.length;
-                    } else if (methodName === "push") {
-                        index = obj.length - 1;
-                    } else if (methodName === "shift") {
-                        oldValue = response;
-                    } else if (methodName !== "unshift" && newValue === undefined) {
-                        newValue = response;
-                    }
-                    callback.call(obj, index, methodName, newValue, oldValue);
-                }
-                return response;
-            });
-        };
-        var watchFunctions = function(obj, callback) {
-            if (!isFunction(callback) || !obj || obj instanceof String || !isArray(obj)) {
-                return;
-            }
-            for (var i = methodNames.length, methodName; i--; ) {
-                methodName = methodNames[i];
-                defineArrayMethodWatcher(obj, obj[methodName], methodName, callback);
-            }
-        };
-        var unwatchOne = function(obj, prop, watcher) {
-            if (obj.watchers[prop]) {
-                if (watcher === undefined) {
-                    delete obj.watchers[prop];
-                } else {
-                    for (var i = 0; i < obj.watchers[prop].length; i++) {
-                        var w = obj.watchers[prop][i];
-                        if (w == watcher) {
-                            obj.watchers[prop].splice(i, 1);
-                        }
-                    }
-                }
-            }
-            removeFromLengthSubjects(obj, prop, watcher);
-            removeFromDirtyChecklist(obj, prop);
-        };
-        var suspend = function(obj, prop) {
-            if (obj.watchers) {
-                var name = "__wjs_suspend__" + (prop !== undefined ? prop : "");
-                obj.watchers[name] = true;
-            }
-        };
-        var isSuspended = function(obj, prop) {
-            return obj.watchers && (obj.watchers["__wjs_suspend__"] || obj.watchers["__wjs_suspend__" + prop]);
-        };
-        var resume = function(obj, prop) {
-            registerTimeout(function() {
-                delete obj.watchers["__wjs_suspend__"];
-                delete obj.watchers["__wjs_suspend__" + prop];
-            });
-        };
-        var pendingTimerID = null;
-        var addPendingChange = function(obj, prop, mode, newval, oldval) {
-            pendingChanges[pendingChanges.length] = {
-                obj: obj,
-                prop: prop,
-                mode: mode,
-                newval: newval,
-                oldval: oldval
-            };
-            if (pendingTimerID === null) {
-                pendingTimerID = setTimeout(applyPendingChanges);
-            }
-        };
-        var applyPendingChanges = function() {
-            var change = null;
-            pendingTimerID = null;
-            for (var i = 0; i < pendingChanges.length; i++) {
-                change = pendingChanges[i];
-                callWatchers(change.obj, change.prop, change.mode, change.newval, change.oldval);
-            }
-            if (change) {
-                pendingChanges = [];
-                change = null;
-            }
-        };
-        var loop = function() {
-            for (var i = 0; i < lengthsubjects.length; i++) {
-                var subj = lengthsubjects[i];
-                if (subj.prop === "$$watchlengthsubjectroot") {
-                    var difference = getObjDiff(subj.obj, subj.actual);
-                    if (difference.added.length || difference.removed.length) {
-                        if (difference.added.length) {
-                            watchMany(subj.obj, difference.added, subj.watcher, subj.level - 1, true);
-                        }
-                        subj.watcher.call(subj.obj, "root", "differentattr", difference, subj.actual);
-                    }
-                    subj.actual = clone(subj.obj);
-                } else {
-                    var difference = getObjDiff(subj.obj[subj.prop], subj.actual);
-                    if (difference.added.length || difference.removed.length) {
-                        if (difference.added.length) {
-                            for (var j = 0; j < subj.obj.watchers[subj.prop].length; j++) {
-                                watchMany(subj.obj[subj.prop], difference.added, subj.obj.watchers[subj.prop][j], subj.level - 1, true);
-                            }
-                        }
-                        callWatchers(subj.obj, subj.prop, "differentattr", difference, subj.actual);
-                    }
-                    subj.actual = clone(subj.obj[subj.prop]);
-                }
-            }
-            var n, value;
-            if (dirtyChecklist.length > 0) {
-                for (var i = 0; i < dirtyChecklist.length; i++) {
-                    n = dirtyChecklist[i];
-                    value = n.object[n.prop];
-                    if (!compareValues(n.orig, value)) {
-                        n.orig = clone(value);
-                        n.callback(value);
-                    }
-                }
-            }
-        };
-        var compareValues = function(a, b) {
-            var i, state = true;
-            if (a !== b) {
-                if (isObject(a)) {
-                    for (i in a) {
-                        if (!supportDefineProperty && i === "watchers") continue;
-                        if (a[i] !== b[i]) {
-                            state = false;
-                            break;
-                        }
-                    }
-                } else {
-                    state = false;
-                }
-            }
-            return state;
-        };
-        var pushToLengthSubjects = function(obj, prop, watcher, level) {
-            var actual;
-            if (prop === "$$watchlengthsubjectroot") {
-                actual = clone(obj);
-            } else {
-                actual = clone(obj[prop]);
-            }
-            lengthsubjects.push({
-                obj: obj,
-                prop: prop,
-                actual: actual,
-                watcher: watcher,
-                level: level
-            });
-        };
-        var removeFromLengthSubjects = function(obj, prop, watcher) {
-            for (var i = 0; i < lengthsubjects.length; i++) {
-                var subj = lengthsubjects[i];
-                if (subj.obj == obj && subj.prop == prop && subj.watcher == watcher) {
-                    lengthsubjects.splice(i, 1);
-                }
-            }
-        };
-        var removeFromDirtyChecklist = function(obj, prop) {
-            var notInUse;
-            for (var i = 0; i < dirtyChecklist.length; i++) {
-                var n = dirtyChecklist[i];
-                var watchers = n.object.watchers;
-                notInUse = n.object == obj && n.prop == prop && watchers && (!watchers[prop] || watchers[prop].length == 0);
-                if (notInUse) {
-                    dirtyChecklist.splice(i, 1);
-                }
-            }
-        };
-        setInterval(loop, 50);
-        WatchJS.watch = watch;
-        WatchJS.unwatch = unwatch;
-        WatchJS.callWatchers = callWatchers;
-        WatchJS.suspend = suspend;
-        WatchJS.onChange = trackChange;
-        return WatchJS;
-    }();
     var min = function(getObjectByXPath) {
         var each = function(subject, fn) {
             for (var prop in subject) {
@@ -1004,11 +420,15 @@
             }
         });
     }();
-    var WebElementPrototype = function(getObjectByXPath, watchJS, smartCallback, classEvents, camelize, getNonScopeValue) {
+    var WebElementPrototype = function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValue) {
         return function() {
             this.$watchersHistory = [];
             this.$applyLeaders = {};
             this.$hitchers = {};
+            this.$$applyPortions = {
+                applies: [],
+                timer: 0
+            };
         }.inherit(classEvents).proto({
             $read: function() {
                 if (this.__config__.allWaitingForResolve) {
@@ -1046,11 +466,12 @@
             },
             $watch: function() {
                 if (this.__config__.allWaitingForResolve) {
-                    console.log("allWaitingForResolve", this.__config__.allWaitingForResolve);
-                    this.$queue(function(args) {
-                        this.watch.apply(this, args);
-                    }.bind(this, arguments));
-                    return;
+                    var unwatcher = this.$queue(function(args) {
+                        unwatcher = this.$watch.apply(this, args);
+                    }.bind(this, arguments)), here = this;
+                    return function() {
+                        unwatcher.apply(here, arguments);
+                    };
                 }
                 var self = this, objectXPath = false, properties, callback;
                 arguments.length > 2 ? (objectXPath = arguments[0], 
@@ -1065,7 +486,7 @@
                 var lastTrack = {};
                 if (this.__config__.rendered) this.$read.apply(this, Array.prototype.slice.apply(arguments));
                 var getDatas = function(requiredProperties, rprops) {
-                    return function(prop, action, newValue) {
+                    return function(prop, action, newValue, unwatcher) {
                         var alldata = [];
                         for (var x = 0; x < requiredProperties.length; ++x) {
                             if (rprops === requiredProperties[x]) {
@@ -1083,7 +504,9 @@
                             return;
                         }
                         self.$scopeSnaps[rstr] = jstr;
-                        self.$inject(callback).apply(self, alldata);
+                        self.$inject(callback, {
+                            $unwatch: unwatcher
+                        }).apply(self, alldata);
                     };
                 };
                 var watchFabric = function(rprops, wobject, prop) {
@@ -1093,7 +516,7 @@
                         var compiledCallbacker = getDatas(requiredProperties, rprops);
                         try {
                             var unwatcher = self.$injectors.$scope.$watch(rprops.join("."), function(newValue) {
-                                this.call(self, false, "set", newValue);
+                                this.call(self, false, "set", newValue, unwatcher);
                             }.bind(compiledCallbacker));
                             if (rprops[0] === "properties" || rprops[0] === "attributes") {
                                 var attrn = rprops[0] === "properties" ? "data" + rprops[1].charAt(0).toUpperCase() + rprops[1].substr(1) : rprops[1];
@@ -1137,15 +560,15 @@
                 }
                 return unwacthers;
             },
-            $inject: function(callback) {
+            $inject: function(callback, $injectors) {
                 if (Synthetic.$$angularApp && this.__config__.$$angularScope && this.__config__.$$angularInitialedStage > 1) {
-                    var self = this, injected = smartCallback.call(self.$injectors, callback, self);
+                    var self = this, injected = smartCallback.call($injectors ? [ self.$injectors, $injectors ] : self.$injectors, callback, self);
                     return function() {
                         var nargs = Array.prototype.slice.apply(arguments), context = this;
                         return injected.apply(context, nargs);
                     };
                 } else {
-                    return smartCallback.call(this.$injectors, callback, this);
+                    return smartCallback.call("object" === typeof $injectors ? [ this.$injectors, $injectors ] : this.$injectors, callback, this);
                 }
             },
             $run: function(cb) {
@@ -1154,14 +577,13 @@
             $queue: function(callback) {
                 var self = this;
                 if (this.__config__.allWaitingForResolve) {
-                    this.bind(this.__config__.allWaitingForResolve, function() {
+                    return this.on(this.__config__.allWaitingForResolve, function() {
                         if (self.$destroyed) return false;
                         callback.apply(this, arguments);
-                    });
+                    }, true);
                 } else {
-                    callback.apply(this);
+                    return callback.apply(this);
                 }
-                return this;
             },
             $apply: function($as, callback, destructor) {
                 arguments.length === 1 && (callback = $as, $as = false, 
@@ -1185,7 +607,7 @@
                 } else {
                     var realCallback = this.$inject(callback);
                 }
-                if (this.$injectors.$component.options.engine.name === "angular" && Synthetic.$$angularApp) Synthetic.$$angularTimeout(realCallback); else setTimeout(realCallback);
+                if (this.$injectors.$component.options.engine.name === "angular" && Synthetic.$$angularApp) this.$scope.$applyAsync(realCallback); else setTimeout(realCallback);
             },
             $template: function(content) {
                 this.$injectors.$generator.template(content);
@@ -1240,7 +662,7 @@
                 return this;
             }
         });
-    }(getObjectByXPath, watch, smartCallback, classEvents, camelize, getNonScopeValue);
+    }(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValue);
     var extend = function() {
         var hasOwn = Object.prototype.hasOwnProperty;
         var toStr = Object.prototype.toString;
@@ -1540,6 +962,23 @@
                 Synthetic.$$angularCompile = $compile;
                 Synthetic.$$angularQ = $q;
                 Synthetic.$$angularTimeout = $timeout;
+                $$applyPortions = {
+                    timer: 0,
+                    applies: []
+                };
+                Synthetic.$$applyPortion = function(changes) {
+                    $$applyPortions.applies.push(changes);
+                    if ($$applyPortions.timer > 0) clearTimeout($$applyPortions.timer);
+                    $$applyPortions.timer = setTimeout(function() {
+                        $$applyPortions.timer = 0;
+                        var applies = $$applyPortions.applies;
+                        console.log("%c$applyPortion", "color:pink;", applies.length);
+                        $$applyPortions.applies = [];
+                        for (var i = 0; i < applies.length; ++i) {
+                            applies[i]();
+                        }
+                    }, 120);
+                };
             });
             if ("object" !== typeof angular.element(document.body).injector()) {
                 Synthetic.$$angularApp.controller("syntheticController", function($element, $scope) {});
@@ -1550,7 +989,7 @@
                         angular.bootstrap(document.body, [ "syntheticApp" ]);
                         Synthetic.$$angularBootstraped = true;
                         Synthetic.trigger("angularBootstraped");
-                    }, 100);
+                    }, 50);
                 }.bind(this));
             }
         };
@@ -2167,7 +1606,7 @@
             window[HTMLElement] = Element;
         })(window, Object, "HTMLElement");
     })();
-    (function(inherit, mixin, eventsClass, templateManager, WatchJS, camelize, smartCallback, ComponentPreFactory, initAngular, scopeGenerator, WebElementFactory) {
+    (function(inherit, mixin, eventsClass, templateManager, camelize, smartCallback, ComponentPreFactory, initAngular, scopeGenerator, WebElementFactory) {
         function getRandomColor() {
             var letters = "0123456789ABCDEF".split("");
             var color = "#";
@@ -2337,22 +1776,23 @@
                         value: function(name, previousValue, value) {
                             var camelized = camelize(name);
                             if (this.synthetic.destoryed) return false;
-                            if ("object" === typeof Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage > 1) {
+                            if (Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage > 1) {
                                 if (previousValue !== value) {
-                                    var testS = new Date();
-                                    this.synthetic.$apply(function($self, $scope) {
+                                    var $self = this.synthetic;
+                                    var $scope = this.synthetic.$injectors.$scope;
+                                    Synthetic.$$applyPortion(function() {
                                         $scope.attributes[camelized] = value;
                                         if (name.substr(0, 5) === "data-") {
                                             $scope.properties[camelize(name.substr(5))] = value;
                                         }
-                                    });
-                                    if (value === "") value = false;
-                                    if (this.synthetic.$$attrsWatchers[camelized]) {
-                                        for (var i = 0; i < this.synthetic.$$attrsWatchers[camelized].length; ++i) {
-                                            this.synthetic.$$attrsWatchers[camelized][i].call(this.synthetic, false, "set", value);
+                                        if (value === "") value = false;
+                                        if ($self.$$attrsWatchers[camelized]) {
+                                            for (var i = 0; i < $self.$$attrsWatchers[camelized].length; ++i) {
+                                                $self.$$attrsWatchers[camelized][i].call($self, false, "set", value);
+                                            }
                                         }
-                                    }
-                                    this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
+                                        $self.trigger("attributeChanged", [ $self, name, previousValue, value ]);
+                                    });
                                 }
                             } else {
                                 if (previousValue !== value) {
@@ -2371,5 +1811,5 @@
         };
         if (window) window.Synthetic = Synthetic;
         return Synthetic;
-    })(inherit2, mixin2, classEvents, null, watch, camelize, smartCallback, preFactory, initAngular, scopeGenerator, webElementFactory);
+    })(inherit2, mixin2, classEvents, null, camelize, smartCallback, preFactory, initAngular, scopeGenerator, webElementFactory);
 })();

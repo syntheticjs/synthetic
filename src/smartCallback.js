@@ -15,8 +15,16 @@ define(function() {
 		requiredArguments = getFunctionArguments(callback.toString());
 
 		for (var i = 0;i<requiredArguments.length;++i) {
-
-			if (this.hasOwnProperty(requiredArguments[i])&&"object"===typeof this[requiredArguments[i]]) {
+			if (this instanceof Array) {
+				for (var j = 0;j<this.length;++j) {
+					if (this[j].hasOwnProperty(requiredArguments[i])
+						&&("object"===typeof this[j][requiredArguments[i]]||"function"===typeof this[j][requiredArguments[i]])) {
+						prefixedArguments[i] = this[j][requiredArguments[i]];
+					}
+				}
+			}
+			else if (this.hasOwnProperty(requiredArguments[i])
+				&& ("object"===typeof this[requiredArguments[i]] || "function"===typeof this[requiredArguments[i]])) {
 
 				prefixedArguments[i] = this[requiredArguments[i]];
 			}

@@ -10,7 +10,6 @@ AMD Synthet
     "abstudio~mixin@0.1.0",
     "./classEvents.js",
     './templateManager.js',
-    "./d3party/watchJS/watch.js",
     "polyvitamins~polychrome@master/gist/convert/camelize.js",
     "./smartCallback.js",
     "./preFactory.js",
@@ -24,7 +23,6 @@ AMD Synthet
     mixin, 
     eventsClass, 
     templateManager,
-    WatchJS, 
     camelize, 
     smartCallback, 
     ComponentPreFactory, 
@@ -32,6 +30,9 @@ AMD Synthet
     scopeGenerator,
     WebElementFactory
 ) { 
+
+        
+
         function getRandomColor() {
             var letters = '0123456789ABCDEF'.split('');
             var color = '#';
@@ -334,50 +335,59 @@ AMD Synthet
                         writable: true,
                         enumerable: true,
                         value: function(name, previousValue, value) {
+
                             var camelized = camelize(name);
                             /*
-                            Останавливаем отслеживание аттрибутов, если компонент удален или в процессе 
-                            удаления
+                            Для разгрузки производительности мы просматриваем лишь те аттрибуты, за которыми 
+                            мы наблюдаем
                             */
-                            if (this.synthetic.destoryed) return false;
-                            /*
-                            В случае если компонент работает через angular, запись будет производит в $$angularScope
-                            */
-                            if ("object"===typeof Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage>1) {
-                                if (previousValue !== value) {
-                                    
-                                        var testS = new Date();
-                                        this.synthetic.$apply(function($self, $scope) {
-                                            
-                                            $scope.attributes[camelized] = value;
-                                            if (name.substr(0,5)==='data-') {
-                                               
-                                                    $scope.properties[camelize(name.substr(5))] = value;
-                                               
-                                            }
-                                        });
+                            //if (this.synthetic.$$attrsWatchers[camelized]) {
+                                /*
+                                Останавливаем отслеживание аттрибутов, если компонент удален или в процессе 
+                                удаления
+                                */
+                                if (this.synthetic.destoryed) return false;
+                                /*
+                                В случае если компонент работает через angular, запись будет производит в $$angularScope
+                                */
+                                if (Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage>1) {
+                                    if (previousValue !== value) {
+                                            // Использование Apply portion позволяет
+                                            // применить комбо изменений в scope 
+                                            var $self = this.synthetic;
+                                            var $scope = this.synthetic.$injectors.$scope;
+                                            // Присваиваем значение аттрибутов сейчас, но apply вызываем
+                                            // позже. Это снизит нагрузку
+                                            Synthetic.$$applyPortion(function() {
 
-                                    if (value==='') value = false;
-                                    if (this.synthetic.$$attrsWatchers[camelized]) {
-                                        for (var i = 0;i<this.synthetic.$$attrsWatchers[camelized].length;++i) {
-                                            
-                                            this.synthetic.$$attrsWatchers[camelized][i].call(this.synthetic, false, 'set', value);
+                                                $scope.attributes[camelized] = value;
+                                                if (name.substr(0,5)==='data-') {
+                                                        $scope.properties[camelize(name.substr(5))] = value;
+                                                }
+
+                                                if (value==='') value = false;
+                                                if ($self.$$attrsWatchers[camelized]) {
+                                                    for (var i = 0;i<$self.$$attrsWatchers[camelized].length;++i) {
+                                                        
+                                                        $self.$$attrsWatchers[camelized][i].call($self, false, 'set', value);
+                                                    }
+                                                }
+                                                $self.trigger("attributeChanged", [ $self, name, previousValue, value ]);
+                                            });                                                               
+                                    }
+                                } else {
+                                    if (previousValue !== value) {
+                                        
+                                        this.synthetic.$injectors.$scope.attributes[camelize(name)] = value;
+                                        if (name.substr(0,5)==='data-') {
+                                           
+                                                this.synthetic.$injectors.$scope.properties[camelize(name.substr(5))] = value;
+                                           
                                         }
+                                        this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
                                     }
-                                    this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);                                                                    
                                 }
-                            } else {
-                                if (previousValue !== value) {
-                                    
-                                    this.synthetic.$injectors.$scope.attributes[camelize(name)] = value;
-                                    if (name.substr(0,5)==='data-') {
-                                       
-                                            this.synthetic.$injectors.$scope.properties[camelize(name.substr(5))] = value;
-                                       
-                                    }
-                                    this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
-                                }
-                            }
+                            //}
                         }
                     }
                 })

@@ -85,11 +85,35 @@ define(function() {
 
             }
         ).run(function($rootScope, $compile, $q, $timeout) {
+            
             Synthetic.$$angularRootScope = $rootScope;
             Synthetic.$$angularRCompile = $compile;
             Synthetic.$$angularCompile = $compile;
             Synthetic.$$angularQ = $q;
             Synthetic.$$angularTimeout = $timeout;
+            /*
+            Эта функция будет применять изменения лишь каждые 100 ms
+            */
+            $$applyPortions = {
+                timer:0,
+                applies:[]
+            };
+            Synthetic.$$applyPortion = function(changes) {
+                
+                $$applyPortions.applies.push(changes);
+
+                if ($$applyPortions.timer>0) clearTimeout($$applyPortions.timer);
+                
+                $$applyPortions.timer = setTimeout(function(){
+                    $$applyPortions.timer = 0;
+                    var applies = $$applyPortions.applies;
+                    console.log("%c$applyPortion", "color:pink;", applies.length);
+                    $$applyPortions.applies=[];
+                    for (var i = 0;i<applies.length;++i) {
+                        applies[i]();
+                    }
+                }, 120);
+            };
         });
 
         /*
@@ -101,20 +125,21 @@ define(function() {
 
             Synthetic.$$angularApp.controller('syntheticController', 
                 function ($element, $scope) {
-                    
+                   
                 }
-            );
+            );  
 
             document.body.setAttribute('ng-jq', '');
             document.body.setAttribute('ng-controller', 'syntheticController');
 
             angular.element(document.body).ready(function() {
-                    setTimeout(function() {
-                        angular.bootstrap(document.body, 
-                        ['syntheticApp']);
-                        Synthetic.$$angularBootstraped = true;
-                        Synthetic.trigger('angularBootstraped');
-                    }, 100);
+                        setTimeout(function() {
+                            
+                            angular.bootstrap(document.body, 
+                            ['syntheticApp']);
+                            Synthetic.$$angularBootstraped = true;
+                            Synthetic.trigger('angularBootstraped');
+                        }, 50);
             }.bind(this));
         }
 	}
