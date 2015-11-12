@@ -289,12 +289,24 @@
                     callback: callback,
                     once: once
                 });
+                var i = this.eventListners[e].length;
                 return this;
+            },
+            $bind: function(e, callback, once) {
+                if (typeof this.eventListners[e] != "object") this.eventListners[e] = [];
+                this.eventListners[e].push({
+                    callback: callback,
+                    once: once
+                });
+                var i = this.eventListners[e].length;
+                return function() {
+                    this.eventListners[e][i] = null;
+                };
             },
             unbind: function(e, handler) {
                 if (this.eventListners[e]) {
                     if ("undefined" === typeof handler) delete this.eventListners[e]; else for (var i = 0; i < this.eventListners[e].length; ++i) {
-                        if (this.eventListners[e][i] && this.surfacingListners[e][i].callback === handler) this.surfacingListners[e][i] = null;
+                        if (this.eventListners[e][i] && this.eventListners[e][i].callback === handler) this.eventListners[e][i] = null;
                     }
                 }
                 return this;
@@ -307,6 +319,21 @@
                 });
                 if ("object" === typeof this.eventTracks[e]) callback.apply(this.eventTracks[e][0], this.eventTracks[e][1]);
                 return new eventListner(this, e, this.eventListners[e].length - 1);
+            },
+            $on: function(e, callback, once) {
+                if (typeof this.eventListners[e] != "object") this.eventListners[e] = [];
+                if ("object" === typeof this.eventTracks[e]) callback.apply(this.eventTracks[e][0], this.eventTracks[e][1]);
+                if (!once) {
+                    this.eventListners[e].push({
+                        callback: this.$inject(callback),
+                        once: once || false
+                    });
+                    var $handler = new eventListner(this, e, this.eventListners[e].length - 1);
+                }
+                return function() {
+                    $handler.destroy();
+                    $handler = null;
+                };
             },
             once: function(e, callback) {
                 this.bind(e, callback, true);
@@ -417,6 +444,9 @@
                         collection.splice(collection.indexOf(value), 1);
                     }
                 });
+            },
+            toogle: function($value) {
+                return !$value;
             }
         });
     }();
@@ -520,7 +550,12 @@
                             }.bind(compiledCallbacker));
                             if (rprops[0] === "properties" || rprops[0] === "attributes") {
                                 var attrn = rprops[0] === "properties" ? "data" + rprops[1].charAt(0).toUpperCase() + rprops[1].substr(1) : rprops[1];
-                                if ("object" !== typeof self.$$attrsWatchers[attrn]) self.$$attrsWatchers[attrn] = [];
+                                if ("object" !== typeof self.$$attrsWatchers[attrn]) {
+                                    self.$$attrsWatchers[attrn] = [];
+                                    if (self.attachedEventFires) {
+                                        compiledCallbacker.call(self, false, "set", self.$element.getAttribute(sx.utils.dasherize(attrn)));
+                                    }
+                                }
                                 self.$$attrsWatchers[attrn].push(compiledCallbacker);
                                 self.$watchersHistory.push({
                                     unwatch: function(i) {
@@ -751,14 +786,15 @@
                 this.configuration.module = "function" === typeof module ? module : false;
                 if (this.$.__config__.$$angularInitialedStage > 1) {
                     this.$inject(function($self, template, module) {
-                        var test = Synthetic.$$angularCompile(template, undefined, undefined)($self.__config__.$$angularScope);
-                        $self.__config__.$$angularElement.empty().append(test);
-                        $self.__config__.$$angularScope.$digest();
-                        $.$.trigger("rendered");
-                        $.$.bubbling("shake");
-                        if (module) {
-                            $.setup(module, args);
-                        }
+                        $self.__config__.$$angularScope.$applyAsync(function() {
+                            var test = Synthetic.$$angularCompile(template, undefined, undefined)($self.__config__.$$angularScope);
+                            $self.__config__.$$angularElement.empty().append(test);
+                            $.$.trigger("rendered");
+                            $.$.bubbling("shake");
+                            if (module) {
+                                $.setup(module, args);
+                            }
+                        });
                     })(this.configuration.template, this.configuration.module);
                 } else {
                     this.$.$injectors.$element.innerHTML = this.$.$injectors.$element.innerHTML = minTemplate(this.configuration.template, this.$.$injectors.$scope);
@@ -989,7 +1025,7 @@
                         angular.bootstrap(document.body, [ "syntheticApp" ]);
                         Synthetic.$$angularBootstraped = true;
                         Synthetic.trigger("angularBootstraped");
-                    }, 50);
+                    }, 120);
                 }.bind(this));
             }
         };
@@ -1775,32 +1811,34 @@
                         enumerable: true,
                         value: function(name, previousValue, value) {
                             var camelized = camelize(name);
-                            if (this.synthetic.destoryed) return false;
-                            if (Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage > 1) {
-                                if (previousValue !== value) {
-                                    var $self = this.synthetic;
-                                    var $scope = this.synthetic.$injectors.$scope;
-                                    Synthetic.$$applyPortion(function() {
-                                        $scope.attributes[camelized] = value;
-                                        if (name.substr(0, 5) === "data-") {
-                                            $scope.properties[camelize(name.substr(5))] = value;
-                                        }
-                                        if (value === "") value = false;
-                                        if ($self.$$attrsWatchers[camelized]) {
-                                            for (var i = 0; i < $self.$$attrsWatchers[camelized].length; ++i) {
-                                                $self.$$attrsWatchers[camelized][i].call($self, false, "set", value);
+                            if (this.synthetic.$$attrsWatchers[camelized]) {
+                                if (this.synthetic.destoryed) return false;
+                                if (Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage > 1) {
+                                    if (previousValue !== value) {
+                                        var $self = this.synthetic;
+                                        var $scope = this.synthetic.$injectors.$scope;
+                                        Synthetic.$$applyPortion(function() {
+                                            $scope.attributes[camelized] = value;
+                                            if (name.substr(0, 5) === "data-") {
+                                                $scope.properties[camelize(name.substr(5))] = value;
                                             }
-                                        }
-                                        $self.trigger("attributeChanged", [ $self, name, previousValue, value ]);
-                                    });
-                                }
-                            } else {
-                                if (previousValue !== value) {
-                                    this.synthetic.$injectors.$scope.attributes[camelize(name)] = value;
-                                    if (name.substr(0, 5) === "data-") {
-                                        this.synthetic.$injectors.$scope.properties[camelize(name.substr(5))] = value;
+                                            if (value === "") value = false;
+                                            if ($self.$$attrsWatchers[camelized]) {
+                                                for (var i = 0; i < $self.$$attrsWatchers[camelized].length; ++i) {
+                                                    if (!$self.attachedEventFires) $self.$$attrsWatchers[camelized][i].call($self, false, "set", value);
+                                                }
+                                            }
+                                            $self.trigger("attributeChanged", [ $self, name, previousValue, value ]);
+                                        });
                                     }
-                                    this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
+                                } else {
+                                    if (previousValue !== value) {
+                                        this.synthetic.$injectors.$scope.attributes[camelize(name)] = value;
+                                        if (name.substr(0, 5) === "data-") {
+                                            this.synthetic.$injectors.$scope.properties[camelize(name.substr(5))] = value;
+                                        }
+                                        this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
+                                    }
                                 }
                             }
                         }

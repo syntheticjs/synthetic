@@ -228,7 +228,18 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 						*/
 						if (rprops[0]==='properties'||rprops[0]==='attributes') {
 							var attrn = rprops[0]==='properties'?'data'+rprops[1].charAt(0).toUpperCase()+rprops[1].substr(1):rprops[1];
-							if ("object"!==typeof self.$$attrsWatchers[attrn]) self.$$attrsWatchers[attrn] = [];
+							if ("object"!==typeof self.$$attrsWatchers[attrn]) {
+								self.$$attrsWatchers[attrn] = [];
+								/*
+								Если такой аттрибут еще никогда не отслеживался, мы должны немедленно проверить его значение, но только 
+								в случае, если событие attached уже случилось
+								*/
+								
+								if (self.attachedEventFires) {
+									
+									compiledCallbacker.call(self, false, 'set', self.$element.getAttribute(sx.utils.dasherize(attrn)));
+								}
+							}
 							self.$$attrsWatchers[attrn].push(compiledCallbacker);
 							self.$watchersHistory.push({
 								"unwatch": function(i) {

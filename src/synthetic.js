@@ -61,9 +61,9 @@ AMD Synthet
             /*
             Если элемент добавлен в дерево 
             */
-            if (this.synthetic.__config__.$$angularInitialedStage>2) {
+            //if (this.synthetic.__config__.$$angularInitialedStage>2) {
                 //console.log("%cpostAttached", "font-weight:bold;", this);
-            }
+            //}
 
             // Search parent synthetic element
             if (!this.synthetic.__config__.permanent) {
@@ -310,14 +310,12 @@ AMD Synthet
                 prototype: Object.create(HTMLElement.prototype, {
                     createdCallback: {
                         value: function() {
-                            
                             componentCreater.call(this, componentFactory);
                         }
                     },
                     attachedCallback: {
                         value: function() {
                             
-                            this.synthetic.trigger('attached');
                             if (this.synthetic.__config__.allWaitingForResolve==='attached')
                                 this.synthetic.__config__.allWaitingForResolve = false;
                             componentAttacher.call(this);                           
@@ -341,7 +339,7 @@ AMD Synthet
                             Для разгрузки производительности мы просматриваем лишь те аттрибуты, за которыми 
                             мы наблюдаем
                             */
-                            //if (this.synthetic.$$attrsWatchers[camelized]) {
+                            if (this.synthetic.$$attrsWatchers[camelized]) {
                                 /*
                                 Останавливаем отслеживание аттрибутов, если компонент удален или в процессе 
                                 удаления
@@ -355,39 +353,36 @@ AMD Synthet
                                             // Использование Apply portion позволяет
                                             // применить комбо изменений в scope 
                                             var $self = this.synthetic;
-                                            var $scope = this.synthetic.$injectors.$scope;
                                             // Присваиваем значение аттрибутов сейчас, но apply вызываем
                                             // позже. Это снизит нагрузку
                                             Synthetic.$$applyPortion(function() {
 
-                                                $scope.attributes[camelized] = value;
+                                                $self.attributes[camelized] = value;
                                                 if (name.substr(0,5)==='data-') {
-                                                        $scope.properties[camelize(name.substr(5))] = value;
+                                                        $self.$injectors.$scope.properties[camelize(name.substr(5))] = value;
                                                 }
 
                                                 if (value==='') value = false;
                                                 if ($self.$$attrsWatchers[camelized]) {
                                                     for (var i = 0;i<$self.$$attrsWatchers[camelized].length;++i) {
-                                                        
+                                                        if (!$self.attachedEventFires)
                                                         $self.$$attrsWatchers[camelized][i].call($self, false, 'set', value);
                                                     }
                                                 }
-                                                $self.trigger("attributeChanged", [ $self, name, previousValue, value ]);
+                                                
                                             });                                                               
                                     }
                                 } else {
                                     if (previousValue !== value) {
-                                        
                                         this.synthetic.$injectors.$scope.attributes[camelize(name)] = value;
                                         if (name.substr(0,5)==='data-') {
                                            
                                                 this.synthetic.$injectors.$scope.properties[camelize(name.substr(5))] = value;
                                            
                                         }
-                                        this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
                                     }
                                 }
-                            //}
+                            }
                         }
                     }
                 })

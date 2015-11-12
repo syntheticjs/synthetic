@@ -178,14 +178,30 @@ define([
 				once: once
 			});
 
+            var i = this.eventListners[e].length;
+
 			return this;
 		},
+        $bind: function(e, callback, once) {
+            if (typeof this.eventListners[e] != 'object') this.eventListners[e] = [];
+            
+            this.eventListners[e].push({
+                callback: callback,
+                once: once
+            });
+
+            var i = this.eventListners[e].length;
+
+            return function() {
+                this.eventListners[e][i] = null;
+            }
+        },
         unbind: function(e, handler) {
             if (this.eventListners[e]) {
                 if ("undefined"===typeof handler) delete this.eventListners[e];
                 else
                     for (var i = 0; i < this.eventListners[e].length; ++i) {
-                        if (this.eventListners[e][i]&&this.surfacingListners[e][i].callback===handler) this.surfacingListners[e][i] = null;
+                        if (this.eventListners[e][i]&&this.eventListners[e][i].callback===handler) this.eventListners[e][i] = null;
                     }
             }
             return this;
@@ -205,6 +221,31 @@ define([
 
 			return new eventListner(this, e, this.eventListners[e].length-1);
 		},
+        $on: function(e, callback, once) {
+            if (typeof this.eventListners[e] != 'object') this.eventListners[e] = [];
+            
+            
+
+            /*
+            Call callback if event already fired
+            */
+            if ("object"===typeof this.eventTracks[e]) callback.apply(this.eventTracks[e][0], this.eventTracks[e][1]);
+
+            if (!once) {
+
+                this.eventListners[e].push({
+                    callback: this.$inject(callback),
+                    once: once||false
+                });
+
+                var $handler = new eventListner(this, e, this.eventListners[e].length-1);
+            }
+
+            return function() {
+                $handler.destroy();
+                $handler=null;
+            }
+        },
 		once : function(e, callback) {
 			this.bind(e, callback, true);
 			return this;

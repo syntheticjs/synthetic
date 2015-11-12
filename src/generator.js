@@ -46,29 +46,32 @@ function(classEvents, minTemplate, synthetModule) {
                     
                     this.$inject(function($self, template, module) {
                         //if ($self.__config__.$$angularScope.$id==22) debugger;
-                        var test = Synthetic.$$angularCompile(template, undefined, undefined)($self.__config__.$$angularScope);
-                        /*
-                        Надо обратить внимание на тот факт, что в случае если к странице подключен jquery angular
-                        использует его методы - это звучит немного безумно, т.к. они отличаются от "родных".
-                        Так например html у angular действует аналогично set innerHTML и не может принимать
-                        данные ввиде массива node. Поэтому для присвоения нового html необходимо использовать
-                        append предварительно очищая элемент с помощью html('').
-                        */
+                        $self.__config__.$$angularScope.$applyAsync(function() {
+                            var test = Synthetic.$$angularCompile(template, undefined, undefined)($self.__config__.$$angularScope);
+                            /*
+                            Надо обратить внимание на тот факт, что в случае если к странице подключен jquery angular
+                            использует его методы - это звучит немного безумно, т.к. они отличаются от "родных".
+                            Так например html у angular действует аналогично set innerHTML и не может принимать
+                            данные ввиде массива node. Поэтому для присвоения нового html необходимо использовать
+                            append предварительно очищая элемент с помощью html('').
+                            */
 
-                        $self.__config__.$$angularElement.empty().append(test);
+                            $self.__config__.$$angularElement.empty().append(test);
 
-                        /*
-                        После установки шаблона необходимо произвести пересмотр scope
-                        */
-                        $self.__config__.$$angularScope.$digest();
+                            /*
+                            После установки шаблона необходимо произвести пересмотр scope
+                            */
+                            
 
-                        $.$.trigger("rendered");
-                        $.$.bubbling('shake'); // Shake all roots
+                            $.$.trigger("rendered");
+                            $.$.bubbling('shake'); // Shake all roots
 
-                        if (module) {
+                            if (module) {
 
-                            $.setup(module, args);
-                        }
+                                $.setup(module, args);
+                            }
+                        });
+                        
                     })(this.configuration.template, this.configuration.module);
                 } else {
                     this.$.$injectors.$element.innerHTML = this.$.$injectors.$element.innerHTML = minTemplate(this.configuration.template, this.$.$injectors.$scope);
@@ -111,14 +114,22 @@ function(classEvents, minTemplate, synthetModule) {
                 } else if ("object"===typeof this.$.__config__.templateModulePrototype) {
                     var overMod = function() { }.proto(this.$.__config__.templateModulePrototype);
                     nm = nm.inherit(overMod);
-                }
+                }  
 
-                if (args) {
+                var initial = function() {
+                     if (args) {
+                        $synthet.module = nm.construct(args);
+                    } else {
+                        $synthet.module = new nm();
+                    }
+                };
 
-                    this.$.module = nm.construct(args);
+                if ("function"===typeof this.$.__config__.initialUserModuleCondition) {
+                    this.$.__config__.initialUserModuleCondition.call($synthet, initial);
                 } else {
-                    this.$.module = new nm();
+                    initial();
                 }
+               
 
                 //this.$.$injectors.$scope.$module = this.$.module;
             },

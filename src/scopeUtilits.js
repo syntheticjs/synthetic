@@ -14,6 +14,9 @@ define(function() {
 					collection.splice(collection.indexOf(value), 1);
 				}
 			});
+		},
+		toogle: function($value) {
+			return !$value;
 		}
 	})
 

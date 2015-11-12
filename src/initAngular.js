@@ -112,7 +112,7 @@ define(function() {
                     for (var i = 0;i<applies.length;++i) {
                         applies[i]();
                     }
-                }, 120);
+                }, 20);
             };
         });
 
@@ -139,7 +139,7 @@ define(function() {
                             ['syntheticApp']);
                             Synthetic.$$angularBootstraped = true;
                             Synthetic.trigger('angularBootstraped');
-                        }, 50);
+                        }, 120);
             }.bind(this));
         }
 	}
