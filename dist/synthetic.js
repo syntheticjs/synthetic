@@ -124,24 +124,27 @@
             return Mixin;
         };
     }(mixin);
-    Function.prototype.inherit = function() {
-        var classes = Array.prototype.slice.apply(arguments);
-        return inherit(this, classes);
-    };
-    Function.prototype.proto = function(proto) {
-        if ("object" !== typeof this.prototype) this.prototype = {
-            constructor: this
+    var polyinherit = function(inherit, mixin) {
+        Function.prototype.inherit = function() {
+            var classes = Array.prototype.slice.apply(arguments);
+            return inherit(this, classes);
         };
-        mixin(this.prototype, proto);
-        return this;
-    };
-    Function.prototype.construct = function() {
-        this.__disableContructor__ = true;
-        var module = new this();
-        var args = arguments[0] instanceof Array ? arguments[0] : [];
-        this.apply(module, args);
-        return module;
-    };
+        Function.prototype.proto = function(proto) {
+            if ("object" !== typeof this.prototype) this.prototype = {
+                constructor: this
+            };
+            mixin(this.prototype, proto);
+            return this;
+        };
+        Function.prototype.construct = function() {
+            this.__disableContructor__ = true;
+            var module = new this();
+            var args = arguments[0] instanceof Array ? arguments[0] : [];
+            this.apply(module, args);
+            return module;
+        };
+        return inherit;
+    }(inherit, mixin);
     var camelize = function() {
         return function(text) {
             return text.replace(/-([\da-z])/gi, function(all, letter) {
@@ -407,9 +410,7 @@
         };
     }(getObjectByXPath);
     var modulePrototype = function() {
-        return function() {
-            console.debug("DEBUG ME: because im starting after module initialization. This is very baaad.");
-        }.proto({
+        return function() {}.proto({
             $apply: function(cb) {
                 return this.$.$apply(cb);
             },
@@ -821,10 +822,17 @@
                     var overMod = function() {}.proto(this.$.__config__.templateModulePrototype);
                     nm = nm.inherit(overMod);
                 }
-                if (args) {
-                    this.$.module = nm.construct(args);
+                var initial = function() {
+                    if (args) {
+                        $synthet.module = nm.construct(args);
+                    } else {
+                        $synthet.module = new nm();
+                    }
+                };
+                if ("function" === typeof this.$.__config__.initialUserModuleCondition) {
+                    this.$.__config__.initialUserModuleCondition.call($synthet, initial);
                 } else {
-                    this.$.module = new nm();
+                    initial();
                 }
             },
             destroy: function() {
@@ -904,7 +912,9 @@
             return Mixin;
         };
     }(mixin2);
-    var templateManager = function() {}.proto({});
+    (function() {
+        var templateManager = function() {}.proto({});
+    })(polyinherit);
     var preFactory = function(mixin) {
         var preFactory = function(options) {
             this.options = options;
@@ -1013,7 +1023,7 @@
                         for (var i = 0; i < applies.length; ++i) {
                             applies[i]();
                         }
-                    }, 120);
+                    }, 20);
                 };
             });
             if ("object" !== typeof angular.element(document.body).injector()) {
@@ -1664,7 +1674,6 @@
             }
         };
         var componentAttacher = function() {
-            if (this.synthetic.__config__.$$angularInitialedStage > 2) {}
             if (!this.synthetic.__config__.permanent) {
                 var pe = this.synthetic.$element.parentNode;
                 while (!(pe === null || "undefined" !== typeof pe.synthetic)) {
@@ -1794,7 +1803,6 @@
                     },
                     attachedCallback: {
                         value: function() {
-                            this.synthetic.trigger("attached");
                             if (this.synthetic.__config__.allWaitingForResolve === "attached") this.synthetic.__config__.allWaitingForResolve = false;
                             componentAttacher.call(this);
                         }
@@ -1816,19 +1824,19 @@
                                 if (Synthetic.$$angularApp && this.synthetic.__config__.$$angularInitialedStage > 1) {
                                     if (previousValue !== value) {
                                         var $self = this.synthetic;
-                                        var $scope = this.synthetic.$injectors.$scope;
                                         Synthetic.$$applyPortion(function() {
-                                            $scope.attributes[camelized] = value;
+                                            $self.$injectors.$scope.attributes[camelized] = value;
                                             if (name.substr(0, 5) === "data-") {
-                                                $scope.properties[camelize(name.substr(5))] = value;
+                                                $self.$injectors.$scope.properties[camelize(name.substr(5))] = value;
                                             }
                                             if (value === "") value = false;
                                             if ($self.$$attrsWatchers[camelized]) {
                                                 for (var i = 0; i < $self.$$attrsWatchers[camelized].length; ++i) {
-                                                    if (!$self.attachedEventFires) $self.$$attrsWatchers[camelized][i].call($self, false, "set", value);
+                                                    if (!$self.attachedEventFires) {
+                                                        $self.$$attrsWatchers[camelized][i].call($self, false, "set", value);
+                                                    }
                                                 }
                                             }
-                                            $self.trigger("attributeChanged", [ $self, name, previousValue, value ]);
                                         });
                                     }
                                 } else {
@@ -1837,7 +1845,6 @@
                                         if (name.substr(0, 5) === "data-") {
                                             this.synthetic.$injectors.$scope.properties[camelize(name.substr(5))] = value;
                                         }
-                                        this.synthetic.trigger("attributeChanged", [ this.synthetic, name, previousValue, value ]);
                                     }
                                 }
                             }

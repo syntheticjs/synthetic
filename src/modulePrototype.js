@@ -1,6 +1,6 @@
 define(function() {
     return function() {
-            console.debug('DEBUG ME: because im starting after module initialization. This is very baaad.');
+            //console.debug('DEBUG ME: because im starting after module initialization. This is very baaad.');
         }.proto({
             $apply: function(cb) {
                 return this.$.$apply(cb);
