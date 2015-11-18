@@ -355,14 +355,12 @@ AMD Synthet
                                             var $self = this.synthetic;
                                             // Присваиваем значение аттрибутов сейчас, но apply вызываем
                                             // позже. Это снизит нагрузку
-                                            //Synthetic.$$applyPortion(function() {
+                                            $self.$digest(function() {
                                                 
                                                 $self.$injectors.$scope.attributes[camelized] = value;
                                                 if (name.substr(0,5)==='data-') {
                                                         $self.$injectors.$scope.properties[camelize(name.substr(5))] = value;
                                                 }
-
-                                                $self.$injectors.$scope.$degist();
 
                                                 if (value==='') value = false;
                                                 if ($self.$$attrsWatchers[camelized]) {
@@ -372,7 +370,7 @@ AMD Synthet
                                                         }
                                                     }
                                                 }
-                                            //});                                                               
+                                            });                                                               
                                     }
                                 } else {
                                     if (previousValue !== value) {

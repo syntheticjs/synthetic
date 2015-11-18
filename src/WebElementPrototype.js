@@ -4,9 +4,10 @@ define([
 	"./classEvents.js",	
 	"polyvitamins~polychrome@master/gist/convert/camelize.js",
 	"./getNonScopeValue.js",
+	"./box.js",
     "polyvitamins~polyinherit@master",
 ],
-function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValue) {
+function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValue, Box) {
 	
 	/*
 	Модифицируем стандартный classEvents
@@ -151,8 +152,13 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 			/*
 			Начинаем наблюдение за переменной
 			*/
-			var getDatas = function(requiredProperties, rprops) {
-				return function(prop, action, newValue, unwatcher) {
+			var getDatas = function(requiredProperties, rprops, $unwatcher) {
+				
+				var injectedCallback = self.$inject(callback, {
+					$unwatch: $unwatcher,
+					$box: new Box()
+				});
+				return function(prop, action, newValue) {
 					
 					var alldata = [];
 					for (var x = 0;x<requiredProperties.length;++x) {
@@ -184,9 +190,7 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 					if (self.$scopeSnaps[rstr]&&jstr===self.$scopeSnaps[rstr]) { return; }
 					self.$scopeSnaps[rstr] = jstr;
 					
-					self.$inject(callback, {
-						$unwatch: unwatcher
-					}).apply(self, alldata);
+					injectedCallback.apply(self, alldata);
 				}
 			};
 
@@ -209,16 +213,19 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 				self.$scopeSnaps[JSON.stringify(requiredProperties)] = false;
 
 				if (self.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
-					var compiledCallbacker = getDatas(requiredProperties, rprops);
+					
 
 
 
 					try {
+						var compiledCallbacker;
 
 						var unwatcher = self.$injectors.$scope.$watch(rprops.join('.'), function(newValue) {
 
-							this.call(self, false, 'set', newValue, unwatcher);
-						}.bind(compiledCallbacker));
+							compiledCallbacker.call(self, false, 'set', newValue, unwatcher);
+						});
+
+						compiledCallbacker = getDatas(requiredProperties, rprops, unwatcher);
 
 						/*
 						Что бы ускорить работу вочеров при обращении к аттрибутом, помимо вочеров angular мы дополняем их собственными
@@ -254,7 +261,6 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 						});
 						
 					} catch(e) {
-						window.teste = self.$injectors.$element;
 						console.error('Errors', e, rprops, wobject, self.$injectors.$element);
 					}
 					
@@ -332,6 +338,9 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 
 				return callback.apply(this);
 			}
+		},
+		$digest: function(expr) {
+			this.$injectors.$scope.$evalAsync(expr);
 		},
 		$apply: function($as, callback, destructor){
 			/*

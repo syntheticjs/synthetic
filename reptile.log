@@ -23,6 +23,7 @@ VIRTUAL /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic
           /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/WebElementPrototype.js
                /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/getObjectByXPath.js
                /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/getNonScopeValue.js
+               /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/box.js
           /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/extend/component.json
           SUBVIRTUAL /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/extend/src/extend.js
           /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/generator.js
