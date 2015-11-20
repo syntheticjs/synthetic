@@ -69,7 +69,7 @@ define([
             if (typeof this.surfacingListners[e] != 'object') this.surfacingListners[e] = [];
 
             this.surfacingListners[e].push({
-                callback: this.$inject(callback),
+                callback: callback,
                 once: once||false
             });
 
@@ -125,7 +125,7 @@ define([
             if (typeof this.bubblingListners[e] != 'object') this.bubblingListners[e] = [];
 
             this.bubblingListners[e].push({
-                callback: this.$inject(callback),
+                callback: callback,
                 once: once||false
             });
 
@@ -268,16 +268,18 @@ define([
 
 			if (typeof this.eventListners[e] == 'object' && this.eventListners[e].length>0) {
 				var todelete = [];
-				for (var i = 0; i<this.eventListners[e].length; i++) {
-					if (this.eventListners[e][i]!==null) {
-						if (typeof this.eventListners[e][i].callback === "function") response = this.eventListners[e][i].callback.apply(this, args);
-						
-						if (this.eventListners[e][i].once) {
+                if (this.eventListners[e]) {
+    				for (var i = 0; i<this.eventListners[e].length; i++) {
+    					if (this.eventListners[e][i]!==null) {
+    						if (this.eventListners && typeof this.eventListners[e][i].callback === "function") response = this.eventListners[e][i].callback.apply(this, args);
+    						
+    						if (this.eventListners && this.eventListners[e][i].once) {
 
-							todelete.push(i);
-						};
-					};
-				};
+    							todelete.push(i);
+    						};
+    					};
+    				};
+                };
 				
 				if (todelete.length>0) for (var i in todelete) {
 					this.eventListners[e][todelete[i]] = null;

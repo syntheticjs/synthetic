@@ -33,6 +33,8 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 	}.inherit(classEvents)
 	.proto({
 		$read: function() {
+
+			var attrn;
 			/*
 			Проверка задержки
 			*/
@@ -67,7 +69,14 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 			if (self.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp)
 			{
 				for (var x = 0;x<requiredProperties.length;++x) {
-					alldata.push(getNonScopeValue(self.$injectors.$scope.$eval(requiredProperties[x].join('.'))));
+					
+					if (requiredProperties[x][0]==='properties'||requiredProperties[x][0]==='attributes') {
+						attrn = requiredProperties[x][0]==='properties'?'data'+requiredProperties[x][1].charAt(0).toUpperCase()+requiredProperties[x][1].substr(1):requiredProperties[x][1];
+						
+						alldata.push(getNonScopeValue(self.$element.getAttribute(sx.utils.dasherize(attrn))));
+					} else {
+						alldata.push(getNonScopeValue(self.$injectors.$scope.$eval(requiredProperties[x].join('.'))));
+					}
 				}
 			} else {
 				for (var x = 0;x<requiredProperties.length;++x) {
@@ -95,11 +104,13 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 			self.$scopeSnaps[rstr] = jstr;
 			
 			
-			
+			if (callback.$$injected)
+			callback.apply(self, alldata);
+			else
 			self.$inject(callback).apply(self, alldata);
 		},
 		$watch: function() {
-
+			var self = this;
 			/*
 			Проверка задержки
 			*/
@@ -109,7 +120,7 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 				В случае, если система ожидает инициализации какого то приложения,
 				функции прослушивания переменных задерживаются до инициализации
 				*/
-
+				console.log('wait for resolve', this.__config__.allWaitingForResolve);
 				var unwatcher = this.$queue(function(args) {
 					unwatcher = this.$watch.apply(this, args);
 				}.bind(this, arguments)),
@@ -123,8 +134,8 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 			/*
 			Start watching ***
 			*/
-			var self=this,objectXPath=false, properties, callback;
-			;(arguments.length>2) ? (objectXPath=arguments[0],properties=arguments[1],callback=arguments[2]) : (properties=arguments[0],callback=arguments[1]);
+			var self=this,objectXPath=false, properties, callback, callbackIndex=1,watchArguments=arguments;
+			;(arguments.length>2) ? (objectXPath=arguments[0],properties=arguments[1],callback=arguments[2],callbackIndex=2) : (properties=arguments[0],callback=arguments[1]);
 			
 			if (!(properties instanceof Array)) properties = [properties];
 
@@ -138,16 +149,10 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 				requiredProperties.push(xpath.concat(properties[i].split('.')));
 			}
 
+			
 			var lastTrack = {}; // Последнее состояние срабатываения
 
-            /*
-            Если рендеринг уже произошел, то нам, помимо наблюдения, необходимо выполнить чтение немедленно,
-            что бы обработка данных могла произойти не дождидаясь их изменения. Это нужно потому что
-            к моменту рендеринга как правило все данные уже устанавлиаются и простое выполнение watch
-            не вызовет callback.
-            */
-            if (this.__config__.rendered)
-            this.$read.apply(this, Array.prototype.slice.apply(arguments));
+
 
 			/*
 			Начинаем наблюдение за переменной
@@ -158,6 +163,23 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 					$unwatch: $unwatcher,
 					$box: new Box()
 				});
+
+
+
+				injectedCallback.$$injected = true;
+
+				/*
+	            Если рендеринг уже произошел, то нам, помимо наблюдения, необходимо выполнить чтение немедленно,
+	            что бы обработка данных могла произойти не дождидаясь их изменения. Это нужно потому что
+	            к моменту рендеринга как правило все данные уже устанавлиаются и простое выполнение watch
+	            не вызовет callback.
+	            */
+	            if (self.__config__.rendered) {
+		            var exportArguments = Array.prototype.slice.apply(watchArguments);
+		            exportArguments[callbackIndex] = injectedCallback;
+		            self.$read.apply(self, exportArguments);
+		        }
+
 				return function(prop, action, newValue) {
 					
 					var alldata = [];
@@ -213,19 +235,9 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 				self.$scopeSnaps[JSON.stringify(requiredProperties)] = false;
 
 				if (self.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
+
 					
-
-
-
-					try {
 						var compiledCallbacker;
-
-						var unwatcher = self.$injectors.$scope.$watch(rprops.join('.'), function(newValue) {
-
-							compiledCallbacker.call(self, false, 'set', newValue, unwatcher);
-						});
-
-						compiledCallbacker = getDatas(requiredProperties, rprops, unwatcher);
 
 						/*
 						Что бы ускорить работу вочеров при обращении к аттрибутом, помимо вочеров angular мы дополняем их собственными
@@ -234,7 +246,16 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 						TODO: придумать другой способ самоуничтожения, отличный от null
 						*/
 						if (rprops[0]==='properties'||rprops[0]==='attributes') {
+							
 							var attrn = rprops[0]==='properties'?'data'+rprops[1].charAt(0).toUpperCase()+rprops[1].substr(1):rprops[1];
+							
+							var unwatcher = function(attrn, i) {
+									this[attrn][i] = null;
+								}.bind(self.$$attrsWatchers, attrn, self.$$attrsWatchers[attrn] ? self.$$attrsWatchers[attrn].length : 0);
+							self.$watchersHistory.push({
+								"unwatch": unwatcher
+							});
+							compiledCallbacker = getDatas(requiredProperties, rprops, unwatcher);
 							if ("object"!==typeof self.$$attrsWatchers[attrn]) {
 								self.$$attrsWatchers[attrn] = [];
 								/*
@@ -242,55 +263,44 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 								в случае, если событие attached уже случилось
 								*/
 								
-								if (self.attachedEventFires) {
-									
+								if (self.__config__.attachedEventFires) {
+									//debugger;
 									compiledCallbacker.call(self, false, 'set', self.$element.getAttribute(sx.utils.dasherize(attrn)));
+								} else {
+									self.bind('attached', function() {
+										compiledCallbacker.call(self, false, 'set', self.$element.getAttribute(sx.utils.dasherize(attrn)));
+									}, true);
 								}
 							}
 							self.$$attrsWatchers[attrn].push(compiledCallbacker);
-							self.$watchersHistory.push({
-								"unwatch": function(i) {
-									this[i] = null;
-								}.bind(self.$$attrsWatchers[attrn], self.$$attrsWatchers[attrn].length-1)
+
+							
+
+						} else {
+							var unwatcher = self.$injectors.$scope.$watch(rprops.join('.'), function(newValue) {
+								try {
+									compiledCallbacker.call(self, false, 'set', newValue, unwatcher);
+								} catch(e) {
+									setTimeout(function() {
+										compiledCallbacker.call(self, false, 'set', newValue, unwatcher);
+									});
+								}
 							});
+							compiledCallbacker = getDatas(requiredProperties, rprops, unwatcher);
 						}
+						
 						
 
 						self.$watchersHistory.push({
 							"unwatch": unwatcher
 						});
-						
-					} catch(e) {
-						console.error('Errors', e, rprops, wobject, self.$injectors.$element);
-					}
 					
+					if ("function"!==typeof unwatcher) debugger;
+
 					return unwatcher;
 				} else {
 
-					/*
-					Запоминаем обработчики, что бы потом можно было их всех затереть
-					*/
-					var watchi = {
-						"object": wobject, 
-						"property": prop,
-						"callback": getDatas(requiredProperties, rprops)
-					};
-					
-					
-					var unwatcher = function() {
-							watchJS.unwatch(this.object, this.prop, this.callback);
-						}.bind(watchi);
-					self.$watchersHistory.push({
-						"unwatch": unwatcher
-					});
-					
-					watchJS.watch(
-						watchi.object,
-						watchi.property,
-						watchi.callback
-					);
-
-					return unwatcher;
+					throw 'WATCH NON ANGULAR VALUE IS NOT SUPPORTED ON THIS VERSION'
 				};
 			};
 			var unwacthers = function() { "empty unwatcher"; }; // Эта функция будет содержат функции для уничтожения наблюдений
@@ -330,7 +340,7 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 		$queue: function(callback) {
 			var self = this;
 			if (this.__config__.allWaitingForResolve) {
-				return this.on(this.__config__.allWaitingForResolve, function() {
+				return this.bind(this.__config__.allWaitingForResolve, function() {
 					if (self.$destroyed) return false;
 					callback.apply(this, arguments);
 				}, true);

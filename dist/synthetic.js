@@ -39,9 +39,11 @@
                     prefixedArguments[i] = this[requiredArguments[i]];
                 }
             }
-            return function() {
+            var injected = function() {
                 return callback.apply(context || this, prefixedArguments.concat(Array.prototype.slice.call(arguments)));
             };
+            injected.$$injected = true;
+            return injected;
         };
     }();
     var mixin2 = function() {
@@ -206,7 +208,7 @@
             capture: function(e, callback, once) {
                 if (typeof this.surfacingListners[e] != "object") this.surfacingListners[e] = [];
                 this.surfacingListners[e].push({
-                    callback: this.$inject(callback),
+                    callback: callback,
                     once: once || false
                 });
                 return new surfacingListner(this, e, this.surfacingListners[e].length - 1);
@@ -251,7 +253,7 @@
             sense: function(e, callback, once) {
                 if (typeof this.bubblingListners[e] != "object") this.bubblingListners[e] = [];
                 this.bubblingListners[e].push({
-                    callback: this.$inject(callback),
+                    callback: callback,
                     once: once || false
                 });
                 return new bubblingListner(this, e, this.bubblingListners[e].length - 1);
@@ -356,11 +358,13 @@
                 this.eventTracks[e] = [ this, args ];
                 if (typeof this.eventListners[e] == "object" && this.eventListners[e].length > 0) {
                     var todelete = [];
-                    for (var i = 0; i < this.eventListners[e].length; i++) {
-                        if (this.eventListners[e][i] !== null) {
-                            if (typeof this.eventListners[e][i].callback === "function") response = this.eventListners[e][i].callback.apply(this, args);
-                            if (this.eventListners[e][i].once) {
-                                todelete.push(i);
+                    if (this.eventListners[e]) {
+                        for (var i = 0; i < this.eventListners[e].length; i++) {
+                            if (this.eventListners[e][i] !== null) {
+                                if (this.eventListners && typeof this.eventListners[e][i].callback === "function") response = this.eventListners[e][i].callback.apply(this, args);
+                                if (this.eventListners && this.eventListners[e][i].once) {
+                                    todelete.push(i);
+                                }
                             }
                         }
                     }
@@ -395,14 +399,28 @@
         return function(handler) {
             this.data = {};
             this.shot = "";
-            this.handler = handler;
+            this.handler = null;
+            this.context = window;
         }.proto({
-            set: function(data) {
+            initHandler: function(handler, context) {
+                if (null === this.handler) {
+                    this.handler = handler;
+                    this.context = context;
+                }
+            },
+            set: function() {
+                var data = {}, diff = false;
+                arguments.length > 1 ? (data = {}, data[arguments[0]] = arguments[1]) : data = arguments[0];
                 for (var prop in data) {
                     if (data.hasOwnProperty(prop)) {
+                        if (this.data[prop] != data[prop]) diff = true;
                         this.data[prop] = data[prop];
                     }
                 }
+                return diff;
+            },
+            $apply: function() {
+                this.set.apply(this, arguments);
                 this.diffRun();
             },
             diffRun: function() {
@@ -413,7 +431,7 @@
                 this.shot = stringified;
             },
             run: function() {
-                this.handler(this.data);
+                this.handler.call(this.context, this.data);
             }
         });
     }();
@@ -488,6 +506,7 @@
             };
         }.inherit(classEvents).proto({
             $read: function() {
+                var attrn;
                 if (this.__config__.allWaitingForResolve) {
                     this.$queue(function(args) {
                         this.read.apply(this, args);
@@ -507,7 +526,12 @@
                 var alldata = [];
                 if (self.$injectors.$component.options.engine.name === "angular" && Synthetic.$$angularApp) {
                     for (var x = 0; x < requiredProperties.length; ++x) {
-                        alldata.push(getNonScopeValue(self.$injectors.$scope.$eval(requiredProperties[x].join("."))));
+                        if (requiredProperties[x][0] === "properties" || requiredProperties[x][0] === "attributes") {
+                            attrn = requiredProperties[x][0] === "properties" ? "data" + requiredProperties[x][1].charAt(0).toUpperCase() + requiredProperties[x][1].substr(1) : requiredProperties[x][1];
+                            alldata.push(getNonScopeValue(self.$element.getAttribute(sx.utils.dasherize(attrn))));
+                        } else {
+                            alldata.push(getNonScopeValue(self.$injectors.$scope.$eval(requiredProperties[x].join("."))));
+                        }
                     }
                 } else {
                     for (var x = 0; x < requiredProperties.length; ++x) {
@@ -519,10 +543,12 @@
                     return;
                 }
                 self.$scopeSnaps[rstr] = jstr;
-                self.$inject(callback).apply(self, alldata);
+                if (callback.$$injected) callback.apply(self, alldata); else self.$inject(callback).apply(self, alldata);
             },
             $watch: function() {
+                var self = this;
                 if (this.__config__.allWaitingForResolve) {
+                    console.log("wait for resolve", this.__config__.allWaitingForResolve);
                     var unwatcher = this.$queue(function(args) {
                         unwatcher = this.$watch.apply(this, args);
                     }.bind(this, arguments)), here = this;
@@ -530,10 +556,10 @@
                         unwatcher.apply(here, arguments);
                     };
                 }
-                var self = this, objectXPath = false, properties, callback;
+                var self = this, objectXPath = false, properties, callback, callbackIndex = 1, watchArguments = arguments;
                 arguments.length > 2 ? (objectXPath = arguments[0], 
-                properties = arguments[1], callback = arguments[2]) : (properties = arguments[0], 
-                callback = arguments[1]);
+                properties = arguments[1], callback = arguments[2], 
+                callbackIndex = 2) : (properties = arguments[0], callback = arguments[1]);
                 if (!(properties instanceof Array)) properties = [ properties ];
                 var xpath = objectXPath ? objectXPath.split(".") : [];
                 var requiredProperties = [];
@@ -541,12 +567,17 @@
                     requiredProperties.push(xpath.concat(properties[i].split(".")));
                 }
                 var lastTrack = {};
-                if (this.__config__.rendered) this.$read.apply(this, Array.prototype.slice.apply(arguments));
                 var getDatas = function(requiredProperties, rprops, $unwatcher) {
                     var injectedCallback = self.$inject(callback, {
                         $unwatch: $unwatcher,
                         $box: new Box()
                     });
+                    injectedCallback.$$injected = true;
+                    if (self.__config__.rendered) {
+                        var exportArguments = Array.prototype.slice.apply(watchArguments);
+                        exportArguments[callbackIndex] = injectedCallback;
+                        self.$read.apply(self, exportArguments);
+                    }
                     return function(prop, action, newValue) {
                         var alldata = [];
                         for (var x = 0; x < requiredProperties.length; ++x) {
@@ -572,48 +603,46 @@
                     if ("undefined" === typeof wobject[prop]) wobject[prop] = false;
                     self.$scopeSnaps[JSON.stringify(requiredProperties)] = false;
                     if (self.$injectors.$component.options.engine.name === "angular" && Synthetic.$$angularApp) {
-                        try {
-                            var compiledCallbacker;
-                            var unwatcher = self.$injectors.$scope.$watch(rprops.join("."), function(newValue) {
-                                compiledCallbacker.call(self, false, "set", newValue, unwatcher);
-                            });
-                            compiledCallbacker = getDatas(requiredProperties, rprops, unwatcher);
-                            if (rprops[0] === "properties" || rprops[0] === "attributes") {
-                                var attrn = rprops[0] === "properties" ? "data" + rprops[1].charAt(0).toUpperCase() + rprops[1].substr(1) : rprops[1];
-                                if ("object" !== typeof self.$$attrsWatchers[attrn]) {
-                                    self.$$attrsWatchers[attrn] = [];
-                                    if (self.attachedEventFires) {
-                                        compiledCallbacker.call(self, false, "set", self.$element.getAttribute(sx.utils.dasherize(attrn)));
-                                    }
-                                }
-                                self.$$attrsWatchers[attrn].push(compiledCallbacker);
-                                self.$watchersHistory.push({
-                                    unwatch: function(i) {
-                                        this[i] = null;
-                                    }.bind(self.$$attrsWatchers[attrn], self.$$attrsWatchers[attrn].length - 1)
-                                });
-                            }
+                        var compiledCallbacker;
+                        if (rprops[0] === "properties" || rprops[0] === "attributes") {
+                            var attrn = rprops[0] === "properties" ? "data" + rprops[1].charAt(0).toUpperCase() + rprops[1].substr(1) : rprops[1];
+                            var unwatcher = function(attrn, i) {
+                                this[attrn][i] = null;
+                            }.bind(self.$$attrsWatchers, attrn, self.$$attrsWatchers[attrn] ? self.$$attrsWatchers[attrn].length : 0);
                             self.$watchersHistory.push({
                                 unwatch: unwatcher
                             });
-                        } catch (e) {
-                            console.error("Errors", e, rprops, wobject, self.$injectors.$element);
+                            compiledCallbacker = getDatas(requiredProperties, rprops, unwatcher);
+                            if ("object" !== typeof self.$$attrsWatchers[attrn]) {
+                                self.$$attrsWatchers[attrn] = [];
+                                if (self.__config__.attachedEventFires) {
+                                    compiledCallbacker.call(self, false, "set", self.$element.getAttribute(sx.utils.dasherize(attrn)));
+                                } else {
+                                    self.bind("attached", function() {
+                                        compiledCallbacker.call(self, false, "set", self.$element.getAttribute(sx.utils.dasherize(attrn)));
+                                    }, true);
+                                }
+                            }
+                            self.$$attrsWatchers[attrn].push(compiledCallbacker);
+                        } else {
+                            var unwatcher = self.$injectors.$scope.$watch(rprops.join("."), function(newValue) {
+                                try {
+                                    compiledCallbacker.call(self, false, "set", newValue, unwatcher);
+                                } catch (e) {
+                                    setTimeout(function() {
+                                        compiledCallbacker.call(self, false, "set", newValue, unwatcher);
+                                    });
+                                }
+                            });
+                            compiledCallbacker = getDatas(requiredProperties, rprops, unwatcher);
                         }
-                        return unwatcher;
-                    } else {
-                        var watchi = {
-                            object: wobject,
-                            property: prop,
-                            callback: getDatas(requiredProperties, rprops)
-                        };
-                        var unwatcher = function() {
-                            watchJS.unwatch(this.object, this.prop, this.callback);
-                        }.bind(watchi);
                         self.$watchersHistory.push({
                             unwatch: unwatcher
                         });
-                        watchJS.watch(watchi.object, watchi.property, watchi.callback);
+                        if ("function" !== typeof unwatcher) debugger;
                         return unwatcher;
+                    } else {
+                        throw "WATCH NON ANGULAR VALUE IS NOT SUPPORTED ON THIS VERSION";
                     }
                 };
                 var unwacthers = function() {
@@ -641,7 +670,7 @@
             $queue: function(callback) {
                 var self = this;
                 if (this.__config__.allWaitingForResolve) {
-                    return this.on(this.__config__.allWaitingForResolve, function() {
+                    return this.bind(this.__config__.allWaitingForResolve, function() {
                         if (self.$destroyed) return false;
                         callback.apply(this, arguments);
                     }, true);
@@ -1120,6 +1149,9 @@
                 element.setAttribute("sid", this.$sid);
                 this.$$attrsWatchers = {};
             }
+            this.capture("destroy", function() {
+                this.$destroy();
+            });
             Synthetic.$$lastElementFactory = this;
             this.$parent = false;
             this.$childs = {};
@@ -1271,9 +1303,6 @@
                 var evalWatchers = function() {
                     for (var i = 0; i < component.watchers.length; ++i) {
                         this.$watch.apply(this, component.watchers[i]);
-                    }
-                    for (var i = 0; i < component.watchers.length; ++i) {
-                        this.$read.apply(this, component.watchers[i]);
                     }
                 };
                 if (!this.$parent) {
@@ -1840,7 +1869,9 @@
                     },
                     detachedCallback: {
                         value: function() {
+                            if (this.synthetic.$destroyed) return false;
                             this.synthetic.__config__.allWaitingForResolve = "attached";
+                            this.synthetic.__config__.attachedEventFires = false;
                             this.synthetic.trigger("detached", [ this.synthetic ]);
                         }
                     },
@@ -1862,8 +1893,8 @@
                                             }
                                             if (value === "") value = false;
                                             if ($self.$$attrsWatchers[camelized]) {
-                                                for (var i = 0; i < $self.$$attrsWatchers[camelized].length; ++i) {
-                                                    if (!$self.attachedEventFires) {
+                                                if ($self.__config__.attachedEventFires) {
+                                                    for (var i = 0; i < $self.$$attrsWatchers[camelized].length; ++i) {
                                                         $self.$$attrsWatchers[camelized][i].call($self, false, "set", value);
                                                     }
                                                 }

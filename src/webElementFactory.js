@@ -32,6 +32,10 @@ define([
             this.$$attrsWatchers = {}; // Дополнительный ресурс для watchers, ускоряющий работу за отслеживанием аттрибутов
         }
 
+        this.capture('destroy', function() {
+            this.$destroy();
+        });
+
         /*
          Указываем последнюю factory для элемента
          */
@@ -348,6 +352,7 @@ define([
             }
 
             var evalWatchers = function() {
+
                 /*
                  Переносим наблюдение за scope
                  */
@@ -358,9 +363,11 @@ define([
                 /*
                  После того как wathers назначены, необходимо немедленно проверить их значение
                  */
-                for (var i = 0;i<component.watchers.length;++i) {
+
+                /*for (var i = 0;i<component.watchers.length;++i) {
+
                     this.$read.apply(this, component.watchers[i]);
-                }
+               }*/
 
                 /*
                  Будем считать что элемент первично отрендерен

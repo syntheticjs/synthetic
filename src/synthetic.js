@@ -323,8 +323,9 @@ AMD Synthet
                     },
                     detachedCallback: {
                         value: function() {
-                            
+                            if (this.synthetic.$destroyed) return false;
                             this.synthetic.__config__.allWaitingForResolve = 'attached';
+                            this.synthetic.__config__.attachedEventFires = false;
                             this.synthetic.trigger("detached", [ this.synthetic ]);
                         }
                     },
@@ -339,7 +340,9 @@ AMD Synthet
                             Для разгрузки производительности мы просматриваем лишь те аттрибуты, за которыми 
                             мы наблюдаем
                             */
+
                             if (this.synthetic.$$attrsWatchers[camelized]) {
+
                                 /*
                                 Останавливаем отслеживание аттрибутов, если компонент удален или в процессе 
                                 удаления
@@ -358,15 +361,21 @@ AMD Synthet
                                             $self.$digest(function() {
                                                 
                                                 $self.$injectors.$scope.attributes[camelized] = value;
+                                                
                                                 if (name.substr(0,5)==='data-') {
                                                         $self.$injectors.$scope.properties[camelize(name.substr(5))] = value;
                                                 }
 
                                                 if (value==='') value = false;
+
                                                 if ($self.$$attrsWatchers[camelized]) {
-                                                    for (var i = 0;i<$self.$$attrsWatchers[camelized].length;++i) {
-                                                        if (!$self.attachedEventFires) {
-                                                            $self.$$attrsWatchers[camelized][i].call($self, false, 'set', value);
+                                                    if ($self.__config__.attachedEventFires) {
+                                                        
+                                                        for (var i = 0;i<$self.$$attrsWatchers[camelized].length;++i) {
+                                                                
+
+                                                                $self.$$attrsWatchers[camelized][i].call($self, false, 'set', value);
+                                                           
                                                         }
                                                     }
                                                 }

@@ -30,8 +30,10 @@ define(function() {
 			}
 		}
 		
-		return function() {
+		var injected = function() {
 			return callback.apply(context||this, prefixedArguments.concat(Array.prototype.slice.call(arguments)));
 		}
+		injected.$$injected = true;
+		return injected;
 	}
 });
