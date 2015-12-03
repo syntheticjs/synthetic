@@ -166,7 +166,10 @@ define([
             };
 
             // Bubbling itself
-            if (this.$parent) this.$parent.bubbling(e, args);
+            if (this.$scope.$parent && this.$scope.$parent.$synth) {
+                console.log('bubbling ', e);
+                this.$scope.$parent.$synth.bubbling(e, args);
+            }
 
             return response;
         },
@@ -270,13 +273,14 @@ define([
 				var todelete = [];
                 if (this.eventListners[e]) {
     				for (var i = 0; i<this.eventListners[e].length; i++) {
-    					if (this.eventListners[e][i]!==null) {
+    					if (this.eventListners[e] && this.eventListners[e][i]!==null) {
     						if (this.eventListners && typeof this.eventListners[e][i].callback === "function") response = this.eventListners[e][i].callback.apply(this, args);
     						
-    						if (this.eventListners && this.eventListners[e][i].once) {
+    						if (this.eventListners && this.eventListners[e] && this.eventListners[e][i].once) {
 
     							todelete.push(i);
     						};
+                            if ("undefined"===typeof this.eventListners[e]) break;
     					};
     				};
                 };

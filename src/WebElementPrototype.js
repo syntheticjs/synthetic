@@ -263,13 +263,25 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 								в случае, если событие attached уже случилось
 								*/
 								
-								if (self.__config__.attachedEventFires) {
-									//debugger;
-									compiledCallbacker.call(self, false, 'set', self.$element.getAttribute(sx.utils.dasherize(attrn)));
-								} else {
-									self.bind('attached', function() {
-										compiledCallbacker.call(self, false, 'set', self.$element.getAttribute(sx.utils.dasherize(attrn)));
-									}, true);
+								if (self.__config__.attachedEventFires) { 
+									var dashed = sx.utils.dasherize(attrn), 
+									value = self.$element.getAttribute(dashed); 
+									compiledCallbacker.call(self, false, "set", value); 
+									self.$injectors.$scope.attributes[dashed] = value; 
+									if (dashed.substr(0, 5) === "data-") { 
+										self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value; 
+									} 
+								} else { 
+									self.bind("attached", function() { 
+										var dashed = sx.utils.dasherize(attrn), 
+										value = self.$element.getAttribute(dashed); 
+										compiledCallbacker.call(self, false, "set", value); 
+										self.$injectors.$scope.attributes[dashed] = value; 
+									if (dashed.substr(0, 5) === "data-") { 
+										self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value; 
+									} 
+									console.log('FORCE SET ', dashed, value); 
+									}, true); 
 								}
 							}
 							self.$$attrsWatchers[attrn].push(compiledCallbacker);
@@ -464,7 +476,7 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 			Удаляем элемент DOM, если он еще существует
 			*/
 			if (this.$element&&this.$element.parentNode!==null) {
-				this.$element.remove();
+				this.$element.parentNode.removeChild(this.$element);
 			}
 		},
 		/*

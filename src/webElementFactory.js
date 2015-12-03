@@ -388,7 +388,7 @@ define([
             
             this.trigger("rendered", [this.$element]);
             this.__config__.rendered = true;
-            this.bubbling('shake'); // Shake all roots
+            //this.bubbling('shake'); // Shake all roots
 
         });
 

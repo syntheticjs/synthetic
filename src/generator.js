@@ -64,7 +64,7 @@ function(classEvents, minTemplate, synthetModule) {
                             
 
                             $.$.trigger("rendered");
-                            $.$.bubbling('shake'); // Shake all roots
+                            //$.$.bubbling('shake'); // Shake all roots
 
                             if (module) {
 
@@ -80,7 +80,6 @@ function(classEvents, minTemplate, synthetModule) {
                         $.setup(this.configuration.module);
                     }
                     this.$.trigger("rendered");
-                    this.$.bubbling('shake'); // Shake all roots
                 }
             },
             setup: function(module, args) {

@@ -3,7 +3,7 @@ define(function() {
         /*
         Creates new angular app
         */
-        Synthetic.$$angularApp = angular.module('syntheticApp', [], function() {
+        Synthetic.$$angularApp = angular.module('syntheticApp', ['ui.bootstrap', 'ui.bootstrap.datetimepicker'], function() {
                                                         
         }.bind(this));
 

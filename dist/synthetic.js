@@ -285,7 +285,10 @@
                         this.bubblingListners[e][todelete[i]] = null;
                     }
                 }
-                if (this.$parent) this.$parent.bubbling(e, args);
+                if (this.$scope.$parent && this.$scope.$parent.$synth) {
+                    console.log("bubbling ", e);
+                    this.$scope.$parent.$synth.bubbling(e, args);
+                }
                 return response;
             },
             bind: function(e, callback, once) {
@@ -360,11 +363,12 @@
                     var todelete = [];
                     if (this.eventListners[e]) {
                         for (var i = 0; i < this.eventListners[e].length; i++) {
-                            if (this.eventListners[e][i] !== null) {
+                            if (this.eventListners[e] && this.eventListners[e][i] !== null) {
                                 if (this.eventListners && typeof this.eventListners[e][i].callback === "function") response = this.eventListners[e][i].callback.apply(this, args);
-                                if (this.eventListners && this.eventListners[e][i].once) {
+                                if (this.eventListners && this.eventListners[e] && this.eventListners[e][i].once) {
                                     todelete.push(i);
                                 }
+                                if ("undefined" === typeof this.eventListners[e]) break;
                             }
                         }
                     }
@@ -616,10 +620,21 @@
                             if ("object" !== typeof self.$$attrsWatchers[attrn]) {
                                 self.$$attrsWatchers[attrn] = [];
                                 if (self.__config__.attachedEventFires) {
-                                    compiledCallbacker.call(self, false, "set", self.$element.getAttribute(sx.utils.dasherize(attrn)));
+                                    var dashed = sx.utils.dasherize(attrn), value = self.$element.getAttribute(dashed);
+                                    compiledCallbacker.call(self, false, "set", value);
+                                    self.$injectors.$scope.attributes[dashed] = value;
+                                    if (dashed.substr(0, 5) === "data-") {
+                                        self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value;
+                                    }
                                 } else {
                                     self.bind("attached", function() {
-                                        compiledCallbacker.call(self, false, "set", self.$element.getAttribute(sx.utils.dasherize(attrn)));
+                                        var dashed = sx.utils.dasherize(attrn), value = self.$element.getAttribute(dashed);
+                                        compiledCallbacker.call(self, false, "set", value);
+                                        self.$injectors.$scope.attributes[dashed] = value;
+                                        if (dashed.substr(0, 5) === "data-") {
+                                            self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value;
+                                        }
+                                        console.log("FORCE SET ", dashed, value);
                                     }, true);
                                 }
                             }
@@ -735,7 +750,7 @@
                 this.$element.synthetic = null;
                 this.__config__ = {};
                 if (this.$element && this.$element.parentNode !== null) {
-                    this.$element.remove();
+                    this.$element.parentNode.removeChild(this.$element);
                 }
             },
             $hitch: function(cb, keys) {
@@ -851,7 +866,6 @@
                             var test = Synthetic.$$angularCompile(template, undefined, undefined)($self.__config__.$$angularScope);
                             $self.__config__.$$angularElement.empty().append(test);
                             $.$.trigger("rendered");
-                            $.$.bubbling("shake");
                             if (module) {
                                 $.setup(module, args);
                             }
@@ -863,7 +877,6 @@
                         $.setup(this.configuration.module);
                     }
                     this.$.trigger("rendered");
-                    this.$.bubbling("shake");
                 }
             },
             setup: function(module, args) {
@@ -1034,7 +1047,7 @@
     }(mixin2);
     var initAngular = function() {
         return function() {
-            Synthetic.$$angularApp = angular.module("syntheticApp", [], function() {}.bind(this));
+            Synthetic.$$angularApp = angular.module("syntheticApp", [ "ui.bootstrap", "ui.bootstrap.datetimepicker" ], function() {}.bind(this));
             Synthetic.trigger("angularModuleInitialed", [ Synthetic.$$angularApp ]);
             Synthetic.$$angularApp.config(function($controllerProvider, $provide, $compileProvider) {
                 Synthetic.$$angularApp._controller = Synthetic.$$angularApp.controller;
@@ -1314,7 +1327,6 @@
                 }
                 this.trigger("rendered", [ this.$element ]);
                 this.__config__.rendered = true;
-                this.bubbling("shake");
             });
         }.inherit(WebElementPrototype);
     }(WebElementPrototype, mixin2, extend, generator, camelize, getNonScopeValue);
@@ -1838,15 +1850,20 @@
                         scope: true,
                         controller: function($element) {},
                         compile: function($element, $rscope, $a, $controllersBoundTransclude) {
-                            Synthetic($element[0]).__config__.$$angularDirectived = true;
+                            if (Synthetic($element[0])) Synthetic($element[0]).__config__.$$angularDirectived = true; else {
+                                componentCreater.call($element[0], componentFactory);
+                            }
                             return {
                                 pre: function($scope, $element) {
+                                    if (!Synthetic($element[0])) return;
+                                    Synthetic($element[0]).__config__.$$angularDirectived = true;
                                     startextend($scope, componentOptions.scope);
                                     Synthetic($element[0]).__config__.$$angularDirectived = true;
                                     scopeGenerator($element[0].synthetic, $scope);
                                     return function(scope) {};
                                 },
                                 post: function($scope, $element) {
+                                    if (!Synthetic($element[0])) return;
                                     Synthetic($element[0]).__config__.$$angularInitialedStage = 3;
                                 }
                             };

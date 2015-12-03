@@ -109,8 +109,8 @@ AMD Synthet
             в этом случае мы так же должны его игнорировать.
             TODO: выяснить причину дублирования
             */
-            if (this.synthetic) return false;
 
+            if (this.synthetic) return false;
            
             
             // inherit constructors
@@ -250,11 +250,19 @@ AMD Synthet
                         },
                         compile: function($element, $rscope, $a, $controllersBoundTransclude) {
 
+                            if (Synthetic($element[0]))
                             Synthetic($element[0]).__config__.$$angularDirectived = true;
+                            else {
+                                
+                                /* Если директива отработала быстрей через компонент, то мы производим незамедлительную инициализацию */
+                                componentCreater.call($element[0], componentFactory);
+                            }
 
                             
                             return {
                                 pre: function($scope, $element) {
+                                    if (!Synthetic($element[0])) return;
+                                    Synthetic($element[0]).__config__.$$angularDirectived = true;
                                     /*
                                     В данной ситуации пришлось отказаться от использования extend для
                                     создания дефолтного значения scope на основе предустановок;
@@ -294,6 +302,7 @@ AMD Synthet
                                    
                                 },
                                 post: function($scope, $element) {
+                                    if (!Synthetic($element[0])) return;
                                     // 3 этап инициализации angular означает, что объект полностью
                                     // инициализирован
                                     Synthetic($element[0]).__config__.$$angularInitialedStage = 3;
