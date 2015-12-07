@@ -3,11 +3,12 @@ define([
 	"./smartCallback.js",
 	"./classEvents.js",	
 	"polyvitamins~polychrome@master/gist/convert/camelize.js",
+	"polyvitamins~polychrome@master/gist/convert/dasherize.js",
 	"./getNonScopeValue.js",
 	"./box.js",
     "polyvitamins~polyinherit@master",
 ],
-function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValue, Box) {
+function(getObjectByXPath, smartCallback, classEvents, camelize, dasherize, getNonScopeValue, Box) {
 	
 	/*
 	Модифицируем стандартный classEvents
@@ -73,7 +74,7 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 					if (requiredProperties[x][0]==='properties'||requiredProperties[x][0]==='attributes') {
 						attrn = requiredProperties[x][0]==='properties'?'data'+requiredProperties[x][1].charAt(0).toUpperCase()+requiredProperties[x][1].substr(1):requiredProperties[x][1];
 						
-						alldata.push(getNonScopeValue(self.$element.getAttribute(sx.utils.dasherize(attrn))));
+						alldata.push(getNonScopeValue(self.$element.getAttribute(dasherize(attrn))));
 					} else {
 						alldata.push(getNonScopeValue(self.$injectors.$scope.$eval(requiredProperties[x].join('.'))));
 					}
@@ -264,7 +265,7 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 								*/
 								
 								if (self.__config__.attachedEventFires) { 
-									var dashed = sx.utils.dasherize(attrn), 
+									var dashed = dasherize(attrn), 
 									value = self.$element.getAttribute(dashed); 
 									compiledCallbacker.call(self, false, "set", value); 
 									self.$injectors.$scope.attributes[dashed] = value; 
@@ -273,7 +274,7 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 									} 
 								} else { 
 									self.bind("attached", function() { 
-										var dashed = sx.utils.dasherize(attrn), 
+										var dashed = dasherize(attrn), 
 										value = self.$element.getAttribute(dashed); 
 										compiledCallbacker.call(self, false, "set", value); 
 										self.$injectors.$scope.attributes[dashed] = value; 
@@ -352,7 +353,11 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 		$queue: function(callback) {
 			var self = this;
 			if (this.__config__.allWaitingForResolve) {
-				return this.bind(this.__config__.allWaitingForResolve, function() {
+				/*
+				Модификация возврата дестроера на наблюдатель из версии sag, вместо this.bind используется this.on возвращающий собственный дестроер;
+				Это модификация не проверена тестами.
+				*/
+				return this.on(this.__config__.allWaitingForResolve, function() {
 					if (self.$destroyed) return false;
 					callback.apply(this, arguments);
 				}, true);

@@ -399,6 +399,11 @@
             return /^{{[^}}]*}}$/i.test(newValue) || newValue === undefined ? false : newValue;
         };
     }();
+    var dasherize = function() {
+        return function(text) {
+            return text.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+        };
+    }();
     var box = function() {
         return function(handler) {
             this.data = {};
@@ -494,12 +499,16 @@
                     }
                 });
             },
-            toogle: function($value) {
-                return !$value;
+            toggle: function($value) {
+                if ("object" == typeof $value && arguments.length > 1) {
+                    this.toggleAppend.apply(this, arguments);
+                } else {
+                    return !$value;
+                }
             }
         });
     }();
-    var WebElementPrototype = function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValue, Box) {
+    var WebElementPrototype = function(getObjectByXPath, smartCallback, classEvents, camelize, dasherize, getNonScopeValue, Box) {
         return function() {
             this.$watchersHistory = [];
             this.$applyLeaders = {};
@@ -532,7 +541,7 @@
                     for (var x = 0; x < requiredProperties.length; ++x) {
                         if (requiredProperties[x][0] === "properties" || requiredProperties[x][0] === "attributes") {
                             attrn = requiredProperties[x][0] === "properties" ? "data" + requiredProperties[x][1].charAt(0).toUpperCase() + requiredProperties[x][1].substr(1) : requiredProperties[x][1];
-                            alldata.push(getNonScopeValue(self.$element.getAttribute(sx.utils.dasherize(attrn))));
+                            alldata.push(getNonScopeValue(self.$element.getAttribute(dasherize(attrn))));
                         } else {
                             alldata.push(getNonScopeValue(self.$injectors.$scope.$eval(requiredProperties[x].join("."))));
                         }
@@ -620,7 +629,7 @@
                             if ("object" !== typeof self.$$attrsWatchers[attrn]) {
                                 self.$$attrsWatchers[attrn] = [];
                                 if (self.__config__.attachedEventFires) {
-                                    var dashed = sx.utils.dasherize(attrn), value = self.$element.getAttribute(dashed);
+                                    var dashed = dasherize(attrn), value = self.$element.getAttribute(dashed);
                                     compiledCallbacker.call(self, false, "set", value);
                                     self.$injectors.$scope.attributes[dashed] = value;
                                     if (dashed.substr(0, 5) === "data-") {
@@ -628,7 +637,7 @@
                                     }
                                 } else {
                                     self.bind("attached", function() {
-                                        var dashed = sx.utils.dasherize(attrn), value = self.$element.getAttribute(dashed);
+                                        var dashed = dasherize(attrn), value = self.$element.getAttribute(dashed);
                                         compiledCallbacker.call(self, false, "set", value);
                                         self.$injectors.$scope.attributes[dashed] = value;
                                         if (dashed.substr(0, 5) === "data-") {
@@ -685,7 +694,7 @@
             $queue: function(callback) {
                 var self = this;
                 if (this.__config__.allWaitingForResolve) {
-                    return this.bind(this.__config__.allWaitingForResolve, function() {
+                    return this.on(this.__config__.allWaitingForResolve, function() {
                         if (self.$destroyed) return false;
                         callback.apply(this, arguments);
                     }, true);
@@ -773,7 +782,7 @@
                 return this;
             }
         });
-    }(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValue, box);
+    }(getObjectByXPath, smartCallback, classEvents, camelize, dasherize, getNonScopeValue, box);
     var extend = function() {
         var hasOwn = Object.prototype.hasOwnProperty;
         var toStr = Object.prototype.toString;
@@ -858,13 +867,18 @@
             },
             render: function(template, module, args) {
                 var $ = this;
+                if ("function" === typeof template) {
+                    this.$inject(template)();
+                    template = this.$.$element.innerHTML;
+                }
                 if (template) this.configuration.template = template;
                 this.configuration.module = "function" === typeof module ? module : false;
                 if (this.$.__config__.$$angularInitialedStage > 1) {
                     this.$inject(function($self, template, module) {
                         $self.__config__.$$angularScope.$applyAsync(function() {
                             var test = Synthetic.$$angularCompile(template, undefined, undefined)($self.__config__.$$angularScope);
-                            $self.__config__.$$angularElement.empty().append(test);
+                            if (Synthetic.$angularjQueryPowered) $self.__config__.$$angularElement.html(test); else $self.__config__.$$angularElement.empty().append(test);
+                            $.$.trigger("rendered");
                             $.$.trigger("rendered");
                             if (module) {
                                 $.setup(module, args);
@@ -1047,7 +1061,7 @@
     }(mixin2);
     var initAngular = function() {
         return function() {
-            Synthetic.$$angularApp = angular.module("syntheticApp", [ "ui.bootstrap", "ui.bootstrap.datetimepicker" ], function() {}.bind(this));
+            Synthetic.$$angularApp = angular.module("syntheticApp", [], function() {}.bind(this));
             Synthetic.trigger("angularModuleInitialed", [ Synthetic.$$angularApp ]);
             Synthetic.$$angularApp.config(function($controllerProvider, $provide, $compileProvider) {
                 Synthetic.$$angularApp._controller = Synthetic.$$angularApp.controller;
@@ -1100,15 +1114,16 @@
                 };
             });
             if ("object" !== typeof angular.element(document.body).injector()) {
-                Synthetic.$$angularApp.controller("syntheticController", function($element, $scope) {});
-                document.body.setAttribute("ng-jq", "");
-                document.body.setAttribute("ng-controller", "syntheticController");
                 angular.element(document.body).ready(function() {
+                    Synthetic.$angularjQueryPowered = "function" === typeof angular.element.noConflict;
+                    Synthetic.$$angularApp.controller("syntheticController", function($element, $scope) {});
+                    document.body.setAttribute("ng-jq", "");
+                    document.body.setAttribute("ng-controller", "syntheticController");
                     setTimeout(function() {
                         angular.bootstrap(document.body, [ "syntheticApp" ]);
                         Synthetic.$$angularBootstraped = true;
                         Synthetic.trigger("angularBootstraped");
-                    }, 120);
+                    }, 1);
                 }.bind(this));
             }
         };
@@ -1214,7 +1229,8 @@
                     $element: element,
                     $self: this,
                     $component: component,
-                    $generator: new Generator(this)
+                    $generator: new Generator(this),
+                    $stock: {}
                 }
             });
             if ("object" === typeof angular && angular.bootstrap && component.options.engine.name === "angular") {
@@ -1258,6 +1274,20 @@
                         this.$$scope.$shadowTemplate = nv.substr(9);
                     }
                 }
+            }
+            switch (component.options.defaultHtml) {
+              case "preserve":
+                this.$injectors.$defaultHtml = document.createDocumentFragment();
+                for (var i = 0; i < element.childNodes.length; ++i) {
+                    if (element.childNodes[i].nodeType === 1) {
+                        this.$injectors.$defaultHtml.appendChild(element.childNodes[i]);
+                    }
+                }
+                break;
+
+              case "clear":
+                element.innerHTML = "";
+                break;
             }
             this.$queue(function() {
                 var pe = this.$element.parentNode;
@@ -1871,8 +1901,9 @@
                     };
                 });
             }
-            document.registerElement(componentOptions.name, {
-                prototype: Object.create(HTMLElement.prototype, {
+            var prototype = window[componentOptions.HTMLElementPrototype || "HTMLElement"].prototype;
+            var elementOptions = {
+                prototype: Object.create(prototype, {
                     createdCallback: {
                         value: function() {
                             componentCreater.call(this, componentFactory);
@@ -1930,7 +1961,9 @@
                         }
                     }
                 })
-            });
+            };
+            if (componentOptions.extends) elementOptions.extends = elementOptions.extends;
+            document.registerElement(componentOptions.name, elementOptions);
             return componentFactory;
         };
         if (window) window.Synthetic = Synthetic;

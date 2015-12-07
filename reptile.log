@@ -1,12 +1,12 @@
 Ok, im reptilie
-VIRTUAL /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/synthetic.js
+VIRTUAL /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/synthetic.js
      /Users/VladimirMorulus/WorkAreas/mahabra/components/inherit/component.json
      SUBVIRTUAL /Users/VladimirMorulus/WorkAreas/mahabra/components/inherit/src/inherit.js
           /Users/VladimirMorulus/WorkAreas/mahabra/components/mixin/component.json
           SUBVIRTUAL /Users/VladimirMorulus/WorkAreas/mahabra/components/mixin/src/mixin.js
-     /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/classEvents.js
-          /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/smartCallback.js
-     /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/templateManager.js
+     /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/classEvents.js
+          /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/smartCallback.js
+     /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/templateManager.js
           /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/polyinherit/component.json
           SUBVIRTUAL /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/polyinherit/src/polyinherit.js
                /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/inherit/component.json
@@ -15,18 +15,20 @@ VIRTUAL /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic
                     SUBVIRTUAL /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/mixin/src/mixin.js
      /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/polychrome/component.json/gist/convert/camelize.js
      SUBVIRTUAL /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/polychrome/src/gist/convert/camelize.js
-     /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/preFactory.js
-     /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/initAngular.js
-     /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/scopeGenerator.js
-          /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/scopeUtilits.js
-     /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/webElementFactory.js
-          /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/WebElementPrototype.js
-               /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/getObjectByXPath.js
-               /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/getNonScopeValue.js
-               /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/box.js
+     /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/preFactory.js
+     /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/initAngular.js
+     /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/scopeGenerator.js
+          /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/scopeUtilits.js
+     /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/webElementFactory.js
+          /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/WebElementPrototype.js
+               /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/getObjectByXPath.js
+               /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/polychrome/component.json/gist/convert/dasherize.js
+               SUBVIRTUAL /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/polychrome/src/gist/convert/dasherize.js
+               /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/getNonScopeValue.js
+               /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/box.js
           /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/extend/component.json
           SUBVIRTUAL /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/extend/src/extend.js
-          /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/generator.js
-               /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/templaters/min.js
-               /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/modulePrototype.js
-     /Users/VladimirMorulus/WorkAreas/Projects/sx/sx2/client/vendor/synthetic/src/d3party/WebReflection/document-register-element.amd.js
+          /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/generator.js
+               /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/templaters/min.js
+               /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/modulePrototype.js
+     /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/d3party/WebReflection/document-register-element.amd.js

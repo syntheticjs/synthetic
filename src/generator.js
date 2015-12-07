@@ -38,8 +38,16 @@ function(classEvents, minTemplate, synthetModule) {
             },
             render: function(template, module, args) {
 
-                
                 var $ = this;
+                /*
+                Модификация от sag, позволяюшая устанавливать темплейт посредством выполнения функции, включающей в себя
+                манипуляции с самим элементом
+                */
+                if ("function" === typeof template) {
+                    this.$inject(template)();
+                    template = this.$.$element.innerHTML;
+                }
+
                 if (template) this.configuration.template = template;
                 this.configuration.module = "function"===typeof module?module:false;
                 if (this.$.__config__.$$angularInitialedStage>1) {
@@ -56,7 +64,11 @@ function(classEvents, minTemplate, synthetModule) {
                             append предварительно очищая элемент с помощью html('').
                             */
 
-                            $self.__config__.$$angularElement.empty().append(test);
+                            /*
+                            Модификация от sag, позволяюшая использовать рендеринг при использовании jQuery, вместо JQLite.
+                            */
+                            if (Synthetic.$angularjQueryPowered) $self.__config__.$$angularElement.html(test); else $self.__config__.$$angularElement.empty().append(test);
+                            $.$.trigger("rendered");
 
                             /*
                             После установки шаблона необходимо произвести пересмотр scope

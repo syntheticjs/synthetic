@@ -313,10 +313,11 @@ AMD Synthet
                         }
                     }
                 });
-            }
+            };
 
-            document.registerElement(componentOptions.name, {
-                prototype: Object.create(HTMLElement.prototype, {
+            var prototype = window[componentOptions.HTMLElementPrototype || "HTMLElement"].prototype;
+            var elementOptions = {
+                prototype: Object.create(prototype, {
                     createdCallback: {
                         value: function() {
                             componentCreater.call(this, componentFactory);
@@ -404,11 +405,10 @@ AMD Synthet
                         }
                     }
                 })
-            });
-           
+            };
 
-            
-
+            if (componentOptions.extends) elementOptions.extends = elementOptions.extends;
+            document.registerElement(componentOptions.name, elementOptions);
             return componentFactory;
         }
 

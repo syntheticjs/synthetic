@@ -15,9 +15,14 @@ define(function() {
 				}
 			});
 		},
-		toogle: function($value) {
-			return !$value;
-		}
+		toggle: function($value) {
+            if ("object" == typeof $value && arguments.length > 1) {
+                this.toggleAppend.apply(this, arguments);
+            } else {
+
+                return !$value;
+            }
+        }
 	})
 
 });

@@ -3,7 +3,7 @@ define(function() {
         /*
         Creates new angular app
         */
-        Synthetic.$$angularApp = angular.module('syntheticApp', ['ui.bootstrap', 'ui.bootstrap.datetimepicker'], function() {
+        Synthetic.$$angularApp = angular.module('syntheticApp', [], function() {
                                                         
         }.bind(this));
 
@@ -123,23 +123,18 @@ define(function() {
         */
         if ("object"!==typeof angular.element(document.body).injector()) {
 
-            Synthetic.$$angularApp.controller('syntheticController', 
-                function ($element, $scope) {
-                   
-                }
-            );  
-
-            document.body.setAttribute('ng-jq', '');
-            document.body.setAttribute('ng-controller', 'syntheticController');
-
             angular.element(document.body).ready(function() {
-                        setTimeout(function() {
-                            
-                            angular.bootstrap(document.body, 
-                            ['syntheticApp']);
-                            Synthetic.$$angularBootstraped = true;
-                            Synthetic.trigger('angularBootstraped');
-                        }, 120);
+                Synthetic.$angularjQueryPowered = "function" === typeof angular.element.noConflict;
+                Synthetic.$$angularApp.controller("syntheticController", function($element, $scope) {});
+                document.body.setAttribute("ng-jq", "");
+                document.body.setAttribute("ng-controller", "syntheticController");
+
+                setTimeout(function() {
+                    angular.bootstrap(document.body, [ "syntheticApp" ]);
+                    Synthetic.$$angularBootstraped = true;
+                    Synthetic.trigger("angularBootstraped");
+
+                }, 1);
             }.bind(this));
         }
 	}

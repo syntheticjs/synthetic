@@ -140,7 +140,8 @@ define([
                 $element: element,
                 $self: this,
                 $component: component,
-                $generator: new Generator(this)
+                $generator: new Generator(this),
+                $stock: {}
             }
         });
 
@@ -234,6 +235,21 @@ define([
                     this.$$scope.$shadowTemplate = nv.substr(9);
                 }
             }
+        }
+
+        switch (component.options.defaultHtml) {
+            case "preserve":
+                this.$injectors.$defaultHtml = document.createDocumentFragment();
+                for (var i = 0; i < element.childNodes.length; ++i) {
+                    if (element.childNodes[i].nodeType === 1) {
+                        this.$injectors.$defaultHtml.appendChild(element.childNodes[i]);
+                    }
+                }
+            break;
+
+            case "clear":
+                element.innerHTML = "";
+            break;
         }
 
         this.$queue(function() {
