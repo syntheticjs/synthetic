@@ -120,7 +120,7 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 				В случае, если система ожидает инициализации какого то приложения,
 				функции прослушивания переменных задерживаются до инициализации
 				*/
-				console.log('wait for resolve', this.__config__.allWaitingForResolve);
+				
 				var unwatcher = this.$queue(function(args) {
 					unwatcher = this.$watch.apply(this, args);
 				}.bind(this, arguments)),
@@ -152,7 +152,7 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 			
 			var lastTrack = {}; // Последнее состояние срабатываения
 
-
+			var ownBox = new Box();
 
 			/*
 			Начинаем наблюдение за переменной
@@ -161,9 +161,8 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 				
 				var injectedCallback = self.$inject(callback, {
 					$unwatch: $unwatcher,
-					$box: new Box()
+					$box: ownBox
 				});
-
 
 
 				injectedCallback.$$injected = true;
@@ -266,6 +265,7 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 								if (self.__config__.attachedEventFires) { 
 									var dashed = sx.utils.dasherize(attrn), 
 									value = self.$element.getAttribute(dashed); 
+									if (value===null) value = false;
 									compiledCallbacker.call(self, false, "set", value); 
 									self.$injectors.$scope.attributes[dashed] = value; 
 									if (dashed.substr(0, 5) === "data-") { 
@@ -275,12 +275,13 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 									self.bind("attached", function() { 
 										var dashed = sx.utils.dasherize(attrn), 
 										value = self.$element.getAttribute(dashed); 
+										if (value===null) value = false;
 										compiledCallbacker.call(self, false, "set", value); 
 										self.$injectors.$scope.attributes[dashed] = value; 
 									if (dashed.substr(0, 5) === "data-") { 
 										self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value; 
 									} 
-									console.log('FORCE SET ', dashed, value); 
+									
 									}, true); 
 								}
 							}
@@ -418,6 +419,21 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 		$template: function(content) {
 			this.$injectors.$generator.template(content);
 			return this;
+		},
+		/*
+		Принудительно выполняет действия связанные с deatch
+		*/
+		$detach: function() {
+
+			this.__config__.allWaitingForResolve = 'attached';
+            this.__config__.attachedEventFires = false;
+
+            /*
+			Если у модуля есть темплейт, мы должны произвести дестрой его модуля
+            */
+            this.$injectors.$generator.destroy();
+
+            this.trigger("detached", [ this.synthetic ]);
 		},
 		$destroy: function() {
 			

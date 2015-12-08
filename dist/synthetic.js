@@ -22,7 +22,7 @@
         var funcarguments = new RegExp(/[\d\t]*function[ ]?\(([^\)]*)\)/i), scopesregex = /({[^{}}]*[\n\r]*})/g, funcarguments = new RegExp(/[\d\t]*function[ ]?\(([^\)]*)\)/i), getFunctionArguments = function(code) {
             if (funcarguments.test(code)) {
                 var match = funcarguments.exec(code);
-                return match[1].replace(/ /g, "").split(",");
+                return match[1].replace(/[\s\n\r\t]*/g, "").split(",");
             }
             return [];
         };
@@ -412,6 +412,9 @@
                     this.context = context;
                 }
             },
+            get: function(prop) {
+                return this.data[prop];
+            },
             set: function() {
                 var data = {}, diff = false;
                 arguments.length > 1 ? (data = {}, data[arguments[0]] = arguments[1]) : data = arguments[0];
@@ -422,6 +425,16 @@
                     }
                 }
                 return diff;
+            },
+            init: function() {
+                var data = {};
+                arguments.length > 1 ? (data = {}, data[arguments[0]] = arguments[1]) : data = arguments[0];
+                for (var prop in data) {
+                    if (data.hasOwnProperty(prop)) {
+                        if ("undefined" !== typeof this.data[prop]) continue;
+                        this.data[prop] = data[prop];
+                    }
+                }
             },
             $apply: function() {
                 this.set.apply(this, arguments);
@@ -552,7 +565,6 @@
             $watch: function() {
                 var self = this;
                 if (this.__config__.allWaitingForResolve) {
-                    console.log("wait for resolve", this.__config__.allWaitingForResolve);
                     var unwatcher = this.$queue(function(args) {
                         unwatcher = this.$watch.apply(this, args);
                     }.bind(this, arguments)), here = this;
@@ -571,10 +583,11 @@
                     requiredProperties.push(xpath.concat(properties[i].split(".")));
                 }
                 var lastTrack = {};
+                var ownBox = new Box();
                 var getDatas = function(requiredProperties, rprops, $unwatcher) {
                     var injectedCallback = self.$inject(callback, {
                         $unwatch: $unwatcher,
-                        $box: new Box()
+                        $box: ownBox
                     });
                     injectedCallback.$$injected = true;
                     if (self.__config__.rendered) {
@@ -621,6 +634,7 @@
                                 self.$$attrsWatchers[attrn] = [];
                                 if (self.__config__.attachedEventFires) {
                                     var dashed = sx.utils.dasherize(attrn), value = self.$element.getAttribute(dashed);
+                                    if (value === null) value = false;
                                     compiledCallbacker.call(self, false, "set", value);
                                     self.$injectors.$scope.attributes[dashed] = value;
                                     if (dashed.substr(0, 5) === "data-") {
@@ -629,12 +643,12 @@
                                 } else {
                                     self.bind("attached", function() {
                                         var dashed = sx.utils.dasherize(attrn), value = self.$element.getAttribute(dashed);
+                                        if (value === null) value = false;
                                         compiledCallbacker.call(self, false, "set", value);
                                         self.$injectors.$scope.attributes[dashed] = value;
                                         if (dashed.substr(0, 5) === "data-") {
                                             self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value;
                                         }
-                                        console.log("FORCE SET ", dashed, value);
                                     }, true);
                                 }
                             }
@@ -723,6 +737,12 @@
             $template: function(content) {
                 this.$injectors.$generator.template(content);
                 return this;
+            },
+            $detach: function() {
+                this.__config__.allWaitingForResolve = "attached";
+                this.__config__.attachedEventFires = false;
+                this.$injectors.$generator.destroy();
+                this.trigger("detached", [ this.synthetic ]);
             },
             $destroy: function() {
                 if (this.$destroyed) return true;
@@ -895,7 +915,7 @@
                     var overMod = function() {}.proto(this.$.__config__.templateModulePrototype);
                     nm = nm.inherit(overMod);
                 }
-                var initial = function() {
+                this.moduleReinit = function() {
                     if (args) {
                         $synthet.module = nm.construct(args);
                     } else {
@@ -903,9 +923,9 @@
                     }
                 };
                 if ("function" === typeof this.$.__config__.initialUserModuleCondition) {
-                    this.$.__config__.initialUserModuleCondition.call($synthet, initial);
+                    this.$.__config__.initialUserModuleCondition.call($synthet, this.moduleReinit);
                 } else {
-                    initial();
+                    this.moduleReinit();
                 }
             },
             destroy: function() {
@@ -1745,6 +1765,7 @@
                 }
             }
         };
+        var componentDettacher = function() {};
         var componentAttacher = function() {
             if (!this.synthetic.__config__.permanent) {
                 var pe = this.synthetic.$element.parentNode;
@@ -1758,6 +1779,9 @@
                 if (this.synthetic.$parent) {
                     this.synthetic.$parent.$$registerChild(this.synthetic);
                     this.synthetic.trigger("parentDefined");
+                }
+                if (this.synthetic.$injectors.$generator.configuration.module) {
+                    this.synthetic.$injectors.$generator.moduleReinit();
                 }
             }
             this.synthetic.trigger("attached", [ this.synthetic ]);
@@ -1887,9 +1911,7 @@
                     detachedCallback: {
                         value: function() {
                             if (this.synthetic.$destroyed) return false;
-                            this.synthetic.__config__.allWaitingForResolve = "attached";
-                            this.synthetic.__config__.attachedEventFires = false;
-                            this.synthetic.trigger("detached", [ this.synthetic ]);
+                            this.synthetic.$detach();
                         }
                     },
                     attributeChangedCallback: {
@@ -1908,7 +1930,7 @@
                                             if (name.substr(0, 5) === "data-") {
                                                 $self.$injectors.$scope.properties[camelize(name.substr(5))] = value;
                                             }
-                                            if (value === "") value = false;
+                                            if (value === null) value = false;
                                             if ($self.$$attrsWatchers[camelized]) {
                                                 if ($self.__config__.attachedEventFires) {
                                                     for (var i = 0; i < $self.$$attrsWatchers[camelized].length; ++i) {

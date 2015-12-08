@@ -12,6 +12,9 @@ define(function() {
 				this.context = context;
 			}
 		},
+		get: function(prop) {
+			return this.data[prop];
+		},
 		set: function() {
 
 			var data={},diff=false;
@@ -24,6 +27,21 @@ define(function() {
 				}
 			}
 			return diff;
+		},
+		/*
+		Аналогичен set, но присванивание произовдится лишь один раз при старте.
+		Повторное присваивание не производится
+		*/
+		init: function() {
+			var data={};
+			;(arguments.length>1 ? (data={},data[arguments[0]]=arguments[1]) : (data=arguments[0]));
+
+			for (var prop in data) {
+				if (data.hasOwnProperty(prop)) {
+					if ("undefined"!==typeof this.data[prop]) continue;
+					this.data[prop] = data[prop];
+				}
+			}
 		},
 		$apply: function() {
 

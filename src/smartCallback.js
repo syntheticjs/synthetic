@@ -5,7 +5,7 @@ define(function() {
 	getFunctionArguments = function(code) {
 		if (funcarguments.test(code)) {
 			var match = funcarguments.exec(code);
-			return match[1].replace(/ /g,'').split(',');
+			return match[1].replace(/[\s\n\r\t]*/g,'').split(',');
 		}
 		return [];
 	};

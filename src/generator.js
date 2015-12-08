@@ -115,7 +115,7 @@ function(classEvents, minTemplate, synthetModule) {
                     nm = nm.inherit(overMod);
                 }  
 
-                var initial = function() {
+                this.moduleReinit = function() {
                      if (args) {
                         $synthet.module = nm.construct(args);
                     } else {
@@ -124,9 +124,9 @@ function(classEvents, minTemplate, synthetModule) {
                 };
 
                 if ("function"===typeof this.$.__config__.initialUserModuleCondition) {
-                    this.$.__config__.initialUserModuleCondition.call($synthet, initial);
+                    this.$.__config__.initialUserModuleCondition.call($synthet, this.moduleReinit);
                 } else {
-                    initial();
+                    this.moduleReinit();
                 }
                
 

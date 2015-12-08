@@ -18,19 +18,18 @@ define([
      */
     return function(element, component) {
         /*
-         Устанавливаем отладочную идентификацию
-         */
+        Устанавливаем отладочную идентификацию
+        */
         this.$sid = 'sid'+(new Date()).getTime()+Math.round(Math.random()*10000000);
 
         /*
-         DEPRODATED: Если в качестве движка выбран angular мы должны добавить аттрибут-директиру, которая уже описана при регистрации компонента
-         TODO: Убедиться, что процедура больше не нужна
-         */
+        DEPRODATED: Если в качестве движка выбран angular мы должны добавить аттрибут-директиру, которая уже описана при регистрации компонента
+        TODO: Убедиться, что процедура больше не нужна
+        */
         if (component.options.engine.name==='angular') {
-
             element.setAttribute("sid", this.$sid);
             this.$$attrsWatchers = {}; // Дополнительный ресурс для watchers, ускоряющий работу за отслеживанием аттрибутов
-        }
+        };
 
         this.capture('destroy', function() {
             this.$destroy();

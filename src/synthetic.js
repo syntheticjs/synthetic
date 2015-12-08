@@ -29,10 +29,7 @@ AMD Synthet
     initAngular,
     scopeGenerator,
     WebElementFactory
-) { 
-
-        
-
+) {
         function getRandomColor() {
             var letters = '0123456789ABCDEF'.split('');
             var color = '#';
@@ -56,6 +53,13 @@ AMD Synthet
                     }
                 }
             }
+        }
+        /*
+        Ангуляр проихзводит детач вместо уничтожения элемента при удаление элемента из списка
+        посредством изменения модели, поэтому событие должно вызывает дестрой для темплейта.
+        */
+        var componentDettacher = function() {
+            
         }
         var componentAttacher = function() {
             /*
@@ -94,6 +98,13 @@ AMD Synthet
                 if (this.synthetic.$parent) {
                     this.synthetic.$parent.$$registerChild(this.synthetic);
                     this.synthetic.trigger('parentDefined');
+                }
+
+                /*
+                Делаем инициализацию template
+                */
+                if (this.synthetic.$injectors.$generator.configuration.module) {
+                    this.synthetic.$injectors.$generator.moduleReinit();
                 }
 
             }
@@ -333,9 +344,7 @@ AMD Synthet
                     detachedCallback: {
                         value: function() {
                             if (this.synthetic.$destroyed) return false;
-                            this.synthetic.__config__.allWaitingForResolve = 'attached';
-                            this.synthetic.__config__.attachedEventFires = false;
-                            this.synthetic.trigger("detached", [ this.synthetic ]);
+                            this.synthetic.$detach();
                         }
                     },
                     attributeChangedCallback: {
@@ -375,7 +384,7 @@ AMD Synthet
                                                         $self.$injectors.$scope.properties[camelize(name.substr(5))] = value;
                                                 }
 
-                                                if (value==='') value = false;
+                                                if (value===null) value = false;
 
                                                 if ($self.$$attrsWatchers[camelized]) {
                                                     if ($self.__config__.attachedEventFires) {
