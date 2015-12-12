@@ -121,7 +121,6 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, dasherize, getN
 				В случае, если система ожидает инициализации какого то приложения,
 				функции прослушивания переменных задерживаются до инициализации
 				*/
-				console.log('wait for resolve', this.__config__.allWaitingForResolve);
 				var unwatcher = this.$queue(function(args) {
 					unwatcher = this.$watch.apply(this, args);
 				}.bind(this, arguments)),
@@ -281,7 +280,6 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, dasherize, getN
 									if (dashed.substr(0, 5) === "data-") { 
 										self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value; 
 									} 
-									console.log('FORCE SET ', dashed, value); 
 									}, true); 
 								}
 							}

@@ -17,6 +17,7 @@ define([
      модуль.
      */
     return function(element, component) {
+
         /*
          Устанавливаем отладочную идентификацию
          */
@@ -236,15 +237,22 @@ define([
                 }
             }
         }
-
+        
         switch (component.options.defaultHtml) {
             case "preserve":
                 this.$injectors.$defaultHtml = document.createDocumentFragment();
+
+                
+
                 for (var i = 0; i < element.childNodes.length; ++i) {
-                    if (element.childNodes[i].nodeType === 1) {
-                        this.$injectors.$defaultHtml.appendChild(element.childNodes[i]);
+                    /*
+                    При клонировании элемента обязательно нужно указывать параметр deep (протестировано на sag)
+                    */
+                    if (element.childNodes[i].nodeType === 1 || element.childNodes[i].nodeType === 3) {
+                        this.$injectors.$defaultHtml.appendChild(element.childNodes[i].cloneNode(true));
                     }
                 }
+
             break;
 
             case "clear":

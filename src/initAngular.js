@@ -129,12 +129,12 @@ define(function() {
                 document.body.setAttribute("ng-jq", "");
                 document.body.setAttribute("ng-controller", "syntheticController");
 
-                setTimeout(function() {
+                
                     angular.bootstrap(document.body, [ "syntheticApp" ]);
                     Synthetic.$$angularBootstraped = true;
                     Synthetic.trigger("angularBootstraped");
 
-                }, 1);
+                
             }.bind(this));
         }
 	}

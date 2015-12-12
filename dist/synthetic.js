@@ -561,7 +561,6 @@
             $watch: function() {
                 var self = this;
                 if (this.__config__.allWaitingForResolve) {
-                    console.log("wait for resolve", this.__config__.allWaitingForResolve);
                     var unwatcher = this.$queue(function(args) {
                         unwatcher = this.$watch.apply(this, args);
                     }.bind(this, arguments)), here = this;
@@ -643,7 +642,6 @@
                                         if (dashed.substr(0, 5) === "data-") {
                                             self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value;
                                         }
-                                        console.log("FORCE SET ", dashed, value);
                                     }, true);
                                 }
                             }
@@ -1119,11 +1117,9 @@
                     Synthetic.$$angularApp.controller("syntheticController", function($element, $scope) {});
                     document.body.setAttribute("ng-jq", "");
                     document.body.setAttribute("ng-controller", "syntheticController");
-                    setTimeout(function() {
-                        angular.bootstrap(document.body, [ "syntheticApp" ]);
-                        Synthetic.$$angularBootstraped = true;
-                        Synthetic.trigger("angularBootstraped");
-                    }, 1);
+                    angular.bootstrap(document.body, [ "syntheticApp" ]);
+                    Synthetic.$$angularBootstraped = true;
+                    Synthetic.trigger("angularBootstraped");
                 }.bind(this));
             }
         };
@@ -1279,8 +1275,8 @@
               case "preserve":
                 this.$injectors.$defaultHtml = document.createDocumentFragment();
                 for (var i = 0; i < element.childNodes.length; ++i) {
-                    if (element.childNodes[i].nodeType === 1) {
-                        this.$injectors.$defaultHtml.appendChild(element.childNodes[i]);
+                    if (element.childNodes[i].nodeType === 1 || element.childNodes[i].nodeType === 3) {
+                        this.$injectors.$defaultHtml.appendChild(element.childNodes[i].cloneNode(true));
                     }
                 }
                 break;
@@ -1776,6 +1772,13 @@
             }
         };
         var componentAttacher = function() {
+            var self = this;
+            if (!Synthetic.$$angularBootstraped) {
+                this.synthetic.$element.style.visibility = "hidden";
+                Synthetic.bind("angularBootstraped", function() {
+                    self.synthetic.$element.style.visibility = "visible";
+                }, true);
+            }
             if (!this.synthetic.__config__.permanent) {
                 var pe = this.synthetic.$element.parentNode;
                 while (!(pe === null || "undefined" !== typeof pe.synthetic)) {
@@ -1880,6 +1883,7 @@
                         scope: true,
                         controller: function($element) {},
                         compile: function($element, $rscope, $a, $controllersBoundTransclude) {
+                            var $defaultHtml = $element[0].innerHTML;
                             if (Synthetic($element[0])) Synthetic($element[0]).__config__.$$angularDirectived = true; else {
                                 componentCreater.call($element[0], componentFactory);
                             }
@@ -1906,7 +1910,7 @@
                 prototype: Object.create(prototype, {
                     createdCallback: {
                         value: function() {
-                            componentCreater.call(this, componentFactory);
+                            componentCreater.call(this, componentFactory, this.innerHTML);
                         }
                     },
                     attachedCallback: {

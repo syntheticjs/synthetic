@@ -58,6 +58,14 @@ AMD Synthet
             }
         }
         var componentAttacher = function() {
+            var self = this;
+            if (!Synthetic.$$angularBootstraped) {
+                
+                this.synthetic.$element.style.visibility = 'hidden';
+                Synthetic.bind('angularBootstraped', function() {
+                       self.synthetic.$element.style.visibility = 'visible';
+                    }, true);
+            }
             /*
             Если элемент добавлен в дерево 
             */
@@ -250,6 +258,9 @@ AMD Synthet
                         },
                         compile: function($element, $rscope, $a, $controllersBoundTransclude) {
 
+                            // Запоминаем стартовое значение html
+                            var $defaultHtml = $element[0].innerHTML;
+
                             if (Synthetic($element[0]))
                             Synthetic($element[0]).__config__.$$angularDirectived = true;
                             else {
@@ -320,7 +331,7 @@ AMD Synthet
                 prototype: Object.create(prototype, {
                     createdCallback: {
                         value: function() {
-                            componentCreater.call(this, componentFactory);
+                            componentCreater.call(this, componentFactory, this.innerHTML);
                         }
                     },
                     attachedCallback: {

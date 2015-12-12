@@ -37,7 +37,7 @@ function(classEvents, minTemplate, synthetModule) {
                 this.render();
             },
             render: function(template, module, args) {
-
+                
                 var $ = this;
                 /*
                 Модификация от sag, позволяюшая устанавливать темплейт посредством выполнения функции, включающей в себя
@@ -45,7 +45,9 @@ function(classEvents, minTemplate, synthetModule) {
                 */
                 if ("function" === typeof template) {
                     this.$inject(template)();
+
                     template = this.$.$element.innerHTML;
+
                 }
 
                 if (template) this.configuration.template = template;
