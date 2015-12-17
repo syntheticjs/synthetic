@@ -89,7 +89,7 @@ function(classEvents, minTemplate, synthetModule) {
                 /*
                 Для начала запускаем дестроер для старого модуля, если он есть
                 */
-                if ("object"===typeof this.$.module&&"function"===typeof this.$.module.$destroy) {
+                if (null !== this.$.module && "object"===typeof this.$.module&&"function"===typeof this.$.module.$destroy) {
                     this.$.module.$destroy();
                 }
 
@@ -137,11 +137,11 @@ function(classEvents, minTemplate, synthetModule) {
                 Очищаем модуль
                 */
                 
-                if ("object"===typeof this.$.module&&"function"===typeof this.$.module.destory) {
+                if (this.$.module!==null && "object"===typeof this.$.module&&"function"===typeof this.$.module.destory) {
                     this.$.module.destory();
                 }
                 
-                if ("object"===typeof this.$.module&&"function"===typeof this.$.module.$destroy) {
+                if (this.$.module!==null && "object"===typeof this.$.module&&"function"===typeof this.$.module.$destroy) {
                     this.$.module.$destroy();
                 }
 

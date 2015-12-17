@@ -5,7 +5,7 @@ define([
 	"polyvitamins~polychrome@master/gist/convert/camelize.js",
 	"./getNonScopeValue.js",
 	"./box.js",
-    "polyvitamins~polyinherit@master",
+    "./d3party/polyinherit/polyinherit.js",
 ],
 function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValue, Box) {
 	
@@ -502,7 +502,7 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, getNonScopeValu
 		$hitch: function(cb, keys) {
 			var fkey = cb.toString()+("object"===typeof keys ? JSON.stringify(keys) : (keys ? keys.toString() : '') );
             if ("function"===typeof this.$hitchers[fkey]) this.$hitchers[fkey].call(this);
-            this.$hitchers[fkey] = this.$run(cb);
+            this.$hitchers[fkey] = this.$inject(cb).apply(this, keys instanceof Array?keys:[]);
             return function(i) {
                 this.$hitchers[i].call(this); delete this.$hitchers[i];
             }.bind(this, fkey)

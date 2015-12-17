@@ -16,7 +16,7 @@ AMD Synthet
     "./initAngular.js",
     "./scopeGenerator.js",
     "./webElementFactory.js",
-    "polyvitamins~polyinherit@master",
+    "./d3party/polyinherit/polyinherit.js",
     "./d3party/WebReflection/document-register-element.amd.js"
 ], function(
     inherit, 

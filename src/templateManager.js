@@ -1,5 +1,5 @@
 define([
-    "polyvitamins~polyinherit@master"
+    "./d3party/polyinherit/polyinherit.js"
 ], function() {
 
 	var templateManager = function(){ 

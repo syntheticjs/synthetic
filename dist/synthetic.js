@@ -1,23 +1,4 @@
 (function(m, o, r, u, l, u, s) {
-    var mixin = function() {
-        var mixinup = function(a, b) {
-            for (var i in b) {
-                if (b.hasOwnProperty(i)) {
-                    a[i] = b[i];
-                }
-            }
-            return a;
-        };
-        return function(a) {
-            var i = 1;
-            for (;i < arguments.length; i++) {
-                if ("object" === typeof arguments[i]) {
-                    mixinup(a, arguments[i]);
-                }
-            }
-            return a;
-        };
-    }();
     var smartCallback = function() {
         var funcarguments = new RegExp(/[\d\t]*function[ ]?\(([^\)]*)\)/i), scopesregex = /({[^{}}]*[\n\r]*})/g, funcarguments = new RegExp(/[\d\t]*function[ ]?\(([^\)]*)\)/i), getFunctionArguments = function(code) {
             if (funcarguments.test(code)) {
@@ -46,7 +27,7 @@
             return injected;
         };
     }();
-    var mixin2 = function() {
+    var mixin = function() {
         var mixinup = function(a, b) {
             for (var i in b) {
                 if (b.hasOwnProperty(i)) {
@@ -65,68 +46,87 @@
             return a;
         };
     }();
-    var inherit = function(mixin) {
-        return function(aClass, classes) {
-            if (!(classes instanceof Array)) classes = [ classes ];
-            var cl = classes.length;
-            var superconstructor = function() {
-                var args = Array.prototype.slice.apply(arguments);
-                if ("object" !== typeof this.constructors) Object.defineProperty(this, "constructors", {
-                    configurable: false,
-                    enumerable: false,
-                    writable: false,
-                    value: []
-                });
-                for (var i = 0; i < cl; ++i) {
-                    if (this.constructors.indexOf(classes[i]) >= 0) continue;
-                    this.constructors.push(classes[i]);
-                    classes[i].apply(this, args);
+    (function(m, o, r, u, l, u, s) {
+        var mixin = function() {
+            var mixinup = function(a, b) {
+                for (var i in b) {
+                    if (b.hasOwnProperty(i)) {
+                        a[i] = b[i];
+                    }
                 }
-            }, superprototype = superconstructor.prototype = {};
-            if (aClass.prototype && aClass.prototype !== null && aClass.prototype.__super__) mixin(superprototype, aClass.prototype.__super__);
-            for (var i = 0; i < cl; ++i) {
-                if (classes[i].prototype) {
-                    if (classes[i].prototype.__super__) superprototype = mixin(superprototype, classes[i].prototype.__super__);
-                    superprototype = mixin(superprototype, classes[i].prototype);
-                }
-            }
-            superprototype.constructor = superconstructor;
-            var Mixin = function() {
-                if (this.constructor && this.constructor.__disableContructor__) {
-                    this.constructor.__disableContructor__ = false;
-                    return false;
-                }
-                var args = Array.prototype.slice.apply(arguments);
-                if (!(this === window)) {
-                    superconstructor.apply(this, args);
-                }
-                aClass.apply(this, args);
+                return a;
             };
-            Mixin.prototype = Object.create(superprototype, {
-                __super__: {
+            return function(a) {
+                var i = 1;
+                for (;i < arguments.length; i++) {
+                    if ("object" === typeof arguments[i]) {
+                        mixinup(a, arguments[i]);
+                    }
+                }
+                return a;
+            };
+        }();
+        var inherit = function(mixin) {
+            return function(aClass, classes) {
+                if (!(classes instanceof Array)) classes = [ classes ];
+                var cl = classes.length;
+                var superconstructor = function() {
+                    var args = Array.prototype.slice.apply(arguments);
+                    if ("object" !== typeof this.constructors) Object.defineProperty(this, "constructors", {
+                        configurable: false,
+                        enumerable: false,
+                        writable: false,
+                        value: []
+                    });
+                    for (var i = 0; i < cl; ++i) {
+                        if (this.constructors.indexOf(classes[i]) >= 0) continue;
+                        this.constructors.push(classes[i]);
+                        classes[i].apply(this, args);
+                    }
+                }, superprototype = superconstructor.prototype = {};
+                if (aClass.prototype && aClass.prototype !== null && aClass.prototype.__super__) mixin(superprototype, aClass.prototype.__super__);
+                for (var i = 0; i < cl; ++i) {
+                    if (classes[i].prototype) {
+                        if (classes[i].prototype.__super__) superprototype = mixin(superprototype, classes[i].prototype.__super__);
+                        superprototype = mixin(superprototype, classes[i].prototype);
+                    }
+                }
+                superprototype.constructor = superconstructor;
+                var Mixin = function() {
+                    if (this.constructor && this.constructor.__disableContructor__) {
+                        this.constructor.__disableContructor__ = false;
+                        return false;
+                    }
+                    var args = Array.prototype.slice.apply(arguments);
+                    if (!(this === window)) {
+                        superconstructor.apply(this, args);
+                    }
+                    aClass.apply(this, args);
+                };
+                Mixin.prototype = Object.create(superprototype, {
+                    __super__: {
+                        configurable: false,
+                        enumerable: false,
+                        writable: false,
+                        value: superprototype
+                    }
+                });
+                if (aClass.prototype) mixin(Mixin.prototype, aClass.prototype);
+                for (var prop in aClass) {
+                    if (aClass.hasOwnProperty(prop)) Mixin[prop] = aClass[prop];
+                }
+                Object.defineProperty(Mixin.prototype, "constructor", {
                     configurable: false,
                     enumerable: false,
                     writable: false,
-                    value: superprototype
+                    value: Mixin
+                });
+                if (!Mixin.prototype.__proto__) {
+                    Mixin.prototype.__proto__ = Mixin.prototype;
                 }
-            });
-            if (aClass.prototype) mixin(Mixin.prototype, aClass.prototype);
-            for (var prop in aClass) {
-                if (aClass.hasOwnProperty(prop)) Mixin[prop] = aClass[prop];
-            }
-            Object.defineProperty(Mixin.prototype, "constructor", {
-                configurable: false,
-                enumerable: false,
-                writable: false,
-                value: Mixin
-            });
-            if (!Mixin.prototype.__proto__) {
-                Mixin.prototype.__proto__ = Mixin.prototype;
-            }
-            return Mixin;
-        };
-    }(mixin);
-    var polyinherit = function(inherit, mixin) {
+                return Mixin;
+            };
+        }(mixin);
         Function.prototype.inherit = function() {
             var classes = Array.prototype.slice.apply(arguments);
             return inherit(this, classes);
@@ -145,8 +145,7 @@
             this.apply(module, args);
             return module;
         };
-        return inherit;
-    }(inherit, mixin);
+    })();
     var camelize = function() {
         return function(text) {
             return text.replace(/-([\da-z])/gi, function(all, letter) {
@@ -402,6 +401,7 @@
     var box = function() {
         return function(handler) {
             this.data = {};
+            this.stashed = {};
             this.shot = "";
             this.handler = null;
             this.context = window;
@@ -414,6 +414,19 @@
             },
             get: function(prop) {
                 return this.data[prop];
+            },
+            lookup: function() {
+                var data = {}, diff = false;
+                arguments.length > 1 ? (data = {}, data[arguments[0]] = arguments[1]) : data = arguments[0];
+                for (var prop in data) {
+                    if (data.hasOwnProperty(prop)) {
+                        if (typeof this.stashed[prop] !== typeof data[prop]) diff = true; else if (this.stashed[prop] != data[prop]) diff = true; else if ("object" === typeof this.stashed[prop]) {
+                            if (JSON.stringify(this.stashed[prop]) !== JSON.stringify(data[prop])) diff = true;
+                        }
+                        this.stashed[prop] = data[prop];
+                    }
+                }
+                return diff;
             },
             set: function() {
                 var data = {}, diff = false;
@@ -776,7 +789,7 @@
             $hitch: function(cb, keys) {
                 var fkey = cb.toString() + ("object" === typeof keys ? JSON.stringify(keys) : keys ? keys.toString() : "");
                 if ("function" === typeof this.$hitchers[fkey]) this.$hitchers[fkey].call(this);
-                this.$hitchers[fkey] = this.$run(cb);
+                this.$hitchers[fkey] = this.$inject(cb).apply(this, keys instanceof Array ? keys : []);
                 return function(i) {
                     this.$hitchers[i].call(this);
                     delete this.$hitchers[i];
@@ -901,7 +914,7 @@
             },
             setup: function(module, args) {
                 var $synthet = this.$;
-                if ("object" === typeof this.$.module && "function" === typeof this.$.module.$destroy) {
+                if (null !== this.$.module && "object" === typeof this.$.module && "function" === typeof this.$.module.$destroy) {
                     this.$.module.$destroy();
                 }
                 var init = function() {
@@ -929,10 +942,10 @@
                 }
             },
             destroy: function() {
-                if ("object" === typeof this.$.module && "function" === typeof this.$.module.destory) {
+                if (this.$.module !== null && "object" === typeof this.$.module && "function" === typeof this.$.module.destory) {
                     this.$.module.destory();
                 }
-                if ("object" === typeof this.$.module && "function" === typeof this.$.module.$destroy) {
+                if (this.$.module !== null && "object" === typeof this.$.module && "function" === typeof this.$.module.$destroy) {
                     this.$.module.$destroy();
                 }
                 this.$.module = null;
@@ -943,7 +956,7 @@
             }
         });
     }(classEvents, min, modulePrototype);
-    var inherit2 = function(mixin) {
+    var inherit = function(mixin) {
         return function(aClass, classes) {
             if (!(classes instanceof Array)) classes = [ classes ];
             var cl = classes.length;
@@ -1004,10 +1017,8 @@
             }
             return Mixin;
         };
-    }(mixin2);
-    (function() {
-        var templateManager = function() {}.proto({});
-    })(polyinherit);
+    }(mixin);
+    var templateManager = function() {}.proto({});
     var preFactory = function(mixin) {
         var preFactory = function(options) {
             this.options = options;
@@ -1064,7 +1075,7 @@
             }
         };
         return preFactory;
-    }(mixin2);
+    }(mixin);
     var initAngular = function() {
         return function() {
             Synthetic.$$angularApp = angular.module("syntheticApp", [ "ui.bootstrap", "ui.bootstrap.datetimepicker" ], function() {}.bind(this));
@@ -1174,7 +1185,7 @@
                 value: Synthetic.$$angularApp
             });
         };
-    }(mixin2, camelize, scopeUtilits);
+    }(mixin, camelize, scopeUtilits);
     var webElementFactory = function(WebElementPrototype, mixin, extend, Generator, camelize, getNonScopeValue) {
         return function(element, component) {
             this.$sid = "sid" + new Date().getTime() + Math.round(Math.random() * 1e7);
@@ -1349,7 +1360,7 @@
                 this.__config__.rendered = true;
             });
         }.inherit(WebElementPrototype);
-    }(WebElementPrototype, mixin2, extend, generator, camelize, getNonScopeValue);
+    }(WebElementPrototype, mixin, extend, generator, camelize, getNonScopeValue);
     (function() {
         (function(window, document, Object, REGISTER_ELEMENT) {
             "use strict";
@@ -1957,5 +1968,5 @@
         };
         if (window) window.Synthetic = Synthetic;
         return Synthetic;
-    })(inherit2, mixin2, classEvents, null, camelize, smartCallback, preFactory, initAngular, scopeGenerator, webElementFactory);
+    })(inherit, mixin, classEvents, null, camelize, smartCallback, preFactory, initAngular, scopeGenerator, webElementFactory);
 })();
