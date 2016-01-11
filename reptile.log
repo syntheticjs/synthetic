@@ -7,12 +7,7 @@ VIRTUAL /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synth
      /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/classEvents.js
           /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/smartCallback.js
      /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/templateManager.js
-          /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/polyinherit/component.json
-          SUBVIRTUAL /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/polyinherit/src/polyinherit.js
-               /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/inherit/component.json
-               SUBVIRTUAL /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/inherit/src/inherit.js
-                    /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/mixin/component.json
-                    SUBVIRTUAL /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/mixin/src/mixin.js
+          /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/d3party/polyinherit/polyinherit.js
      /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/polychrome/component.json/gist/convert/camelize.js
      SUBVIRTUAL /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/polychrome/src/gist/convert/camelize.js
      /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/preFactory.js
@@ -26,9 +21,9 @@ VIRTUAL /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synth
                SUBVIRTUAL /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/polychrome/src/gist/convert/dasherize.js
                /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/getNonScopeValue.js
                /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/box.js
-          /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/extend/component.json
-          SUBVIRTUAL /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins/extend/src/extend.js
+          /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/d3party/extend/extend.js
           /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/generator.js
                /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/templaters/min.js
                /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/modulePrototype.js
+     /Users/VladimirMorulus/WorkAreas/mahabra/polyvitamins~polyinherit@master
      /Users/VladimirMorulus/WorkAreas/Sites/sag-group.ru/www/sag/vendor/synthetic/src/d3party/WebReflection/document-register-element.amd.js

@@ -1,11 +1,11 @@
 define([
     "./WebElementPrototype.js",
     "abstudio~mixin@0.1.0",
-    "polyvitamins~extend@master",
+    "./d3party/extend/extend.js",
     "./generator.js",
     "polyvitamins~polychrome@master/gist/convert/camelize.js",
     "./getNonScopeValue.js",
-    "polyvitamins~polyinherit@master",
+    "./d3party/polyinherit/polyinherit.js",
 ], function(WebElementPrototype, mixin, extend, Generator, camelize, getNonScopeValue) {
     /*
      Как только элемент попадает в DOM он проходит данную инициализацию.

@@ -6,7 +6,7 @@ define([
 	"polyvitamins~polychrome@master/gist/convert/dasherize.js",
 	"./getNonScopeValue.js",
 	"./box.js",
-    "polyvitamins~polyinherit@master",
+    "./d3party/polyinherit/polyinherit.js",
 ],
 function(getObjectByXPath, smartCallback, classEvents, camelize, dasherize, getNonScopeValue, Box) {
 	
@@ -95,8 +95,6 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, dasherize, getN
 			состояние ответа с новым. И если они равны, то вызов callback производится не будет.
 			*/
 			var jstr = JSON.stringify(alldata),rstr=JSON.stringify(requiredProperties);
-			
-
 
 			/*
 			Если предыдущий ответ точно соответствует теукущему, то мы его игнорируем.
@@ -151,9 +149,7 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, dasherize, getN
 
 			
 			var lastTrack = {}; // Последнее состояние срабатываения
-
-
-
+			var ownBox = new Box();
 			/*
 			Начинаем наблюдение за переменной
 			*/
@@ -161,10 +157,8 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, dasherize, getN
 				
 				var injectedCallback = self.$inject(callback, {
 					$unwatch: $unwatcher,
-					$box: new Box()
+					$box: ownBox
 				});
-
-
 
 				injectedCallback.$$injected = true;
 
@@ -229,10 +223,10 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, dasherize, getN
 
 			var watchFabric = function(rprops, wobject, prop) {
 				
-				if ("undefined"===typeof wobject[prop]) wobject[prop] = false;
+				if ("undefined"===typeof wobject[prop]) wobject[prop] = Synthetic.config.undefinedAttributeDefaultValue;
 
 				// Обнуляем snaps
-				self.$scopeSnaps[JSON.stringify(requiredProperties)] = false;
+				if ("undefined"===typeof self.$scopeSnaps[JSON.stringify(requiredProperties)]) self.$scopeSnaps[JSON.stringify(requiredProperties)] = false;
 
 				if (self.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
 
@@ -266,8 +260,9 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, dasherize, getN
 								if (self.__config__.attachedEventFires) { 
 									var dashed = dasherize(attrn), 
 									value = self.$element.getAttribute(dashed); 
+									if (null===value) value = Synthetic.config.undefinedAttributeDefaultValue;
 									compiledCallbacker.call(self, false, "set", value); 
-									self.$injectors.$scope.attributes[dashed] = value; 
+									self.$injectors.$scope.attributes[attrn] = value; 
 									if (dashed.substr(0, 5) === "data-") { 
 										self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value; 
 									} 
@@ -275,8 +270,9 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, dasherize, getN
 									self.bind("attached", function() { 
 										var dashed = dasherize(attrn), 
 										value = self.$element.getAttribute(dashed); 
+										if (null===value) value = Synthetic.config.undefinedAttributeDefaultValue;
 										compiledCallbacker.call(self, false, "set", value); 
-										self.$injectors.$scope.attributes[dashed] = value; 
+										self.$injectors.$scope.attributes[attrn] = value; 
 									if (dashed.substr(0, 5) === "data-") { 
 										self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value; 
 									} 
@@ -419,8 +415,7 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, dasherize, getN
 		},
 		
 		$template: function(content) {
-			this.$injectors.$generator.template(content);
-			return this;
+			return this.$injectors.$generator.template(content);
 		},
 		$destroy: function() {
 			

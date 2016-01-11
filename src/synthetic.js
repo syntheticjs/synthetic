@@ -182,6 +182,14 @@ AMD Synthet
         */
         Synthetic.$$lastElementFactory = false;
 
+        /*
+        Default config
+        */
+        Synthetic.config = {
+            undefinedAttributeDefaultValue: undefined,
+            viewChangeListeners: []
+        };
+
         Synthetic.hasPropertySubKey = function(property, subkey) {
             if (!("string"===typeof property||property instanceof Array)) return false;
             return !!~("string"===typeof property?property.replace(' ','').split(','):property).indexOf(subkey);
@@ -386,8 +394,6 @@ AMD Synthet
                                                 if (name.substr(0,5)==='data-') {
                                                         $self.$injectors.$scope.properties[camelize(name.substr(5))] = value;
                                                 }
-
-                                                if (value==='') value = false;
 
                                                 if ($self.$$attrsWatchers[camelized]) {
                                                     if ($self.__config__.attachedEventFires) {

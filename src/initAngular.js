@@ -125,7 +125,12 @@ define(function() {
 
             angular.element(document.body).ready(function() {
                 Synthetic.$angularjQueryPowered = "function" === typeof angular.element.noConflict;
-                Synthetic.$$angularApp.controller("syntheticController", function($element, $scope) {});
+                var ngCtrl = Synthetic.$$angularApp.controller("syntheticController", function($element, $scope) {
+                    
+                    
+                });
+                
+                Synthetic.$$angularCtrl = ngCtrl;
                 document.body.setAttribute("ng-jq", "");
                 document.body.setAttribute("ng-controller", "syntheticController");
 

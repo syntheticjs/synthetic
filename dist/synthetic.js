@@ -1,23 +1,4 @@
 (function(m, o, r, u, l, u, s) {
-    var mixin = function() {
-        var mixinup = function(a, b) {
-            for (var i in b) {
-                if (b.hasOwnProperty(i)) {
-                    a[i] = b[i];
-                }
-            }
-            return a;
-        };
-        return function(a) {
-            var i = 1;
-            for (;i < arguments.length; i++) {
-                if ("object" === typeof arguments[i]) {
-                    mixinup(a, arguments[i]);
-                }
-            }
-            return a;
-        };
-    }();
     var smartCallback = function() {
         var funcarguments = new RegExp(/[\d\t]*function[ ]?\(([^\)]*)\)/i), scopesregex = /({[^{}}]*[\n\r]*})/g, funcarguments = new RegExp(/[\d\t]*function[ ]?\(([^\)]*)\)/i), getFunctionArguments = function(code) {
             if (funcarguments.test(code)) {
@@ -46,7 +27,7 @@
             return injected;
         };
     }();
-    var mixin2 = function() {
+    var mixin = function() {
         var mixinup = function(a, b) {
             for (var i in b) {
                 if (b.hasOwnProperty(i)) {
@@ -65,88 +46,6 @@
             return a;
         };
     }();
-    var inherit = function(mixin) {
-        return function(aClass, classes) {
-            if (!(classes instanceof Array)) classes = [ classes ];
-            var cl = classes.length;
-            var superconstructor = function() {
-                var args = Array.prototype.slice.apply(arguments);
-                if ("object" !== typeof this.constructors) Object.defineProperty(this, "constructors", {
-                    configurable: false,
-                    enumerable: false,
-                    writable: false,
-                    value: []
-                });
-                for (var i = 0; i < cl; ++i) {
-                    if (this.constructors.indexOf(classes[i]) >= 0) continue;
-                    this.constructors.push(classes[i]);
-                    classes[i].apply(this, args);
-                }
-            }, superprototype = superconstructor.prototype = {};
-            if (aClass.prototype && aClass.prototype !== null && aClass.prototype.__super__) mixin(superprototype, aClass.prototype.__super__);
-            for (var i = 0; i < cl; ++i) {
-                if (classes[i].prototype) {
-                    if (classes[i].prototype.__super__) superprototype = mixin(superprototype, classes[i].prototype.__super__);
-                    superprototype = mixin(superprototype, classes[i].prototype);
-                }
-            }
-            superprototype.constructor = superconstructor;
-            var Mixin = function() {
-                if (this.constructor && this.constructor.__disableContructor__) {
-                    this.constructor.__disableContructor__ = false;
-                    return false;
-                }
-                var args = Array.prototype.slice.apply(arguments);
-                if (!(this === window)) {
-                    superconstructor.apply(this, args);
-                }
-                aClass.apply(this, args);
-            };
-            Mixin.prototype = Object.create(superprototype, {
-                __super__: {
-                    configurable: false,
-                    enumerable: false,
-                    writable: false,
-                    value: superprototype
-                }
-            });
-            if (aClass.prototype) mixin(Mixin.prototype, aClass.prototype);
-            for (var prop in aClass) {
-                if (aClass.hasOwnProperty(prop)) Mixin[prop] = aClass[prop];
-            }
-            Object.defineProperty(Mixin.prototype, "constructor", {
-                configurable: false,
-                enumerable: false,
-                writable: false,
-                value: Mixin
-            });
-            if (!Mixin.prototype.__proto__) {
-                Mixin.prototype.__proto__ = Mixin.prototype;
-            }
-            return Mixin;
-        };
-    }(mixin);
-    var polyinherit = function(inherit, mixin) {
-        Function.prototype.inherit = function() {
-            var classes = Array.prototype.slice.apply(arguments);
-            return inherit(this, classes);
-        };
-        Function.prototype.proto = function(proto) {
-            if ("object" !== typeof this.prototype) this.prototype = {
-                constructor: this
-            };
-            mixin(this.prototype, proto);
-            return this;
-        };
-        Function.prototype.construct = function() {
-            this.__disableContructor__ = true;
-            var module = new this();
-            var args = arguments[0] instanceof Array ? arguments[0] : [];
-            this.apply(module, args);
-            return module;
-        };
-        return inherit;
-    }(inherit, mixin);
     var camelize = function() {
         return function(text) {
             return text.replace(/-([\da-z])/gi, function(all, letter) {
@@ -384,6 +283,106 @@
         };
         return Events;
     }(smartCallback);
+    (function(m, o, r, u, l, u, s) {
+        var mixin = function() {
+            var mixinup = function(a, b) {
+                for (var i in b) {
+                    if (b.hasOwnProperty(i)) {
+                        a[i] = b[i];
+                    }
+                }
+                return a;
+            };
+            return function(a) {
+                var i = 1;
+                for (;i < arguments.length; i++) {
+                    if ("object" === typeof arguments[i]) {
+                        mixinup(a, arguments[i]);
+                    }
+                }
+                return a;
+            };
+        }();
+        var inherit = function(mixin) {
+            return function(aClass, classes) {
+                if (!(classes instanceof Array)) classes = [ classes ];
+                var cl = classes.length;
+                var superconstructor = function() {
+                    var args = Array.prototype.slice.apply(arguments);
+                    if ("object" !== typeof this.constructors) Object.defineProperty(this, "constructors", {
+                        configurable: false,
+                        enumerable: false,
+                        writable: false,
+                        value: []
+                    });
+                    for (var i = 0; i < cl; ++i) {
+                        if (this.constructors.indexOf(classes[i]) >= 0) continue;
+                        this.constructors.push(classes[i]);
+                        classes[i].apply(this, args);
+                    }
+                }, superprototype = superconstructor.prototype = {};
+                if (aClass.prototype && aClass.prototype !== null && aClass.prototype.__super__) mixin(superprototype, aClass.prototype.__super__);
+                for (var i = 0; i < cl; ++i) {
+                    if (classes[i].prototype) {
+                        if (classes[i].prototype.__super__) superprototype = mixin(superprototype, classes[i].prototype.__super__);
+                        superprototype = mixin(superprototype, classes[i].prototype);
+                    }
+                }
+                superprototype.constructor = superconstructor;
+                var Mixin = function() {
+                    if (this.constructor && this.constructor.__disableContructor__) {
+                        this.constructor.__disableContructor__ = false;
+                        return false;
+                    }
+                    var args = Array.prototype.slice.apply(arguments);
+                    if (!(this === window)) {
+                        superconstructor.apply(this, args);
+                    }
+                    aClass.apply(this, args);
+                };
+                Mixin.prototype = Object.create(superprototype, {
+                    __super__: {
+                        configurable: false,
+                        enumerable: false,
+                        writable: false,
+                        value: superprototype
+                    }
+                });
+                if (aClass.prototype) mixin(Mixin.prototype, aClass.prototype);
+                for (var prop in aClass) {
+                    if (aClass.hasOwnProperty(prop)) Mixin[prop] = aClass[prop];
+                }
+                Object.defineProperty(Mixin.prototype, "constructor", {
+                    configurable: false,
+                    enumerable: false,
+                    writable: false,
+                    value: Mixin
+                });
+                if (!Mixin.prototype.__proto__) {
+                    Mixin.prototype.__proto__ = Mixin.prototype;
+                }
+                return Mixin;
+            };
+        }(mixin);
+        Function.prototype.inherit = function() {
+            var classes = Array.prototype.slice.apply(arguments);
+            return inherit(this, classes);
+        };
+        Function.prototype.proto = function(proto) {
+            if ("object" !== typeof this.prototype) this.prototype = {
+                constructor: this
+            };
+            mixin(this.prototype, proto);
+            return this;
+        };
+        Function.prototype.construct = function() {
+            this.__disableContructor__ = true;
+            var module = new this();
+            var args = arguments[0] instanceof Array ? arguments[0] : [];
+            this.apply(module, args);
+            return module;
+        };
+    })();
     var getObjectByXPath = function() {
         return function(start, xpath) {
             for (var i = 0; i < xpath.length; ++i) {
@@ -396,7 +395,7 @@
     }();
     var getNonScopeValue = function() {
         return function(newValue) {
-            return /^{{[^}}]*}}$/i.test(newValue) || newValue === undefined ? false : newValue;
+            return /^{{[^}}]*}}$/i.test(newValue) || newValue === undefined ? undefined : newValue;
         };
     }();
     var dasherize = function() {
@@ -407,6 +406,7 @@
     var box = function() {
         return function(handler) {
             this.data = {};
+            this.stashed = {};
             this.shot = "";
             this.handler = null;
             this.context = window;
@@ -416,6 +416,22 @@
                     this.handler = handler;
                     this.context = context;
                 }
+            },
+            get: function(prop) {
+                return this.data[prop];
+            },
+            lookup: function() {
+                var data = {}, diff = false;
+                arguments.length > 1 ? (data = {}, data[arguments[0]] = arguments[1]) : data = arguments[0];
+                for (var prop in data) {
+                    if (data.hasOwnProperty(prop)) {
+                        if (typeof this.stashed[prop] !== typeof data[prop]) diff = true; else if (this.stashed[prop] != data[prop]) diff = true; else if ("object" === typeof this.stashed[prop]) {
+                            if (JSON.stringify(this.stashed[prop]) !== JSON.stringify(data[prop])) diff = true;
+                        }
+                        this.stashed[prop] = data[prop];
+                    }
+                }
+                return diff;
             },
             set: function() {
                 var data = {}, diff = false;
@@ -427,6 +443,16 @@
                     }
                 }
                 return diff;
+            },
+            init: function() {
+                var data = {};
+                arguments.length > 1 ? (data = {}, data[arguments[0]] = arguments[1]) : data = arguments[0];
+                for (var prop in data) {
+                    if (data.hasOwnProperty(prop)) {
+                        if ("undefined" !== typeof this.data[prop]) continue;
+                        this.data[prop] = data[prop];
+                    }
+                }
             },
             $apply: function() {
                 this.set.apply(this, arguments);
@@ -579,10 +605,11 @@
                     requiredProperties.push(xpath.concat(properties[i].split(".")));
                 }
                 var lastTrack = {};
+                var ownBox = new Box();
                 var getDatas = function(requiredProperties, rprops, $unwatcher) {
                     var injectedCallback = self.$inject(callback, {
                         $unwatch: $unwatcher,
-                        $box: new Box()
+                        $box: ownBox
                     });
                     injectedCallback.$$injected = true;
                     if (self.__config__.rendered) {
@@ -612,8 +639,8 @@
                     };
                 };
                 var watchFabric = function(rprops, wobject, prop) {
-                    if ("undefined" === typeof wobject[prop]) wobject[prop] = false;
-                    self.$scopeSnaps[JSON.stringify(requiredProperties)] = false;
+                    if ("undefined" === typeof wobject[prop]) wobject[prop] = Synthetic.config.undefinedAttributeDefaultValue;
+                    if ("undefined" === typeof self.$scopeSnaps[JSON.stringify(requiredProperties)]) self.$scopeSnaps[JSON.stringify(requiredProperties)] = false;
                     if (self.$injectors.$component.options.engine.name === "angular" && Synthetic.$$angularApp) {
                         var compiledCallbacker;
                         if (rprops[0] === "properties" || rprops[0] === "attributes") {
@@ -629,16 +656,18 @@
                                 self.$$attrsWatchers[attrn] = [];
                                 if (self.__config__.attachedEventFires) {
                                     var dashed = dasherize(attrn), value = self.$element.getAttribute(dashed);
+                                    if (null === value) value = Synthetic.config.undefinedAttributeDefaultValue;
                                     compiledCallbacker.call(self, false, "set", value);
-                                    self.$injectors.$scope.attributes[dashed] = value;
+                                    self.$injectors.$scope.attributes[attrn] = value;
                                     if (dashed.substr(0, 5) === "data-") {
                                         self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value;
                                     }
                                 } else {
                                     self.bind("attached", function() {
                                         var dashed = dasherize(attrn), value = self.$element.getAttribute(dashed);
+                                        if (null === value) value = Synthetic.config.undefinedAttributeDefaultValue;
                                         compiledCallbacker.call(self, false, "set", value);
-                                        self.$injectors.$scope.attributes[dashed] = value;
+                                        self.$injectors.$scope.attributes[attrn] = value;
                                         if (dashed.substr(0, 5) === "data-") {
                                             self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value;
                                         }
@@ -728,8 +757,7 @@
                 if (this.$injectors.$component.options.engine.name === "angular" && Synthetic.$$angularApp) this.$scope.$applyAsync(realCallback); else setTimeout(realCallback);
             },
             $template: function(content) {
-                this.$injectors.$generator.template(content);
-                return this;
+                return this.$injectors.$generator.template(content);
             },
             $destroy: function() {
                 if (this.$destroyed) return true;
@@ -861,35 +889,39 @@
             template: function(template, module) {
                 this.configuration.template = template;
                 this.configuration.module = "function" === typeof module ? module : false;
-                this.render();
+                return this.render();
             },
             render: function(template, module, args) {
                 var $ = this;
-                if ("function" === typeof template) {
-                    this.$inject(template)();
-                    template = this.$.$element.innerHTML;
-                }
-                if (template) this.configuration.template = template;
-                this.configuration.module = "function" === typeof module ? module : false;
-                if (this.$.__config__.$$angularInitialedStage > 1) {
-                    this.$inject(function($self, template, module) {
-                        $self.__config__.$$angularScope.$applyAsync(function() {
-                            var test = Synthetic.$$angularCompile(template, undefined, undefined)($self.__config__.$$angularScope);
-                            if (Synthetic.$angularjQueryPowered) $self.__config__.$$angularElement.html(test); else $self.__config__.$$angularElement.empty().append(test);
-                            $.$.trigger("rendered");
-                            $.$.trigger("rendered");
-                            if (module) {
-                                $.setup(module, args);
-                            }
-                        });
-                    })(this.configuration.template, this.configuration.module);
-                } else {
-                    this.$.$injectors.$element.innerHTML = this.$.$injectors.$element.innerHTML = minTemplate(this.configuration.template, this.$.$injectors.$scope);
-                    if (this.configuration.module) {
-                        $.setup(this.configuration.module);
+                return new Promise(function(resolve, reject) {
+                    if ("function" === typeof template) {
+                        $.$inject(template)();
+                        template = $.$.$element.innerHTML;
                     }
-                    this.$.trigger("rendered");
-                }
+                    if (template) $.configuration.template = template;
+                    $.configuration.module = "function" === typeof module ? module : false;
+                    if ($.$.__config__.$$angularInitialedStage > 1) {
+                        $.$inject(function($self, template, module) {
+                            $self.__config__.$$angularScope.$applyAsync(function() {
+                                var test = Synthetic.$$angularCompile(template, undefined, undefined)($self.__config__.$$angularScope);
+                                if (Synthetic.$angularjQueryPowered) $self.__config__.$$angularElement.html(test); else $self.__config__.$$angularElement.empty().append(test);
+                                $.$.trigger("rendered");
+                                $.$.trigger("rendered");
+                                resolve($self.__config__.$$angularElement[0]);
+                                if (module) {
+                                    $.setup(module, args);
+                                }
+                            });
+                        })($.configuration.template, $.configuration.module);
+                    } else {
+                        $.$.$injectors.$element.innerHTML = $.$.$injectors.$element.innerHTML = minTemplate($.configuration.template, $.$.$injectors.$scope);
+                        resolve($.$.$injectors.$element);
+                        if ($.configuration.module) {
+                            $.setup($.configuration.module);
+                        }
+                        $.$.trigger("rendered");
+                    }
+                });
             },
             setup: function(module, args) {
                 var $synthet = this.$;
@@ -935,7 +967,7 @@
             }
         });
     }(classEvents, min, modulePrototype);
-    var inherit2 = function(mixin) {
+    var inherit = function(mixin) {
         return function(aClass, classes) {
             if (!(classes instanceof Array)) classes = [ classes ];
             var cl = classes.length;
@@ -996,10 +1028,8 @@
             }
             return Mixin;
         };
-    }(mixin2);
-    (function() {
-        var templateManager = function() {}.proto({});
-    })(polyinherit);
+    }(mixin);
+    var templateManager = function() {}.proto({});
     var preFactory = function(mixin) {
         var preFactory = function(options) {
             this.options = options;
@@ -1056,7 +1086,7 @@
             }
         };
         return preFactory;
-    }(mixin2);
+    }(mixin);
     var initAngular = function() {
         return function() {
             Synthetic.$$angularApp = angular.module("syntheticApp", [], function() {}.bind(this));
@@ -1114,7 +1144,8 @@
             if ("object" !== typeof angular.element(document.body).injector()) {
                 angular.element(document.body).ready(function() {
                     Synthetic.$angularjQueryPowered = "function" === typeof angular.element.noConflict;
-                    Synthetic.$$angularApp.controller("syntheticController", function($element, $scope) {});
+                    var ngCtrl = Synthetic.$$angularApp.controller("syntheticController", function($element, $scope) {});
+                    Synthetic.$$angularCtrl = ngCtrl;
                     document.body.setAttribute("ng-jq", "");
                     document.body.setAttribute("ng-controller", "syntheticController");
                     angular.bootstrap(document.body, [ "syntheticApp" ]);
@@ -1165,7 +1196,7 @@
                 value: Synthetic.$$angularApp
             });
         };
-    }(mixin2, camelize, scopeUtilits);
+    }(mixin, camelize, scopeUtilits);
     var webElementFactory = function(WebElementPrototype, mixin, extend, Generator, camelize, getNonScopeValue) {
         return function(element, component) {
             this.$sid = "sid" + new Date().getTime() + Math.round(Math.random() * 1e7);
@@ -1355,7 +1386,7 @@
                 this.__config__.rendered = true;
             });
         }.inherit(WebElementPrototype);
-    }(WebElementPrototype, mixin2, extend, generator, camelize, getNonScopeValue);
+    }(WebElementPrototype, mixin, extend, generator, camelize, getNonScopeValue);
     (function() {
         (function(window, document, Object, REGISTER_ELEMENT) {
             "use strict";
@@ -1835,6 +1866,10 @@
         Synthetic.log = function() {};
         Synthetic.$$angularBootstraped = false;
         Synthetic.$$lastElementFactory = false;
+        Synthetic.config = {
+            undefinedAttributeDefaultValue: undefined,
+            viewChangeListeners: []
+        };
         Synthetic.hasPropertySubKey = function(property, subkey) {
             if (!("string" === typeof property || property instanceof Array)) return false;
             return !!~("string" === typeof property ? property.replace(" ", "").split(",") : property).indexOf(subkey);
@@ -1943,7 +1978,6 @@
                                             if (name.substr(0, 5) === "data-") {
                                                 $self.$injectors.$scope.properties[camelize(name.substr(5))] = value;
                                             }
-                                            if (value === "") value = false;
                                             if ($self.$$attrsWatchers[camelized]) {
                                                 if ($self.__config__.attachedEventFires) {
                                                     for (var i = 0; i < $self.$$attrsWatchers[camelized].length; ++i) {
@@ -1972,5 +2006,5 @@
         };
         if (window) window.Synthetic = Synthetic;
         return Synthetic;
-    })(inherit2, mixin2, classEvents, null, camelize, smartCallback, preFactory, initAngular, scopeGenerator, webElementFactory);
+    })(inherit, mixin, classEvents, null, camelize, smartCallback, preFactory, initAngular, scopeGenerator, webElementFactory);
 })();
