@@ -1,12 +1,8 @@
-Synthetic Js
---
-An alternative implementation of approach to work with web-components.
+Synthetic.js is a library for implementing custom html elements, for now. In the future it is framework for creating rich web-applications based on ORM strategy. 
 
-## AUTHORS
-Vladimir Kalmykov (Morulus)
+A project develops by both independently and as part of the project IDS x360. The idea of creating and main developer of library - Vladimir Kalmykov (Morulus). 
 
-## LICENSE
-MIT, Vladimir Kalmykov <vladimirmorulus@gmail.com>, 2015
+__Current version is not stable. The concept and technical features are still in the formative stages. To use it, you still need a deep knowledge of the library. So use it at your own risk and will not be released until the release version.__
 
-## VERSION
-This is alfa test version
+### License
+MIT, Vladimir Kalmykov <vladimirmorulus@gmail.com>, 2015-2016
