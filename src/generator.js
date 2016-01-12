@@ -68,7 +68,7 @@ function(classEvents, minTemplate, synthetModule) {
                                 Модификация от sag, позволяюшая использовать рендеринг при использовании jQuery, вместо JQLite.
                                 */
                                 if (Synthetic.$angularjQueryPowered) $self.__config__.$$angularElement.html(test); else $self.__config__.$$angularElement.empty().append(test);
-                                $.$.trigger("rendered");
+                               
 
                                 /*
                                 После установки шаблона необходимо произвести пересмотр scope
@@ -105,7 +105,7 @@ function(classEvents, minTemplate, synthetModule) {
                 /*
                 Для начала запускаем дестроер для старого модуля, если он есть
                 */
-                if ("object"===typeof this.$.module&&"function"===typeof this.$.module.$destroy) {
+                if (null !== this.$.module && "object"===typeof this.$.module&&"function"===typeof this.$.module.$destroy) {
                     this.$.module.$destroy();
                 }
 
@@ -131,7 +131,14 @@ function(classEvents, minTemplate, synthetModule) {
                     nm = nm.inherit(overMod);
                 }  
 
-                var initial = function() {
+                /*
+                Выносим процедуру инициализации модуля в отдельную функцию для обеспечения возможности
+                вызова пользовательской функции initialUserModuleCondition перед ней.
+
+                Согласно версии sx - данная функция сохраняется как метод объекта, что позволит вызывать ее
+                из вне. Однако необходимость этого еще нужно проверить.
+                */ 
+                this.moduleReinit = function() {
                      if (args) {
                         $synthet.module = nm.construct(args);
                     } else {
@@ -140,9 +147,9 @@ function(classEvents, minTemplate, synthetModule) {
                 };
 
                 if ("function"===typeof this.$.__config__.initialUserModuleCondition) {
-                    this.$.__config__.initialUserModuleCondition.call($synthet, initial);
+                    this.$.__config__.initialUserModuleCondition.call($synthet, this.moduleReinit);
                 } else {
-                    initial();
+                    this.moduleReinit();
                 }
                
 
@@ -152,13 +159,8 @@ function(classEvents, minTemplate, synthetModule) {
                 /*
                 Очищаем модуль
                 */
-                
                 if ("object"===typeof this.$.module&&"function"===typeof this.$.module.destory) {
                     this.$.module.destory();
-                }
-                
-                if ("object"===typeof this.$.module&&"function"===typeof this.$.module.$destroy) {
-                    this.$.module.$destroy();
                 }
 
                 this.$.module = null;
@@ -166,7 +168,7 @@ function(classEvents, minTemplate, synthetModule) {
                 Очищаем наблюдвтелей
                 */
                 for (var i = 0;i<this.watchers.length;++i) {
-                    his.watchers[i]();
+                    this.watchers[i]();
                 }
                 /*
                 Очищаем события

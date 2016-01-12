@@ -3,7 +3,7 @@
         var funcarguments = new RegExp(/[\d\t]*function[ ]?\(([^\)]*)\)/i), scopesregex = /({[^{}}]*[\n\r]*})/g, funcarguments = new RegExp(/[\d\t]*function[ ]?\(([^\)]*)\)/i), getFunctionArguments = function(code) {
             if (funcarguments.test(code)) {
                 var match = funcarguments.exec(code);
-                return match[1].replace(/ /g, "").split(",");
+                return match[1].replace(/[\s\n\r\t]*/g, "").split(",");
             }
             return [];
         };
@@ -283,6 +283,21 @@
         };
         return Events;
     }(smartCallback);
+    var getObjectByXPath = function() {
+        return function(start, xpath) {
+            for (var i = 0; i < xpath.length; ++i) {
+                if ("object" !== typeof start) return false;
+                if ("undefined" === typeof start[xpath[i]]) return false;
+                start = start[xpath[i]];
+            }
+            return start;
+        };
+    }();
+    var getNonScopeValue = function() {
+        return function(newValue) {
+            return /^{{[^}}]*}}$/i.test(newValue) || newValue === undefined ? undefined : newValue;
+        };
+    }();
     (function(m, o, r, u, l, u, s) {
         var mixin = function() {
             var mixinup = function(a, b) {
@@ -383,21 +398,6 @@
             return module;
         };
     })();
-    var getObjectByXPath = function() {
-        return function(start, xpath) {
-            for (var i = 0; i < xpath.length; ++i) {
-                if ("object" !== typeof start) return false;
-                if ("undefined" === typeof start[xpath[i]]) return false;
-                start = start[xpath[i]];
-            }
-            return start;
-        };
-    }();
-    var getNonScopeValue = function() {
-        return function(newValue) {
-            return /^{{[^}}]*}}$/i.test(newValue) || newValue === undefined ? undefined : newValue;
-        };
-    }();
     var dasherize = function() {
         return function(text) {
             return text.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
@@ -759,6 +759,12 @@
             $template: function(content) {
                 return this.$injectors.$generator.template(content);
             },
+            $detach: function() {
+                this.__config__.allWaitingForResolve = "attached";
+                this.__config__.attachedEventFires = false;
+                this.$injectors.$generator.destroy();
+                this.trigger("detached", [ this.synthetic ]);
+            },
             $destroy: function() {
                 if (this.$destroyed) return true;
                 this.trigger("$destroy");
@@ -791,7 +797,7 @@
             $hitch: function(cb, keys) {
                 var fkey = cb.toString() + ("object" === typeof keys ? JSON.stringify(keys) : keys ? keys.toString() : "");
                 if ("function" === typeof this.$hitchers[fkey]) this.$hitchers[fkey].call(this);
-                this.$hitchers[fkey] = this.$run(cb);
+                this.$hitchers[fkey] = this.$inject(cb).apply(this, keys instanceof Array ? keys : []);
                 return function(i) {
                     this.$hitchers[i].call(this);
                     delete this.$hitchers[i];
@@ -906,7 +912,6 @@
                                 var test = Synthetic.$$angularCompile(template, undefined, undefined)($self.__config__.$$angularScope);
                                 if (Synthetic.$angularjQueryPowered) $self.__config__.$$angularElement.html(test); else $self.__config__.$$angularElement.empty().append(test);
                                 $.$.trigger("rendered");
-                                $.$.trigger("rendered");
                                 resolve($self.__config__.$$angularElement[0]);
                                 if (module) {
                                     $.setup(module, args);
@@ -925,7 +930,7 @@
             },
             setup: function(module, args) {
                 var $synthet = this.$;
-                if ("object" === typeof this.$.module && "function" === typeof this.$.module.$destroy) {
+                if (null !== this.$.module && "object" === typeof this.$.module && "function" === typeof this.$.module.$destroy) {
                     this.$.module.$destroy();
                 }
                 var init = function() {
@@ -939,7 +944,7 @@
                     var overMod = function() {}.proto(this.$.__config__.templateModulePrototype);
                     nm = nm.inherit(overMod);
                 }
-                var initial = function() {
+                this.moduleReinit = function() {
                     if (args) {
                         $synthet.module = nm.construct(args);
                     } else {
@@ -947,21 +952,18 @@
                     }
                 };
                 if ("function" === typeof this.$.__config__.initialUserModuleCondition) {
-                    this.$.__config__.initialUserModuleCondition.call($synthet, initial);
+                    this.$.__config__.initialUserModuleCondition.call($synthet, this.moduleReinit);
                 } else {
-                    initial();
+                    this.moduleReinit();
                 }
             },
             destroy: function() {
                 if ("object" === typeof this.$.module && "function" === typeof this.$.module.destory) {
                     this.$.module.destory();
                 }
-                if ("object" === typeof this.$.module && "function" === typeof this.$.module.$destroy) {
-                    this.$.module.$destroy();
-                }
                 this.$.module = null;
                 for (var i = 0; i < this.watchers.length; ++i) {
-                    his.watchers[i]();
+                    this.watchers[i]();
                 }
                 this.clearEventListners();
             }
@@ -1029,7 +1031,6 @@
             return Mixin;
         };
     }(mixin);
-    var templateManager = function() {}.proto({});
     var preFactory = function(mixin) {
         var preFactory = function(options) {
             this.options = options;
@@ -1781,7 +1782,7 @@
             window[HTMLElement] = Element;
         })(window, Object, "HTMLElement");
     })();
-    (function(inherit, mixin, eventsClass, templateManager, camelize, smartCallback, ComponentPreFactory, initAngular, scopeGenerator, WebElementFactory) {
+    (function(inherit, mixin, eventsClass, camelize, smartCallback, ComponentPreFactory, initAngular, scopeGenerator, WebElementFactory) {
         function getRandomColor() {
             var letters = "0123456789ABCDEF".split("");
             var color = "#";
@@ -1804,7 +1805,7 @@
         };
         var componentAttacher = function() {
             var self = this;
-            if (!Synthetic.$$angularBootstraped) {
+            if (this.$.__config__.$$angularInitialedStage > 1 && !Synthetic.$$angularBootstraped) {
                 this.synthetic.$element.style.visibility = "hidden";
                 Synthetic.bind("angularBootstraped", function() {
                     self.synthetic.$element.style.visibility = "visible";
@@ -1822,6 +1823,9 @@
                 if (this.synthetic.$parent) {
                     this.synthetic.$parent.$$registerChild(this.synthetic);
                     this.synthetic.trigger("parentDefined");
+                }
+                if (this.synthetic.$injectors.$generator.configuration.module) {
+                    this.synthetic.$injectors.$generator.moduleReinit();
                 }
             }
             this.synthetic.trigger("attached", [ this.synthetic ]);
@@ -1960,6 +1964,7 @@
                             this.synthetic.__config__.allWaitingForResolve = "attached";
                             this.synthetic.__config__.attachedEventFires = false;
                             this.synthetic.trigger("detached", [ this.synthetic ]);
+                            this.synthetic.$detach();
                         }
                     },
                     attributeChangedCallback: {
@@ -2000,11 +2005,11 @@
                     }
                 })
             };
-            if (componentOptions.extends) elementOptions.extends = elementOptions.extends;
+            if (componentOptions.extends) elementOptions.extends = componentOptions.extends;
             document.registerElement(componentOptions.name, elementOptions);
             return componentFactory;
         };
         if (window) window.Synthetic = Synthetic;
         return Synthetic;
-    })(inherit, mixin, classEvents, null, camelize, smartCallback, preFactory, initAngular, scopeGenerator, webElementFactory);
+    })(inherit, mixin, classEvents, camelize, smartCallback, preFactory, initAngular, scopeGenerator, webElementFactory);
 })();

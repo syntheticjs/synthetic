@@ -28,7 +28,6 @@ define([
          TODO: Убедиться, что процедура больше не нужна
          */
         if (component.options.engine.name==='angular') {
-
             element.setAttribute("sid", this.$sid);
             this.$$attrsWatchers = {}; // Дополнительный ресурс для watchers, ускоряющий работу за отслеживанием аттрибутов
         }
@@ -99,8 +98,8 @@ define([
         });
 
         /*
-         Создаем базовый scope
-         */
+        Создаем базовый scope
+        */
         this.$$scope = {
             attributes: {}, // Содержит все аттрибуты элемента
             properties: {}, // Содержит все аттрибуты data-*
@@ -238,11 +237,12 @@ define([
             }
         }
         
+        /*
+        Опция позволяет явно указать что делать с дефолтным html
+        */
         switch (component.options.defaultHtml) {
-            case "preserve":
+            case "preserve": // Сохранить в documentFragment
                 this.$injectors.$defaultHtml = document.createDocumentFragment();
-
-                
 
                 for (var i = 0; i < element.childNodes.length; ++i) {
                     /*
@@ -254,14 +254,15 @@ define([
                 }
 
             break;
-
-            case "clear":
+            case "clear": // Очистить и забыть
                 element.innerHTML = "";
             break;
         }
 
+        /*
+        Ожидаем инициализации движка
+        */
         this.$queue(function() {
-
             /*
             На данном этапе мы уже должны обязательно подготовить данные о $parent
             */
@@ -280,21 +281,12 @@ define([
                 this.trigger('parentDefined');
             }
 
-            /*
-             Remove loading class
-             */
-            /*var i =this.$element.className.split(' ').indexOf('synt-loading')
-             if (!!~i) {
-             var st = this.$element.className.split(' ');
-             st.splice(i,1);
-             this.$element.className = st.join(' ');
-             }*/
             if (!~this.$element.className.split(' ').indexOf('synt-loaded'))
                 this.$element.className+=' synt-loaded';
 
             /*
-             Культивируем аттрибуты
-             */
+            Культивируем аттрибуты
+            */
             for (var z = 0; z < element.attributes.length; z++) {
                 var value = getNonScopeValue(element.attributes[z].value);
                 this.$injectors.$scope.attributes[camelize(element.attributes[z].name)] = value;
@@ -305,8 +297,8 @@ define([
             }
 
             /*
-             Преобраузем пользователський прототип c внедрением селфи аргументов
-             */
+            Преобраузем пользователський прототип c внедрением селфи аргументов
+            */
             for (var i = 0;i<component.prototypes.length;++i) {
                 for (var p in component.prototypes[i]) {
                     if (component.prototypes[i].hasOwnProperty(p)) {
@@ -315,24 +307,20 @@ define([
                 }
             }
 
-
-
             this.trigger("created", [ this.element ]);
             this.__config__.createdEventFires = true;
 
             /*
-             Component conceived methods
-             */
+            Component conceived methods
+            */
             for (var i = 0;i<component.conceivedCallers.length;++i) {
                 this[component.conceivedCallers[i][0]].apply(this, component.conceivedCallers[i][1]);
             }
 
             /*
-             Поочередно вызываем функции для события created (если created уже был)
-             */
-
+            Поочередно вызываем функции для события created (если created уже был)
+            */
             if (this.__config__.createdEventFires) {
-
 
                 for (var i = 0;i<component.onCreatedCallbacks.length;++i) {
 
@@ -347,8 +335,8 @@ define([
             }
 
             /*
-             Поочередно вызываем функции для события attached (если attached уже был)
-             */
+            Поочередно вызываем функции для события attached (если attached уже был)
+            */
             if (this.__config__.attachedEventFires) {
                 for (var i = 0;i<component.onAttachedCallbacks.length;++i) {
                     this.$inject(component.onAttachedCallbacks[i])();
@@ -366,11 +354,9 @@ define([
                 this.on("detached", component.onDetachedCallbacks[i]);
             }
 
-
-
             /*
-             Переносим callback для detached
-             */
+            Переносим callback для attributeChanged
+            */
             for (var i = 0;i<component.onAttributeChangedCallbacks.length;++i) {
                 this.on("attributeChanged", component.onAttributeChangedCallbacks[i]);
             }
@@ -378,24 +364,11 @@ define([
             var evalWatchers = function() {
 
                 /*
-                 Переносим наблюдение за scope
+                Переносим наблюдение за scope
                  */
                 for (var i = 0;i<component.watchers.length;++i) {
                     this.$watch.apply(this, component.watchers[i]);
                 }
-
-                /*
-                 После того как wathers назначены, необходимо немедленно проверить их значение
-                 */
-
-                /*for (var i = 0;i<component.watchers.length;++i) {
-
-                    this.$read.apply(this, component.watchers[i]);
-               }*/
-
-                /*
-                 Будем считать что элемент первично отрендерен
-                 */
             }
 
             /*

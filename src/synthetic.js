@@ -9,7 +9,6 @@ AMD Synthet
     "abstudio~inherit@0.1.4",
     "abstudio~mixin@0.1.0",
     "./classEvents.js",
-    './templateManager.js',
     "polyvitamins~polychrome@master/gist/convert/camelize.js",
     "./smartCallback.js",
     "./preFactory.js",
@@ -22,7 +21,6 @@ AMD Synthet
     inherit, 
     mixin, 
     eventsClass, 
-    templateManager,
     camelize, 
     smartCallback, 
     ComponentPreFactory, 
@@ -30,9 +28,6 @@ AMD Synthet
     scopeGenerator,
     WebElementFactory
 ) { 
-
-        
-
         function getRandomColor() {
             var letters = '0123456789ABCDEF'.split('');
             var color = '#';
@@ -57,21 +52,19 @@ AMD Synthet
                 }
             }
         }
+
         var componentAttacher = function() {
             var self = this;
-            if (!Synthetic.$$angularBootstraped) {
+            /*
+            Позволяет скрывать элемент до полной инициализации
+            */
+            if (this.$.__config__.$$angularInitialedStage>1 && !Synthetic.$$angularBootstraped) {
                 
                 this.synthetic.$element.style.visibility = 'hidden';
                 Synthetic.bind('angularBootstraped', function() {
                        self.synthetic.$element.style.visibility = 'visible';
                     }, true);
             }
-            /*
-            Если элемент добавлен в дерево 
-            */
-            //if (this.synthetic.__config__.$$angularInitialedStage>2) {
-                //console.log("%cpostAttached", "font-weight:bold;", this);
-            //}
 
             // Search parent synthetic element
             if (!this.synthetic.__config__.permanent) {
@@ -104,6 +97,16 @@ AMD Synthet
                     this.synthetic.trigger('parentDefined');
                 }
 
+                /*
+                Делаем повторную инициализацию template, в случае если он уже существует.
+                Поскольку angular вместо удаления элементов просто помещает их в documentFragment
+                не будут работать дестроеры для модулей. 
+                Поэтому дестроеры теперь срабатывают при detach элементов, так же как повторная
+                инициализация при attach элементов здесь.
+                */
+                if (this.synthetic.$injectors.$generator.configuration.module) {
+                    this.synthetic.$injectors.$generator.moduleReinit();
+                }
             }
 
             // Fires event
@@ -272,7 +275,6 @@ AMD Synthet
                             if (Synthetic($element[0]))
                             Synthetic($element[0]).__config__.$$angularDirectived = true;
                             else {
-                                
                                 /* Если директива отработала быстрей через компонент, то мы производим незамедлительную инициализацию */
                                 componentCreater.call($element[0], componentFactory);
                             }
@@ -356,6 +358,7 @@ AMD Synthet
                             this.synthetic.__config__.allWaitingForResolve = 'attached';
                             this.synthetic.__config__.attachedEventFires = false;
                             this.synthetic.trigger("detached", [ this.synthetic ]);
+                            this.synthetic.$detach();
                         }
                     },
                     attributeChangedCallback: {
@@ -424,7 +427,7 @@ AMD Synthet
                 })
             };
 
-            if (componentOptions.extends) elementOptions.extends = elementOptions.extends;
+            if (componentOptions.extends) elementOptions.extends = componentOptions.extends;
             document.registerElement(componentOptions.name, elementOptions);
             return componentFactory;
         }

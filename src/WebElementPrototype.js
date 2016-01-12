@@ -417,6 +417,21 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, dasherize, getN
 		$template: function(content) {
 			return this.$injectors.$generator.template(content);
 		},
+		/*
+		Принудительно выполняет действия связанные с deatch
+		*/
+		$detach: function() {
+
+			this.__config__.allWaitingForResolve = 'attached';
+            this.__config__.attachedEventFires = false;
+
+            /*
+			Если у модуля есть темплейт, мы должны произвести дестрой его модуля
+            */
+            this.$injectors.$generator.destroy();
+
+            this.trigger("detached", [ this.synthetic ]);
+		},
 		$destroy: function() {
 			
 			if (this.$destroyed) return true;
@@ -484,7 +499,7 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, dasherize, getN
 		$hitch: function(cb, keys) {
 			var fkey = cb.toString()+("object"===typeof keys ? JSON.stringify(keys) : (keys ? keys.toString() : '') );
             if ("function"===typeof this.$hitchers[fkey]) this.$hitchers[fkey].call(this);
-            this.$hitchers[fkey] = this.$run(cb);
+            this.$hitchers[fkey] = this.$inject(cb).apply(this, keys instanceof Array?keys:[]);
             return function(i) {
                 this.$hitchers[i].call(this); delete this.$hitchers[i];
             }.bind(this, fkey)

@@ -98,6 +98,10 @@ define(function() {
                 timer:0,
                 applies:[]
             };
+            /*
+            TODO: проверить необходимость данной функцией, она была введена в sx
+            как одна из мер разгрузки процессора
+            */
             Synthetic.$$applyPortion = function(changes) {
                 
                 $$applyPortions.applies.push(changes);
@@ -122,15 +126,23 @@ define(function() {
         * * * * * * * * * * * * *
         */
         if ("object"!==typeof angular.element(document.body).injector()) {
-
+            /*
+            Средство решающее проблемы бутстрапинга на firefox и safari
+            Производить инициализациб
+            */
             angular.element(document.body).ready(function() {
+                /*
+                Создаем отчетные данные по использованию jQuery в angular
+                */
                 Synthetic.$angularjQueryPowered = "function" === typeof angular.element.noConflict;
+                /*
+                Инициализация контроллера
+                */
                 var ngCtrl = Synthetic.$$angularApp.controller("syntheticController", function($element, $scope) {
                     
-                    
                 });
-                
                 Synthetic.$$angularCtrl = ngCtrl;
+
                 document.body.setAttribute("ng-jq", "");
                 document.body.setAttribute("ng-controller", "syntheticController");
 
