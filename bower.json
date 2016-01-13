@@ -7,18 +7,22 @@
   "description": "Library for creating web-components",
   "main": "dist/synthetic.js",
   "moduleType": [
-    "globals"
+    "globals",
+    "amd"
   ],
   "keywords": [
-    "web-component"
+    "web-components"
   ],
   "license": "MIT",
   "private": true,
   "ignore": [
-    "**/.*",
-    "node_modules",
-    "bower_components",
-    "test",
-    "tests"
-  ]
+    "*",
+    "!dist/",
+    "!dist/*",
+    "!bower.json",
+    "!LICENSE.MD"
+  ],
+  "dependencies": {
+    "angular": "~1.4.8"
+  }
 }

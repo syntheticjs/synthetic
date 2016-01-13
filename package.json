@@ -1,11 +1,12 @@
 {
   "name": "synthetic",
-  "version": "0.15.0",
+  "version": "0.20.0",
   "description": "",
   "main": "dist/syntehtic.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "webpack-dev-server --content-base public/ --port 6001"
+    "start": "webpack-dev-server --content-base public/ --port 6001",
+    "build": "webpack --colors --progress"
   },
   "repository": {
     "type": "git",

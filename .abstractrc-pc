@@ -1,9 +1,0 @@
-{
-	"aliases": {
-		"abstudio": "S:/mahabra/components",
-		"polyvitamins": "S:/mahabra/polyvitamins"
-	},
-	"apps": {
-		"./dist/": "./component.json"
-	}
-}

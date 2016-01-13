@@ -1,6 +1,5 @@
 
     var classEvents = require("./classEvents.js");
-    var minTemplate = require("./templaters/min.js");
     var synthetModule = require("./modulePrototype.js");
 
 
@@ -86,6 +85,7 @@
                             
                         })($.configuration.template, $.configuration.module);
                     } else {
+                        throw 'NOT READY';
                         $.$.$injectors.$element.innerHTML = $.$.$injectors.$element.innerHTML = minTemplate($.configuration.template, $.$.$injectors.$scope);
                         
                         resolve($.$.$injectors.$element);
