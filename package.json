@@ -1,6 +1,6 @@
 {
   "name": "synthetic",
-  "version": "0.20.0",
+  "version": "0.1.0",
   "description": "",
   "main": "dist/syntehtic.js",
   "scripts": {
