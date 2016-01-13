@@ -1,19 +1,17 @@
-define([
-	"./getObjectByXPath.js",
-	"./smartCallback.js",
-	"./classEvents.js",	
-	"polyvitamins~polychrome@master/gist/convert/camelize.js",
-	"polyvitamins~polychrome@master/gist/convert/dasherize.js",
-	"./getNonScopeValue.js",
-	"./box.js",
-    "./d3party/polyinherit/polyinherit.js",
-],
-function(getObjectByXPath, smartCallback, classEvents, camelize, dasherize, getNonScopeValue, Box) {
-	
+
+	var getObjectByXPath = require("./getObjectByXPath.js");
+	var smartCallback = require("./smartCallback.js");
+	var classEvents = require("./classEvents.js");
+	var getNonScopeValue = require("./getNonScopeValue.js");
+	var Box = require("./box.js");
+	var camelize = require("camelize");
+	var dasherize = require("dasherize");
+	require("polyinherit");
+
 	/*
 	Модифицируем стандартный classEvents
 	*/
-	return function() {
+	module.exports = function() {
 		/*
 		Этот массив содержит объекты с методом unwatch на каждое из наблюдений
 		*/
@@ -521,4 +519,3 @@ function(getObjectByXPath, smartCallback, classEvents, camelize, dasherize, getN
 			return this;
 		}
 	});
-});

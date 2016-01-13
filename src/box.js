@@ -1,5 +1,6 @@
-define(function() {
-	return function(handler) {
+require("inherit");
+
+module.exports = function(handler) {
 		this.data = {};
 		this.stashed = {};
 		this.shot = '';
@@ -76,4 +77,3 @@ define(function() {
 			this.handler.call(this.context, this.data);
 		}
 	});
-});

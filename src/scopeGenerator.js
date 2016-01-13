@@ -1,9 +1,9 @@
-define([
-    "abstudio~mixin@0.1.0",
-    "polyvitamins~polychrome@master/gist/convert/camelize.js",
-    "./scopeUtilits.js"
-], function(mixin, camelize, scopeUtilits) {
-    return function($self, $$scope, $attrs) {
+
+    var mixin = require('mixin');
+    var camelize = require("camelize");
+    var scopeUtilits = require("./scopeUtilits.js");
+
+    module.exports = function($self, $$scope, $attrs) {
         /*
          Предотвращаем генерацию контроллера, если элемент уже был удален
          */
@@ -92,5 +92,4 @@ define([
             configurable: false,
             value: Synthetic.$$angularApp
         });
-    }
-});
+    };

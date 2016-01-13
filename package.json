@@ -1,0 +1,36 @@
+{
+  "name": "synthetic",
+  "version": "0.15.0",
+  "description": "",
+  "main": "dist/syntehtic.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "webpack-dev-server --content-base public/ --port 6001"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/syntheticjs/synthetic.git"
+  },
+  "author": "Vladimir Kalmykov <vladimirmorulus@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/syntheticjs/synthetic/issues"
+  },
+  "homepage": "https://github.com/syntheticjs/synthetic#readme",
+  "dependencies": {
+    "camelize": "polyvitamins/camelize",
+    "dasherize": "polyvitamins/dasherize",
+    "document-register-element": "webreflection/document-register-element",
+    "extend": "polyvitamins/extend",
+    "inherit": "polyvitamins/inherit",
+    "mixin": "polyvitamins/mixin",
+    "polyinherit": "polyvitamins/polyinherit"
+  },
+  "devDependencies": {
+    "css-loader": "^0.23.1",
+    "raw-loader": "^0.5.1",
+    "style-loader": "^0.13.0",
+    "webpack": "^1.12.10",
+    "webpack-dev-server": "^1.14.0"
+  }
+}

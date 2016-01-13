@@ -1,6 +1,6 @@
-define([
-	"abstudio~mixin@0.1.0"
-], function(mixin) {
+
+	var mixin = require("mixin");
+
 	var preFactory = function(options) {
 		this.options = options;
 
@@ -49,7 +49,7 @@ define([
 			return this;
 		},
 		template: function() {
-			this.$addConceivedMethod('template', arguments);
+			this.$addConceivedMethod('$template', arguments);
 			return this;
 		},
 		config: function(useroptions) {
@@ -58,5 +58,4 @@ define([
 		}
 	}
 
-	return preFactory;
-})
+	module.exports = preFactory;

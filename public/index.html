@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Hello synthetic world</title>
+	<script src="angular.js"></script>
+	<script src="synthetic-test.js"></script>
+	<script>
+		Synthetic.createComponent({
+			name: 'hello-world',
+			engine: 'angular'
+		}, function($component) {
+			$component.template('<h1>OK</h1>');
+		});
+	</script>
+</head>
+<body>
+	<hello-world>
+		Synthetic is not working
+	</hello-world>
+	<hr />
+	<h4>Runtime log:</h4>
+	<ol>
+	<script>
+		if (Synthetic) document.writeln('<li>Synthetic library loaded...</li>');
+	</script>
+	</ol>
+</body>
+</html>

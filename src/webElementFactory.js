@@ -1,12 +1,12 @@
-define([
-    "./WebElementPrototype.js",
-    "abstudio~mixin@0.1.0",
-    "./d3party/extend/extend.js",
-    "./generator.js",
-    "polyvitamins~polychrome@master/gist/convert/camelize.js",
-    "./getNonScopeValue.js",
-    "./d3party/polyinherit/polyinherit.js",
-], function(WebElementPrototype, mixin, extend, Generator, camelize, getNonScopeValue) {
+
+    var WebElementPrototype = require("./WebElementPrototype.js");
+    var mixin = require("mixin");
+    var extend = require("extend");
+    var Generator = require("./generator.js");
+    var camelize = require("camelize");
+    var getNonScopeValue = require("./getNonScopeValue.js");
+    require("polyinherit");
+
     /*
      Как только элемент попадает в DOM он проходит данную инициализацию.
      Если работа ведется с angular то этот код должен быть выполнен до
@@ -16,7 +16,7 @@ define([
      предоставить ей всю необходимую информацию, желательно template и
      модуль.
      */
-    return function(element, component) {
+    module.exports = function(element, component) {
 
         /*
          Устанавливаем отладочную идентификацию
@@ -390,4 +390,3 @@ define([
         });
 
     }.inherit(WebElementPrototype);
-});

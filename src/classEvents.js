@@ -1,6 +1,6 @@
-define([
-"./smartCallback.js",
-], function(smartCallback) {
+
+    var smartCallback = require("./smartCallback.js");
+
 	var Events = function() {
 		this.eventListners = {};
         this.bubblingListners = {};
@@ -299,5 +299,4 @@ define([
 		}
 	}
 
-	return Events;
-});
+	module.exports = Events;

@@ -1,4 +1,4 @@
-define(function() {
+
 /*!
     Copyright (C) 2014-2015 by WebReflection
 
@@ -776,4 +776,3 @@ define(function() {
         window[HTMLElement] = Element;
 
     }(window, Object, 'HTMLElement'));
-});

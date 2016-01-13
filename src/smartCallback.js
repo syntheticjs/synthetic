@@ -1,4 +1,4 @@
-define(function() {
+
 	var funcarguments = new RegExp(/[\d\t]*function[ ]?\(([^\)]*)\)/i), 
     scopesregex = /({[^{}}]*[\n\r]*})/g, 
     funcarguments = new RegExp(/[\d\t]*function[ ]?\(([^\)]*)\)/i), 
@@ -9,7 +9,7 @@ define(function() {
         }
         return [];
     };
-    return function(callback, context) {
+    module.exports = function(callback, context) {
         var prefixedArguments = [], 
         requiredArguments = getFunctionArguments(callback.toString());
 
@@ -32,4 +32,3 @@ define(function() {
         injected.$$injected = true;
         return injected;
     };
-});

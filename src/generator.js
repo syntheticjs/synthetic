@@ -1,11 +1,10 @@
-define([
-    "./classEvents.js",
-    "./templaters/min.js",
-    "./modulePrototype.js"
-],
-function(classEvents, minTemplate, synthetModule) {
 
-    return function(synthet) {
+    var classEvents = require("./classEvents.js");
+    var minTemplate = require("./templaters/min.js");
+    var synthetModule = require("./modulePrototype.js");
+
+
+    module.exports = function(synthet) {
         this.$ = synthet;
         this.configuration = {
             template: false
@@ -176,4 +175,3 @@ function(classEvents, minTemplate, synthetModule) {
                 this.clearEventListners();
             }
         });
-});
