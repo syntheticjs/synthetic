@@ -5,7 +5,7 @@
   "main": "dist/syntehtic.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "webpack-dev-server --content-base public/ --port 6001",
+    "start": "webpack-dev-server --content-base public/ --port 6003",
     "build": "webpack --colors --progress"
   },
   "repository": {
@@ -25,7 +25,8 @@
     "extend": "polyvitamins/extend",
     "inherit": "polyvitamins/inherit",
     "mixin": "polyvitamins/mixin",
-    "polyinherit": "polyvitamins/polyinherit"
+    "polyinherit": "polyvitamins/polyinherit",
+    "polypromise": "polyvitamins/polypromise"
   },
   "devDependencies": {
     "css-loader": "^0.23.1",

@@ -24,7 +24,13 @@
 		Hitchers
 		*/
 		this.$hitchers = {};
-
+		/*
+		Config
+		*/
+		this.$config = {};
+		/*
+		
+		*/
 		this.$$applyPortions = {
 			applies: [],
 			timer: 0
@@ -65,7 +71,7 @@
 			}
 
 			var alldata = [];
-			if (self.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp)
+			if (self.$injectors.$component.engine.name==='angular'&&Synthetic.$$angularApp)
 			{
 				for (var x = 0;x<requiredProperties.length;++x) {
 					
@@ -180,7 +186,7 @@
 							alldata.push(getNonScopeValue(newValue));
 						}
 						else {
-							if (self.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp) {
+							if (self.$injectors.$component.engine.name==='angular'&&Synthetic.$$angularApp) {
 								alldata.push(getNonScopeValue(self.$injectors.$scope.$eval(requiredProperties[x].join('.'))));
 							} else {
 								alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
@@ -226,7 +232,7 @@
 				// Обнуляем snaps
 				if ("undefined"===typeof self.$scopeSnaps[JSON.stringify(requiredProperties)]) self.$scopeSnaps[JSON.stringify(requiredProperties)] = false;
 
-				if (self.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
+				if (self.$injectors.$component.engine.name==='angular'&&Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
 
 					
 						var compiledCallbacker;
@@ -406,7 +412,7 @@
 
 			
 
-			if (this.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp)
+			if (this.$injectors.$component.engine.name==='angular'&&Synthetic.$$angularApp)
 			this.$scope.$applyAsync(realCallback);
 			else
 			setTimeout(realCallback);

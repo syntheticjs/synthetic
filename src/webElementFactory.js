@@ -8,6 +8,108 @@
     require("polyinherit");
 
     /*
+    Коллекция метода импорта значений из preset
+    */
+    var presetImport = {};
+    presetImport['presetImportWatchers'] = function(watchers) {
+        /*
+        Переносим наблюдение за scope
+        */
+        for (var i = 0;i<watchers.length;++i) {
+            this.$watch.apply(this, watchers[i]);
+        }
+    };
+
+    /*
+    Процедура импорта методов прототипа
+    */
+    presetImport['presetImportPrototype'] = function(prototype) {
+        for (var p in prototype[i]) {
+            if (prototype.hasOwnProperty(p)) {
+                this[p] = this.$inject(prototype[p]);
+            }
+        }
+    };
+
+    /*
+    Процедура импорта опции сохранения родного innerHtml
+    */
+    presetImport['presetImportDefaultHtmlConfig'] = function(defaultHtml) {
+        var self = this;
+        switch (defaultHtml) {
+            case "preserve": // Сохранить в documentFragment
+                self.$injectors.$defaultHtml = document.createDocumentFragment();
+
+                for (var i = 0; i < self.element.childNodes.length; ++i) {
+                    /*
+                    При клонировании элемента обязательно нужно указывать параметр deep (протестировано на sag)
+                    */
+                    if (self.element.childNodes[i].nodeType === 1 || self.element.childNodes[i].nodeType === 3) {
+                        self.$injectors.$defaultHtml.appendChild(self.element.childNodes[i].cloneNode(true));
+                    }
+                }
+
+            break;
+            case "clear": // Очистить и забыть
+                self.element.innerHTML = "";
+            break;
+        }
+    }
+
+    /*
+    Процедура импорта callback-функций из presets
+    */
+    presetImport['presetImportCallbacksAction'] = function(conceivedCallers, onCreate, onAttach, onDetach, attrsChange) {
+        var self = this;
+        /*
+        Component conceived methods
+        */
+        for (var i = 0;i<conceivedCallers.length;++i) {
+            self[conceivedCallers[i][0]].apply(self, conceivedCallers[i][1]);
+        }
+
+        /*
+        Поочередно вызываем функции для события created (если created уже был)
+        */
+        if (self.__config__.createdEventFires) {
+            for (var i = 0;i<onCreate.length;++i) {
+                self.$inject(onCreate[i])();
+            }
+        } else {
+            for (var i = 0;i<onCreate.length;++i) {
+                self.on("created", onCreate[i]);
+            }
+        }
+
+        /*
+        Поочередно вызываем функции для события attached (если attached уже был)
+        */
+        if (self.__config__.attachedEventFires) {
+            for (var i = 0;i<onAttach.length;++i) {
+                self.$inject(onAttach[i])();
+            }
+        } else {
+            for (var i = 0;i<onAttach.length;++i) {
+                self.on("attached", onAttach[i]);
+            }
+        }
+
+        /*
+        Переносим callback для detached
+        */
+        for (var i = 0;i<onDetach.length;++i) {
+            self.on("detached", onDetach[i]);
+        }
+
+        /*
+        Переносим callback для attributeChanged
+        */
+        for (var i = 0;i<attrsChange.length;++i) {
+            self.on("attributeChanged", attrsChange[i]);
+        }
+    };
+
+    /*
      Как только элемент попадает в DOM он проходит данную инициализацию.
      Если работа ведется с angular то этот код должен быть выполнен до
      того как angular применит compile для этой директивы.
@@ -17,59 +119,67 @@
      модуль.
      */
     module.exports = function(element, component) {
+        var self = this;
+        /*
+        Указываем последнюю factory для элемента. Она используется при внедлении скрипта через тэг <script>
+        внутри компонента
+        */
+        Synthetic.$$lastElementFactory = this;
 
         /*
-         Устанавливаем отладочную идентификацию
-         */
+        Set element synthetic identifier named as $sid.
+        $sid is a unique name of syntehtic element.
+        */
         this.$sid = 'sid'+(new Date()).getTime()+Math.round(Math.random()*10000000);
 
         /*
-         DEPRODATED: Если в качестве движка выбран angular мы должны добавить аттрибут-директиру, которая уже описана при регистрации компонента
-         TODO: Убедиться, что процедура больше не нужна
-         */
-        if (component.options.engine.name==='angular') {
-            element.setAttribute("sid", this.$sid);
-            this.$$attrsWatchers = {}; // Дополнительный ресурс для watchers, ускоряющий работу за отслеживанием аттрибутов
-        }
+        Add sid to element attributes
+        */
+        element.setAttribute("sid", this.$sid);
 
+        /*
+        Capture cross event `destroy` of parent element and destroy this element 
+        */
         this.capture('destroy', function() {
             this.$destroy();
         });
 
         /*
-         Указываем последнюю factory для элемента
-         */
-        Synthetic.$$lastElementFactory = this;
+        Дополнительный ресурс для watchers, ускоряющий работу за отслеживанием аттрибутов
+        */
+        this.$$attrsWatchers = {};
 
         /*
-        Устанавливаем ссылку на родительский компонент
+        Устанавливаем ссылку на родительский компонент по умолчанию
         */
         this.$parent = false;
 
         /*
-        Устанавливаем ссылки на дочерние компоненты
+        Устанавливаем ссылки на дочерние компоненты по умолчанию
         */
         this.$childs = {};
 
         /*
-         Устанавливаем пямять для запросов к данным scope
-         */
+        Устанавливаем пямять для запросов к данным scope.
+        Используется для кеширования тех запросов, что уже были созданы и позволяет
+        отсеивать дублирубщие запросы.
+        */
         this.$scopeSnaps = {};
 
         /*
-         Привязываем элемент к его контроллеру
-         */
+        Привязываем элемент к его контроллеру
+        */
         this.$element = element;
 
         /*
-         Привязываем образ компонента
-         */
+        Привязываем образ компонента к самому себе
+        */
         this.component = component;
 
         /*
-         Привязываем контроллер к его элементу
-         Достигаем обратного связывания
-         */
+        Привязываем контроллер к его элементу
+        Достигаем обратного связывания
+        */
         Object.defineProperty(element, 'synthetic', {
             enumerable: false,
             writable: false,
@@ -78,23 +188,21 @@
         });
 
         /*
-         Создаем основное системное конфигурационное свойство
-         */
+        Создаем основное системное конфигурационное свойство
+        */
         Object.defineProperty(this, '__config__', {
             enumerable: false,
             writable: false,
             configurable: true,
             value: mixin({
-                allWaitingForResolve: false, // Используется при инициализации angular.
-                // DOTO: delete depricated element
-                generator: false, // Depricated
+                allWaitingForResolve: false, // Используется при инициализации angular
                 $$angularInitialedStage: 0, // Этап инициализации angular
                 $$angularDirectived: false, // Поддерживает ли этот элемент директива angular
                 createdEventFires: false, // Произошло ли событие created
                 attachedEventFires: false, // Произошло ли событие attached
                 templateModulePrototype: false, // Класс, которым автоматичнески расширяется модуль шаблона
-                rendered: false
-            }, component.options)
+                rendered: false // Произведен ли рендеринг элемента TODO: проверить факт юзабельности
+            })
         });
 
         /*
@@ -108,19 +216,10 @@
         };
 
         /*
-        Расширяем scope пользовательскими настройками
-        DEPRICATED - Формирование дефолтного скоуп будет происходить
-        на уровне директивы
-         */
-        /*if ("object"===typeof component.options.scope) {
-            this.$$scope = extend(this.$$scope, component.options.scope);
-        }*/
-
-        /*
-         Создаем доступное свойство scope, которое назависимо от используемого движка
+        Создаем доступное свойство scope, которое назависимо от используемого движка
          вернет текущий scope
-         */
-         var self = this;
+        */
+       
         Object.defineProperty(this, '$scope', {
             enumberable: true,
             get: function() {
@@ -140,16 +239,16 @@
                 $element: element,
                 $self: this,
                 $component: component,
-                $generator: new Generator(this),
+                $generator: new Generator(this), // Инициализируем генератор
                 $stock: {}
             }
         });
 
         /*
-         Комплекс действий по инициализации angular, произойдет это только в том случае если в опциях
-         компонента указано, что он должен использовать angular
-         */
-        if ("object"===typeof angular&&angular.bootstrap&&component.options.engine.name==='angular') {
+        Комплекс действий по инициализации angular, произойдет это только в том случае если в опциях
+        компонента указано, что он должен использовать angular
+        */
+        if ("object"===typeof angular&&angular.bootstrap&&component.engine.name==='angular') {
             var $self = this;
 
             // TODO: Depricate
@@ -191,7 +290,7 @@
                             */
                             Synthetic.$$angularCompile($self.$element)(Synthetic.$$angularRootScope.$new());
                         } catch(e) {
-                            console.error('damn', e, $self.$element);
+                            console.error('Angular fatal error. Scope is not created.', e, $self.$element);
                         }
                     }
                 }
@@ -200,8 +299,8 @@
         }
 
         /*
-         Собираем дерево элементов в $scope
-         */
+        Собираем дерево элементов в $scope
+        */
         for (var i = 0;i<element.childNodes.length;++i) {
             if (element.childNodes[i].nodeType===1) {
                 /*
@@ -236,28 +335,49 @@
                 }
             }
         }
-        
-        /*
-        Опция позволяет явно указать что делать с дефолтным html
-        */
-        switch (component.options.defaultHtml) {
-            case "preserve": // Сохранить в documentFragment
-                this.$injectors.$defaultHtml = document.createDocumentFragment();
 
-                for (var i = 0; i < element.childNodes.length; ++i) {
-                    /*
-                    При клонировании элемента обязательно нужно указывать параметр deep (протестировано на sag)
-                    */
-                    if (element.childNodes[i].nodeType === 1 || element.childNodes[i].nodeType === 3) {
-                        this.$injectors.$defaultHtml.appendChild(element.childNodes[i].cloneNode(true));
+        /*
+        Пришло время работать с preset
+        */
+        var presets = ['@'],
+        userPreset = element.getAttribute('preset');
+
+        if (userPreset!==null&&userPreset.charAt(0)!=='{') {
+            presets.push(userPreset);
+        }
+
+        /*
+        Отмечаем выделенные preset как отработанные
+        */
+        for (var i = 0;i<presets.length;++i) {
+            component.presets[presets[i]].performed = true;
+        }
+
+        /*
+        Начинаем наблюдение за переменной preset
+        */
+        var watchPresetValue = function() {
+            self.$watch('attributes.preset', function(preset) {
+                if (!component.presets[preset].performed) {
+                    for (var prop in presetImport) {
+                        if (presetImport.hasOwnProperty(prop))
+                        component.$usePreset(presets, presetImport[prop], this);
                     }
                 }
-
-            break;
-            case "clear": // Очистить и забыть
-                element.innerHTML = "";
-            break;
+            });
+        };
+        if (!this.$parent) {
+            this.bind('parentDefined', function() {
+                watchPresetValue();
+            }, true);
+        } else {
+            watchPresetValue();
         }
+        
+        /*
+        Анализ опции, указывающей на то как поступить с родным innerHtml элемента
+        */
+        component.$usePreset(presets, presetImport['presetImportDefaultHtmlConfig'], this);
 
         /*
         Ожидаем инициализации движка
@@ -297,78 +417,24 @@
             }
 
             /*
-            Преобраузем пользователський прототип c внедрением селфи аргументов
+            Преобраузем прототип компонента c применем inject
             */
-            for (var i = 0;i<component.prototypes.length;++i) {
-                for (var p in component.prototypes[i]) {
-                    if (component.prototypes[i].hasOwnProperty(p)) {
-                        this[p] = this.$inject(component.prototypes[i][p]);
-                    }
-                }
-            }
+            component.$usePreset(presets, presetImport['presetImportPrototype'], this);
 
+            /*
+            Отправляем событие created
+            */
             this.trigger("created", [ this.element ]);
             this.__config__.createdEventFires = true;
+            
+            component.$usePreset(presets, presetImport['presetImportCallbacksAction'], this);
+
 
             /*
-            Component conceived methods
+            Анонимная evalWatchers поможет начать наблюдение за scope в нужный момент
             */
-            for (var i = 0;i<component.conceivedCallers.length;++i) {
-                this[component.conceivedCallers[i][0]].apply(this, component.conceivedCallers[i][1]);
-            }
-
-            /*
-            Поочередно вызываем функции для события created (если created уже был)
-            */
-            if (this.__config__.createdEventFires) {
-
-                for (var i = 0;i<component.onCreatedCallbacks.length;++i) {
-
-                    this.$inject(component.onCreatedCallbacks[i])();
-                }
-            } else {
-
-                for (var i = 0;i<component.onCreatedCallbacks.length;++i) {
-
-                    this.on("created", component.onCreatedCallbacks[i]);
-                }
-            }
-
-            /*
-            Поочередно вызываем функции для события attached (если attached уже был)
-            */
-            if (this.__config__.attachedEventFires) {
-                for (var i = 0;i<component.onAttachedCallbacks.length;++i) {
-                    this.$inject(component.onAttachedCallbacks[i])();
-                }
-            } else {
-                for (var i = 0;i<component.onAttachedCallbacks.length;++i) {
-                    this.on("attached", component.onAttachedCallbacks[i]);
-                }
-            }
-
-            /*
-             Переносим callback для detached
-             */
-            for (var i = 0;i<component.onDetachedCallbacks.length;++i) {
-                this.on("detached", component.onDetachedCallbacks[i]);
-            }
-
-            /*
-            Переносим callback для attributeChanged
-            */
-            for (var i = 0;i<component.onAttributeChangedCallbacks.length;++i) {
-                this.on("attributeChanged", component.onAttributeChangedCallbacks[i]);
-            }
-
             var evalWatchers = function() {
-
-                /*
-                Переносим наблюдение за scope
-                 */
-                for (var i = 0;i<component.watchers.length;++i) {
-                    this.$watch.apply(this, component.watchers[i]);
-                }
+                component.$usePreset(presets, presetImport['presetImportWatchers'], self);
             }
 
             /*
@@ -385,8 +451,6 @@
             
             this.trigger("rendered", [this.$element]);
             this.__config__.rendered = true;
-            //this.bubbling('shake'); // Shake all roots
-
         });
 
     }.inherit(WebElementPrototype);

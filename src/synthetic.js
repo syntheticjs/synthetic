@@ -44,7 +44,7 @@ var componentAttacher = function() {
         
         this.synthetic.$element.style.visibility = 'hidden';
         Synthetic.bind('angularBootstraped', function() {
-               self.synthetic.$element.style.visibility = 'visible';
+               self.synthetic.$element.style.visibility = '';
             }, true);
     }
 
@@ -104,12 +104,15 @@ var componentCreater = function(componentFactory) {
     */
 
     if (this.synthetic) return false;
-   
     
     // inherit constructors
+    /*
+    TODO: Is this really deprecated?
+    DEPRECATED
     for (var i = 0;i<componentFactory.constructors.length;++i) {
         WebElementFactory.inherit(componentFactory.constructors[i]);
     }
+    */
    
     var WebElement = new WebElementFactory(this, componentFactory);
 };
@@ -180,91 +183,111 @@ Synthetic.hasPropertySubKey = function(property, subkey) {
     return !!~("string"===typeof property?property.replace(' ','').split(','):property).indexOf(subkey);
 }
 
-Synthetic.createComponent = function(componentOptions, constructor) {
+Synthetic.createComponent = function(componentOptions, workshop) {
 
-    var defaultOptions = {
-        name: '',
-        engine: 'sinthezia'
-    };
+    var name = '', engine = {
+        name: 'synthetic',
+        initial: false
+    }, scope = false, HTMLElementPrototype = "HTMLElement";
 
     /*
     Преобразуем строковое представление componentOptions в объект
     */
-    componentOptions = "string"!==typeof componentOptions ?
-    mixin(defaultOptions, componentOptions) : mixin(defaultOptions, {
-        name: componentOptions
+    if ("string"!==typeof componentOptions) {
+        // Import name 
+        if (componentOptions.name) name = componentOptions.name;
+        // Import engine options
+        if ("string"===typeof componentOptions.engine) {
+            engine = {
+                name: componentOptions.engine,
+                initial: false
+            }
+        } else if ("object"===typeof componentOptions.engine&&componentOptions.engine instanceof Array) {
+            engine = {
+                name: componentOptions.engine[0],
+                initial: componentOptions.engine[1]||false
+            }
+        }
+        // Import default scopr
+        if ("object"===typeof componentOptions.scope) {
+            scope = componentOptions.scope;
+        }
+        //
+        if ("string"===typeof componentOptions.HTMLElementPrototype)
+            HTMLElementPrototype = componentOptions.HTMLElementPrototype;
+    } else {
+        name = componentOptions;
+    }
+
+    /* Validate name */
+    if (name.indexOf("-") < 0) throw "Module name must have `-` symbol";
+    
+    /*
+    Create component
+    */
+    var componentFactory = new ComponentPreFactory({
+        name: name, // Component name
+        engine: engine // Component engine
     });
 
     /*
-    Преобразуем строкове представление engine в объект
+    Create default preset
     */
-    if ("string"===typeof componentOptions.engine) {
-        componentOptions.engine = {
-            name: componentOptions.engine,
-            initial: false
-        }
-    } else if ("object"===typeof componentOptions.engine&&componentOptions.engine instanceof Array) {
-        componentOptions.engine = {
-            name: componentOptions.engine[0],
-            initial: componentOptions.engine[1]||false
-        }
-    }
-
-    if (componentOptions.name.indexOf("-") < 0) throw "Module name must have `-` symbol";
-
-    var componentFactory = new ComponentPreFactory(componentOptions),
-    prototype = smartCallback.call({
-        $component: componentFactory
-    }, constructor)();
-
-    if ("object"===typeof prototype) {
-        componentFactory.proto(prototype);
-    } else if ("function"===typeof prototype) {
-        componentFactory.construct(prototype);
-    }
-
-    // Normalize scope
-    componentOptions.scope = "object"===typeof componentOptions.scope ? componentOptions.scope : {};
+    var preset = componentFactory.createPreset('@');
+    /*
+    Import scope
+    */
+    if (scope) preset.$scope(scope);
+    /*
+    Import general workshop
+    */
+    preset.$run(workshop);
 
     /*
     Если мы используем angular, то помимо копонента мы создаем минимальную директиву,
     задача которой будет создавать изолированный scope для каждого компонента
     */
-    if (componentOptions.engine.name==='angular') {
+    if (engine.name==='angular') {
         /* Creates angular app if not exists. Why i'm speaking english??? */
         if ("undefined"===typeof Synthetic.$$angularApp) {
             initAngular();
         }
         
-        if ("function"===typeof componentFactory.options.engine.initial) {
-            componentFactory.options.engine.initial(Synthetic.$$angularApp);
+        if ("function"===typeof componentFactory.engine.initial) {
+            componentFactory.engine.initial(Synthetic.$$angularApp);
         }
 
-        var rcolor = getRandomColor();
-        Synthetic.$$angularApp.directive(camelize(componentOptions.name), function() {
+        /*
+        Creating angular directive
+        */
+        Synthetic.$$angularApp.directive(camelize(name), function() {
             return {
                 restrict: 'E',
                 priority: 998,
                 scope: true,
-                controller: function($element) {
-
-                },
                 compile: function($element, $rscope, $a, $controllersBoundTransclude) {
 
                     // Запоминаем стартовое значение html
                     var $defaultHtml = $element[0].innerHTML;
 
-                    if (Synthetic($element[0]))
-                    Synthetic($element[0]).__config__.$$angularDirectived = true;
-                    else {
-                        /* Если директива отработала быстрей через компонент, то мы производим незамедлительную инициализацию */
+                    // If element already initialized change angular directived status to true
+                    if (Synthetic($element[0])) {
+                        Synthetic($element[0]).__config__.$$angularDirectived = true;
+                    } else {
+                        /*
+                        If web-component still unitialized, initialize it by the force
+                        */
                         componentCreater.call($element[0], componentFactory);
                     }
 
                     
                     return {
                         pre: function($scope, $element) {
+                            /*
+                            Элемент не может быть обработан директивой, если он не синтезирован
+                            */
                             if (!Synthetic($element[0])) return;
+
                             Synthetic($element[0]).__config__.$$angularDirectived = true;
                             /*
                             В данной ситуации пришлось отказаться от использования extend для
@@ -274,51 +297,36 @@ Synthetic.createComponent = function(componentOptions, constructor) {
                             приводит к катастрофическим ошибкам, связанным с записью данных в источник.
 
                             Функция startextend гарантирует, что все копируемые свойства будут перевоссозданы заново,
-                            однако эта функция не осуствляет миксим с существующими значениями $scope, поэтому ее можно
+                            однако эта функция не осуществляет mixin с существующими значениями $scope, поэтому ее можно
                             использовать только при первичной инициализации.
 
                             Желательно выяснить по какой причине extend не создает требуемых копий свойств.
                             */
-                            startextend($scope, componentOptions.scope);
-
+                            startextend($scope, componentFactory.presets['@'].$import.scope);
                             
                             /*
-                            Если scope для элемента не установлен, то вероятно этот элемент используется в ngRepeat и временно
-                            пермещен в documentFragment. Такой элемент не нужно инициализировать.
-
-                            !!! Однако если мы размещаем диерктивы по приоритету ниже чем ng-repeat, то pre не вызывается в принципе.
-                            TODO: решить это
+                            Кастомизируем scope
                             */
-                            /*if (angular.element($element[0]).scope()===undefined) {
-                                console.log("%c<custom-directive>", "color:blue;font-weight:bold;", 'destroy', $element, $scope);
-                                Synthetic($element[0]).$destroy();
-                                return;
-                            }*/
-
-
-                            Synthetic($element[0]).__config__.$$angularDirectived = true;
                             scopeGenerator($element[0].synthetic, $scope);
-
-                            return function(scope) {
-                                //console.log('prePost', scope);
-                            }
-                           
                         },
                         post: function($scope, $element) {
                             if (!Synthetic($element[0])) return;
-                            // 3 этап инициализации angular означает, что объект полностью
-                            // инициализирован
+                            /*
+                            Инициализация директивы полностью завершена и мы можем перейти к 
+                            этапу 3
+                            */
                             Synthetic($element[0]).__config__.$$angularInitialedStage = 3;
                         }
                     }
-                    
-                    /**/
                 }
             }
         });
     };
 
-    var prototype = window[componentOptions.HTMLElementPrototype || "HTMLElement"].prototype;
+    /*
+    Начинаем работу с кастомизацией элемента
+    */
+    var prototype = window[HTMLElementPrototype].prototype;
     var elementOptions = {
         prototype: Object.create(prototype, {
             createdCallback: {
@@ -409,10 +417,19 @@ Synthetic.createComponent = function(componentOptions, constructor) {
         })
     };
 
-    if (componentOptions.extends) elementOptions.extends = componentOptions.extends;
-    document.registerElement(componentOptions.name, elementOptions);
+    // ??????
+    //if (componentOptions.extends) elementOptions.extends = componentOptions.extends;
+
+    document.registerElement(name, elementOptions);
+    Synthetic.components[name] = componentFactory;
     return componentFactory;
 }
+
+Synthetic.getComponent = function(name) {
+    if ("object"!==typeof Synthetic.components[name])
+    return Synthetic.components[name];
+    else return new Creed(function(resolve, reject) { reject('Component not found'); });
+};
 
 if ("object"===typeof window) window['Synthetic']=Synthetic;
 module.exports = Synthetic;
