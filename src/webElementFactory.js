@@ -9,6 +9,9 @@
 
     var presetImport = {};
 
+    var regScriptContent = /<script[^>]*>([.\w\d\r\t\n\.\s;'"{}\(\)]*)<\/script>/i,
+    regSyntheticScript = /^[\t\r\s]*Synthetic\(/i;
+    
     /*
     Процедура импорта методов прототипа
     */
