@@ -7,24 +7,13 @@
     var getNonScopeValue = require("./getNonScopeValue.js");
     require("polyinherit");
 
-    /*
-    Коллекция метода импорта значений из preset
-    */
     var presetImport = {};
-    presetImport['presetImportWatchers'] = function(watchers) {
-        /*
-        Переносим наблюдение за scope
-        */
-        for (var i = 0;i<watchers.length;++i) {
-            this.$watch.apply(this, watchers[i]);
-        }
-    };
 
     /*
     Процедура импорта методов прототипа
     */
     presetImport['presetImportPrototype'] = function(prototype) {
-        for (var p in prototype[i]) {
+        for (var p in prototype) {
             if (prototype.hasOwnProperty(p)) {
                 this[p] = this.$inject(prototype[p]);
             }
@@ -34,7 +23,7 @@
     /*
     Процедура импорта опции сохранения родного innerHtml
     */
-    presetImport['presetImportDefaultHtmlConfig'] = function(defaultHtml) {
+    presetImport['presetImportDefaults'] = function(defaultHtml, config) {
         var self = this;
         switch (defaultHtml) {
             case "preserve": // Сохранить в documentFragment
@@ -54,18 +43,39 @@
                 self.element.innerHTML = "";
             break;
         }
+
+        mixin(self.$$scope.$config, config);
     }
+
+    /*
+    Коллекция метода импорта значений из preset
+    */
+    presetImport['presetImportWatchers'] = function(watchers) {
+        /*
+        Переносим наблюдение за scope
+        */
+        for (var i = 0;i<watchers.length;++i) {
+            this.$watch.apply(this, watchers[i]);
+        }
+    };
 
     /*
     Процедура импорта callback-функций из presets
     */
-    presetImport['presetImportCallbacksAction'] = function(conceivedCallers, onCreate, onAttach, onDetach, attrsChange) {
+    presetImport['presetImportCallbacksAction'] = function(conceivedCallers, template, onCreate, onAttach, onDetach, observeAttrs) {
         var self = this;
         /*
         Component conceived methods
         */
         for (var i = 0;i<conceivedCallers.length;++i) {
             self[conceivedCallers[i][0]].apply(self, conceivedCallers[i][1]);
+        }
+
+        /*
+        Устанавливаем шаблон по умолчанию, если он указан
+        */
+        if (template) {
+            self.$template.apply(self, template);
         }
 
         /*
@@ -104,8 +114,8 @@
         /*
         Переносим callback для attributeChanged
         */
-        for (var i = 0;i<attrsChange.length;++i) {
-            self.on("attributeChanged", attrsChange[i]);
+        for (var i = 0;i<observeAttrs.length;++i) {
+            self.on("attributeChanged", observeAttrs[i]);
         }
     };
 
@@ -176,6 +186,7 @@
         */
         this.component = component;
 
+
         /*
         Привязываем контроллер к его элементу
         Достигаем обратного связывания
@@ -211,6 +222,7 @@
         this.$$scope = {
             attributes: {}, // Содержит все аттрибуты элемента
             properties: {}, // Содержит все аттрибуты data-*
+            $config: {},
             $shadowTemplate: null,
             uid: 'syntheticElement'+Math.round(Math.random()*10000)
         };
@@ -234,15 +246,27 @@
             enumerable: false,
             writable: false,
             configurable: true,
-            value: {
-                $scope: this.$$scope,
-                $element: element,
-                $self: this,
-                $component: component,
-                $generator: new Generator(this), // Инициализируем генератор
-                $stock: {}
-            }
+            value: [
+                {
+                    $scope: this.$$scope,
+                    $element: element,
+                    $self: this,
+                    $component: component,
+                    $generator: null, // Инициализируем генератор
+                    $stock: {},
+                    $config: function(properties, callback) {
+                        self.$fetch('$config', properties, callback);
+                    },
+                    $setup: function(data) {
+                        self.$employ(function() {
+                            extend(self.$scope.$config, data);
+                        });
+                    }
+                }
+            ]
         });
+
+        this.$injectors.$generator = new Generator(this);
 
         /*
         Комплекс действий по инициализации angular, произойдет это только в том случае если в опциях
@@ -377,7 +401,7 @@
         /*
         Анализ опции, указывающей на то как поступить с родным innerHtml элемента
         */
-        component.$usePreset(presets, presetImport['presetImportDefaultHtmlConfig'], this);
+        component.$usePreset(presets, presetImport['presetImportDefaults'], this);
 
         /*
         Ожидаем инициализации движка

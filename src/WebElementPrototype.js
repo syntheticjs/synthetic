@@ -6,6 +6,7 @@
 	var Box = require("./box.js");
 	var camelize = require("camelize");
 	var dasherize = require("dasherize");
+	var Scope = require("scope");
 	require("polyinherit");
 
 	/*
@@ -29,13 +30,116 @@
 		*/
 		this.$config = {};
 		/*
-		
+		Tuning up Polyscope
 		*/
+		this.$polyscope.customization.watchExprRouters = [
+			/*
+			Callback attachers
+			*/
+			{
+				match: '^(attributes\.|properties\.)',
+				replace: false,
+				overrideMethod: function(expr, callback, bitoptions) {
+					var self = this, sharing = /^(attributes|properties)\./.exec(expr);
+					expr = expr.replace(/^(attributes\.|properties\.)/, '');
+					var attrn = sharing[1]==='properties'?'data'+expr.charAt(0).toUpperCase()+expr.substr(1):expr,
+					value;
+						
+					var unwatcher = function(attrn, i) {
+							this[attrn][i] = null;
+						}.bind(self.$$attrsWatchers, attrn, self.$$attrsWatchers[attrn] ? self.$$attrsWatchers[attrn].length : 0);
+					self.$watchersHistory.push({
+						"unwatch": unwatcher
+					});
+					
+					if ("object"!==typeof self.$$attrsWatchers[attrn]) {
+						self.$$attrsWatchers[attrn] = [];
+						/*
+						Если такой аттрибут еще никогда не отслеживался, мы должны немедленно проверить его значение, но только 
+						в случае, если событие attached уже случилось
+						*/
+						
+						if (self.__config__.attachedEventFires) { 
+							var dashed = dasherize(attrn), 
+							value = self.$element.getAttribute(dashed); 
+							if (null===value) value = Synthetic.config.undefinedAttributeDefaultValue;
+							
+							self.$injectors.$scope.attributes[attrn] = value; 
+							if (dashed.substr(0, 5) === "data-") { 
+								self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value; 
+							} 
+
+							callback.apply(self, !!(bitoptions||0 & POLYSCOPE_DITAILS) ?  [value, value, Synthetic.config.undefinedAttributeDefaultValue] : [value]);
+						} else { 
+							self.bind("attached", function() { 
+								var dashed = dasherize(attrn), 
+								value = self.$element.getAttribute(dashed); 
+								if (null===value) value = Synthetic.config.undefinedAttributeDefaultValue;
+								
+								self.$injectors.$scope.attributes[attrn] = value; 
+								if (dashed.substr(0, 5) === "data-") { 
+									self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value; 
+								} 
+								callback.apply(self, !!(bitoptions||0 & POLYSCOPE_DITAILS) ?  [value, value, Synthetic.config.undefinedAttributeDefaultValue] : [value]);
+							}, true); 
+						}
+					}
+					var attrOnChangeCallback;
+					attrOnChangeCallback = function(old, action, value) {
+						attrOnChangeCallback.last = [old, action, value];
+						callback.apply(self, !!(bitoptions||0 & POLYSCOPE_DITAILS) ?  [value, value, old] : [value]);
+					};
+					self.$$attrsWatchers[attrn].push(attrOnChangeCallback);
+
+					return {
+						destroy: unwatcher
+					};
+				}
+			},
+			/*
+			Watch using angular engine
+			*/
+			{
+				match: true,
+				replace: false,
+				overrideMethod: function(expr, callback, bitoptions) {
+					var self = this;
+					callback.watcher = {
+						last: Synthetic.config.undefinedAttributeDefaultValue,
+						diff: Synthetic.config.undefinedAttributeDefaultValue
+					};
+					callback.watcher.destroy = self.$injectors.$scope.$watch(expr, function(value) {
+						
+						callback.watcher.diff = !!(bitoptions & POLYSCOPE_DITAILS) ? self.$$scopeDeepCompare(callback.last, newValue) : value;
+						var last = callback.watcher.last;
+						callback.watcher.last = value;
+						callback.apply(self, !!(bitoptions||0 & POLYSCOPE_DITAILS) ?  [value, callback.watcher.diff, last] : [value]);
+					}, !!(bitoptions||0 & POLYSCOPE_DITAILS) && !!(bitoptions||0 & POLYSCOPE_COMPARE));
+
+					return callback.watcher;
+				}
+			}
+		];
+
+		/*
+		Supports angular compatibility
+		*/
+		this.$polyscope.customization.digestEmploymentsRoutes = [{
+			match: function(object) { // Angular has method $evalAsync
+				return "function"===typeof object.$evalAsync;
+			},
+			overrideMethod: function(object) {
+				object.$evalAsync();
+			}
+		}];
+
 		this.$$applyPortions = {
 			applies: [],
 			timer: 0
 		}
-	}.inherit(classEvents)
+	}
+	.inherit(classEvents)
+	.inherit(Scope)
 	.proto({
 		$read: function() {
 
@@ -112,7 +216,10 @@
 			else
 			self.$inject(callback).apply(self, alldata);
 		},
-		$watch: function() {
+		/*
+		Old method of watching with angular compatible
+		*/
+		$watchAngular: function() {
 			var self = this;
 			/*
 			Проверка задержки
@@ -331,16 +438,43 @@
 		$inject: function(callback, $injectors) {
 			
 			if (Synthetic.$$angularApp&&this.__config__.$$angularScope&&this.__config__.$$angularInitialedStage>1) {
-				var self = this, injected = smartCallback.call($injectors ? [self.$injectors, $injectors] : self.$injectors, callback, self);
+				var self = this, injected = smartCallback.call($injectors ? ([]).concat(self.$injectors, $injectors) : self.$injectors, callback, self);
 				return function() {
 					var nargs = Array.prototype.slice.apply(arguments),context=this;
 					return injected.apply(context, nargs);
 				}				
 			} else {
-				return smartCallback.call("object"===typeof $injectors ? [this.$injectors, $injectors] : this.$injectors, callback, this);
+				return smartCallback.call("object"===typeof $injectors ? ([]).concat(this.$injectors, $injectors) : this.$injectors, callback, this);
 			}
 			
 		},
+		/*
+		Функция сочитающая в себя 3 мощных механизма:
+		- injector
+		- digest
+		- hitch
+
+		$employ нужно использовать в задачах связанных конкретно с данным элементом
+		*/
+		$employ: function(callback) {
+			return this.$eval(this.$inject(callback));
+		},
+		/*
+		Функция сочитающая в себя 3 мощных механизма:
+		- injector
+		- apply
+		- hitch
+
+		В отличии от $employ запускает глобальный цикл.
+
+		$deploy необходимо использовать в глобальных операциях
+		*/
+		$deploy: function(callback) {
+			return this.$apply(this.$inject(callback));
+		},
+		/*
+		Inject с автозапуском
+		*/
 		$run: function(cb) {
 			return this.$inject(cb)();
 		},
@@ -364,7 +498,8 @@
 				return callback.apply(this);
 			}
 		},
-		$digest: function(expr) {
+		$digestAngular: function(expr) {
+
 			this.$injectors.$scope.$evalAsync(expr);
 		},
 		$apply: function($as, callback, destructor){

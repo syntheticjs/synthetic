@@ -1,8 +1,10 @@
 var Creed = require("polypromise").Creed;
 var smartCallback = require("./smartCallback.js");
 var extend = require('extend');
+require('polyinherit');
 
-module.exports = function(name, workshop) {
+module.exports = function(component, name, workshop) {
+	this.component = component;
 	this.name = name;
 	this.performed = false;
 	this.$import = {
@@ -17,10 +19,10 @@ module.exports = function(name, workshop) {
 		conceivedCallers: [], // After create static functions
 		watchers: [], // Default watchers
 		template: false, // Default template (can be an array 1 => String, 2 => Class)
-		attrsChange: [] // Change attrs callbacks
+		observeAttrs: [] // Change attrs callbacks
 	};
 
-	this.$run(workshop);
+	if (workshop) this.$run(workshop);
 
 	
 }.inherit(Creed)
@@ -28,7 +30,7 @@ module.exports = function(name, workshop) {
 	$conceivedCallers: function(fn, args) {
 		this.$import.conceivedCallers.push([fn, args]);
 	},
-	$create: function(callback) {
+	$onCreate: function(callback) {
 		this.$import.onCreate.push(callback);
 	},
 	// Construct (onCreated callback)
@@ -36,15 +38,15 @@ module.exports = function(name, workshop) {
 		this.$import.onConstruct.push(callback);
 	},
 	// Attach callback
-	$attach: function(callback) {
+	$onAttach: function(callback) {
 		this.$import.onAttach.push(callback);
 	},
 	// Detach callback
-	$detach: function(callback) {
+	$onDetach: function(callback) {
 		this.$import.onDetach.push(callback);
 	},
 	// Destroy callback
-	$destroy: function(callback) {
+	$onDestroy: function(callback) {
 		this.$import.onDestroy.push(callback);
 	},
 	// Extend scope
@@ -60,7 +62,7 @@ module.exports = function(name, workshop) {
 		extend(this.$import.prototype, prototype);
 	},
 	// Default config
-	$config: function(config) {
+	$setup: function(config) {
 		if ("object"!==typeof config) throw 'Configuration must be an object';
 		extend(this.$import.config, config);
 	},
@@ -69,27 +71,29 @@ module.exports = function(name, workshop) {
 		this.$import.template = Array.prototype.slice.apply(arguments);
 	},
 	// Attrs change callbacks
-	$attrsChange: function(callback) {
-		this.$import.attrsChange.push(callback);
+	$observeAttrs: function(callback) {
+		this.$import.observeAttrs.push(callback);
 	},
 	// run preset creator workshop
 	$run: function(workshop) {
 		var self = this, prototype = smartCallback.call({
 			// It self
-			$component: this,
+			$component: this.component,
 			$conceivedCallers: function() { self.$conceivedCallers.apply(self, arguments); },
-			$create: function() { self.$create.apply(self, arguments); },
+			$onCreate: function() { self.$onCreate.apply(self, arguments); },
+			$init: function() { self.$onCreate.apply(self, arguments); },
 			$construct: function() { self.$construct.apply(self, arguments); },
-			$attach: function() { self.$attach.apply(self, arguments); },
-			$detach: function() { self.$detach.apply(self, arguments); },
-			$destroy: function() { self.$destroy.apply(self, arguments); },
+			$onAttach: function() { self.$onAttach.apply(self, arguments); },
+			$onDetach: function() { self.$onDetach.apply(self, arguments); },
+			$onDestroy: function() { self.$onDestroy.apply(self, arguments); },
 			$scope: function() { self.$scope.apply(self, arguments); },
 			$watch: function() { self.$watch.apply(self, arguments); },
+			$proto: function() { self.$methods.apply(self, arguments); },
 			$methods: function() { self.$methods.apply(self, arguments); },
-			$config: function() { self.$config.apply(self, arguments); },
+			$setup: function() { self.$setup.apply(self, arguments); },
 			$template: function() { self.$template.apply(self, arguments); },
-			$attrsChange: function() { self.$template.apply(self, arguments); }
-		}, this)();
+			$observeAttrs: function() { self.$observeAttrs.apply(self, arguments); }
+		}, workshop, this)();
 
 		if ("object"===typeof prototype) {
 	        extend(this.$import.prototype, prototype);

@@ -50,6 +50,11 @@
 
         $self.$injectors.$scope = $$scope;
 
+        /*
+        Register angular scope as child scope of component
+        */
+        $self.$appendScope($$scope);
+
         $self.__config__.allWaitingForResolve = false;
 
         $self.__config__.$$angularElement = angular.element($self.$element);
@@ -60,8 +65,7 @@
         ///////////////   
 
         /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-         * Этот код на вес золота, я его решал несколько дней. Его смысл прикрепить контроллер к синтету. *
-
+        
          Посколько после того как angular проходит стадию bootstrap он перестается следить на деревом, к
          которому он не относится, все вновь созданные компоненты должны быть инициализированны принудительно.
          За исключением тех случаев, когда шаблон для них устанавливается через интерфейс $generator.render()

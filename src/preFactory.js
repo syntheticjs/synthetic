@@ -56,16 +56,19 @@
 			return this;
 		},
 		createPreset: function(name, workshop) {
-			this.presets[name] = new ComponentPreset(this, workshop);
+
+			this.presets[name] = new ComponentPreset(this, name, workshop);
 			return this.presets[name];
 		},
-
 		/*
 		Execute workshop with prest
 		*/
-		$usePreset: function(name, workshop, context, getinjector) {
-			if ("object"!==typeof this.presets[name]) throw 'Undefined preset';
-			this.presets[name].$use(workshop, context, getinjector);
+		$usePreset: function(name, workshop, context) {
+			if (!(name instanceof Array)) name = [name];
+			for (var i = 0;i<name.length;++i) {
+				if ("object"!==typeof this.presets[name[i]]) throw 'Undefined preset';
+				this.presets[name[i]].$use(workshop, context);
+			}
 			return this;
 		}
 	});

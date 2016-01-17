@@ -7,6 +7,7 @@ var ComponentPreFactory = require("./preFactory.js");
 var initAngular = require("./initAngular.js");
 var scopeGenerator = require("./scopeGenerator.js");
 var WebElementFactory = require("./webElementFactory.js");
+var Creed = require('polypromise').Creed;
 require("polyinherit");
 require("document-register-element");
 
@@ -134,7 +135,8 @@ var Synthetic = function(element) {
 Synthetic.prototype = {
     construct: Synthetic
 };
-
+ 
+ 
 /*
 Находит компонент в состав которого входит данный элемент
 */
@@ -154,10 +156,13 @@ for (var prop in eventsClass.prototype) {
         Synthetic[prop] = eventsClass.prototype[prop];
     }
 }
-eventsClass.call(Synthetic);
+eventsClass.call(Synthetic); 
 /*
 * * * * * * * * * * * * * * * * * *
 */
+
+
+Synthetic.components = {};
 
 Synthetic.log = function() {
     //console.log.apply(console, (["%cSynthetic:","color:blue;font-style:italic;"]).concat(Array.prototype.slice.apply(arguments)));
@@ -426,7 +431,7 @@ Synthetic.createComponent = function(componentOptions, workshop) {
 }
 
 Synthetic.getComponent = function(name) {
-    if ("object"!==typeof Synthetic.components[name])
+    if ("object"===typeof Synthetic.components[name])
     return Synthetic.components[name];
     else return new Creed(function(resolve, reject) { reject('Component not found'); });
 };

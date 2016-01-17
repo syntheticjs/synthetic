@@ -22,11 +22,12 @@
     "camelize": "polyvitamins/camelize",
     "dasherize": "polyvitamins/dasherize",
     "document-register-element": "webreflection/document-register-element",
-    "extend": "polyvitamins/extend",
+    "extend": "github:polyvitamins/extend",
     "inherit": "polyvitamins/inherit",
     "mixin": "polyvitamins/mixin",
     "polyinherit": "polyvitamins/polyinherit",
-    "polypromise": "polyvitamins/polypromise"
+    "polypromise": "github:polyvitamins/polypromise",
+    "scope": "polyvitamins/scope"
   },
   "devDependencies": {
     "css-loader": "^0.23.1",

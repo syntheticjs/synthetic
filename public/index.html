@@ -10,12 +10,32 @@
 			name: 'hello-world',
 			engine: 'angular'
 		}, function($component) {
-			$component.template('<h1>OK</h1>');
+			$component.template('<h3>Half-ready, need preset. At least it is error.</h3>');
+		});
+
+		Synthetic.getComponent('hello-world')
+		.createPreset('hi', function($template, $init, $setup) {
+			$setup({
+				abraca: 'dabra'
+			});
+			$template('<h1>Hello, world!</h1>');
+
+			$init(function($config, $setup) {
+				$config(['+abraca'], function(abraca) {
+					debugger;
+				});
+
+				setTimeout(function() {
+					$setup({
+						abraca: 'deniel'
+					});
+				});
+			});
 		});
 	</script>
 </head>
 <body>
-	<hello-world>
+	<hello-world preset="hi">
 		Synthetic is not working
 	</hello-world>
 	<hr />
