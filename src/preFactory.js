@@ -20,19 +20,19 @@
 			this.presets['@'].$conceivedCallers(fn, args);
 		},
 		created: function(callback) {
-			this.presets['@'].$create(callback);
+			this.presets['@'].$onCreate(callback);
 			return this;
 		},
 		attached: function(callback) {
-			this.presets['@'].$attach(callback);
+			this.presets['@'].$onAttach(callback);
 			return this;
 		},
 		detached: function(callback) {
-			this.presets['@'].$detach(callback);
+			this.presets['@'].$onDetach(callback);
 			return this;
 		},
 		attributeChanged: function(callback) {
-			this.presets['@'].$attrsChange(callback);
+			this.presets['@'].$observeAttrs(callback);
 			return this;
 		},
 		watch: function() {
