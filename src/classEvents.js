@@ -233,16 +233,14 @@
             Call callback if event already fired
             */
             if ("object"===typeof this.eventTracks[e]) callback.apply(this.eventTracks[e][0], this.eventTracks[e][1]);
-
-            if (!once) {
-
+            
                 this.eventListners[e].push({
                     callback: this.$inject(callback),
                     once: once||false
                 });
 
                 var $handler = new eventListner(this, e, this.eventListners[e].length-1);
-            }
+            
 
             return function() {
                 $handler.destroy();

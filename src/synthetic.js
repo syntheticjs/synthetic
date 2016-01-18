@@ -87,8 +87,8 @@ var componentAttacher = function() {
         Поэтому дестроеры теперь срабатывают при detach элементов, так же как повторная
         инициализация при attach элементов здесь.
         */
-        if (this.synthetic.$injectors.$generator.configuration.module) {
-            this.synthetic.$injectors.$generator.moduleReinit();
+        if (this.synthetic.$generator.configuration.module) {
+            this.synthetic.$generator.moduleReinit();
         }
     }
 
@@ -387,10 +387,10 @@ Synthetic.createComponent = function(componentOptions, workshop) {
                                     // позже. Это снизит нагрузку
                                     $self.$digest(function() {
                                         
-                                        $self.$injectors.$scope.attributes[camelized] = value;
+                                        $self.$scope.attributes[camelized] = value;
                                         
                                         if (name.substr(0,5)==='data-') {
-                                                $self.$injectors.$scope.properties[camelize(name.substr(5))] = value;
+                                                $self.$scope.properties[camelize(name.substr(5))] = value;
                                         }
 
                                         if ($self.$$attrsWatchers[camelized]) {
@@ -408,10 +408,10 @@ Synthetic.createComponent = function(componentOptions, workshop) {
                             }
                         } else {
                             if (previousValue !== value) {
-                                this.synthetic.$injectors.$scope.attributes[camelize(name)] = value;
+                                this.synthetic.$scope.attributes[camelize(name)] = value;
                                 if (name.substr(0,5)==='data-') {
                                    
-                                        this.synthetic.$injectors.$scope.properties[camelize(name.substr(5))] = value;
+                                        this.synthetic.$scope.properties[camelize(name.substr(5))] = value;
                                    
                                 }
                             }

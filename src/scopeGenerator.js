@@ -48,7 +48,7 @@
         */
         $$scope.$sid = $self.$sid;
 
-        $self.$injectors.$scope = $$scope;
+        $self.$injectors[0].$scope = $$scope;
 
         /*
         Register angular scope as child scope of component

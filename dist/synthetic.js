@@ -66,16 +66,17 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ function(module, exports, __webpack_require__) {
 
 	var inherit = __webpack_require__(1);
-	var mixin = __webpack_require__(3);
-	var eventsClass = __webpack_require__(4);
-	var camelize = __webpack_require__(6);
-	var smartCallback = __webpack_require__(5);
-	var ComponentPreFactory = __webpack_require__(7);
-	var initAngular = __webpack_require__(8);
-	var scopeGenerator = __webpack_require__(9);
-	var WebElementFactory = __webpack_require__(15);
-	__webpack_require__(11);
-	__webpack_require__(24);
+	var mixin = __webpack_require__(2);
+	var eventsClass = __webpack_require__(3);
+	var camelize = __webpack_require__(5);
+	var smartCallback = __webpack_require__(4);
+	var ComponentPreFactory = __webpack_require__(6);
+	var initAngular = __webpack_require__(17);
+	var scopeGenerator = __webpack_require__(18);
+	var WebElementFactory = __webpack_require__(20);
+	var Creed = __webpack_require__(7).Creed;
+	__webpack_require__(16);
+	__webpack_require__(30);
 
 	function getRandomColor() {
 	    var letters = '0123456789ABCDEF'.split('');
@@ -111,7 +112,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        
 	        this.synthetic.$element.style.visibility = 'hidden';
 	        Synthetic.bind('angularBootstraped', function() {
-	               self.synthetic.$element.style.visibility = 'visible';
+	               self.synthetic.$element.style.visibility = '';
 	            }, true);
 	    }
 
@@ -153,8 +154,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	        Поэтому дестроеры теперь срабатывают при detach элементов, так же как повторная
 	        инициализация при attach элементов здесь.
 	        */
-	        if (this.synthetic.$injectors.$generator.configuration.module) {
-	            this.synthetic.$injectors.$generator.moduleReinit();
+	        if (this.synthetic.$generator.configuration.module) {
+	            this.synthetic.$generator.moduleReinit();
 	        }
 	    }
 
@@ -171,12 +172,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	    */
 
 	    if (this.synthetic) return false;
-	   
 	    
 	    // inherit constructors
+	    /*
+	    TODO: Is this really deprecated?
+	    DEPRECATED
 	    for (var i = 0;i<componentFactory.constructors.length;++i) {
 	        WebElementFactory.inherit(componentFactory.constructors[i]);
 	    }
+	    */
 	   
 	    var WebElement = new WebElementFactory(this, componentFactory);
 	};
@@ -198,7 +202,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	Synthetic.prototype = {
 	    construct: Synthetic
 	};
-
+	 
+	 
 	/*
 	Находит компонент в состав которого входит данный элемент
 	*/
@@ -218,10 +223,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	        Synthetic[prop] = eventsClass.prototype[prop];
 	    }
 	}
-	eventsClass.call(Synthetic);
+	eventsClass.call(Synthetic); 
 	/*
 	* * * * * * * * * * * * * * * * * *
 	*/
+
+
+	Synthetic.components = {};
 
 	Synthetic.log = function() {
 	    //console.log.apply(console, (["%cSynthetic:","color:blue;font-style:italic;"]).concat(Array.prototype.slice.apply(arguments)));
@@ -247,91 +255,111 @@ return /******/ (function(modules) { // webpackBootstrap
 	    return !!~("string"===typeof property?property.replace(' ','').split(','):property).indexOf(subkey);
 	}
 
-	Synthetic.createComponent = function(componentOptions, constructor) {
+	Synthetic.createComponent = function(componentOptions, workshop) {
 
-	    var defaultOptions = {
-	        name: '',
-	        engine: 'sinthezia'
-	    };
+	    var name = '', engine = {
+	        name: 'synthetic',
+	        initial: false
+	    }, scope = false, HTMLElementPrototype = "HTMLElement";
 
 	    /*
 	    Преобразуем строковое представление componentOptions в объект
 	    */
-	    componentOptions = "string"!==typeof componentOptions ?
-	    mixin(defaultOptions, componentOptions) : mixin(defaultOptions, {
-	        name: componentOptions
+	    if ("string"!==typeof componentOptions) {
+	        // Import name 
+	        if (componentOptions.name) name = componentOptions.name;
+	        // Import engine options
+	        if ("string"===typeof componentOptions.engine) {
+	            engine = {
+	                name: componentOptions.engine,
+	                initial: false
+	            }
+	        } else if ("object"===typeof componentOptions.engine&&componentOptions.engine instanceof Array) {
+	            engine = {
+	                name: componentOptions.engine[0],
+	                initial: componentOptions.engine[1]||false
+	            }
+	        }
+	        // Import default scopr
+	        if ("object"===typeof componentOptions.scope) {
+	            scope = componentOptions.scope;
+	        }
+	        //
+	        if ("string"===typeof componentOptions.HTMLElementPrototype)
+	            HTMLElementPrototype = componentOptions.HTMLElementPrototype;
+	    } else {
+	        name = componentOptions;
+	    }
+
+	    /* Validate name */
+	    if (name.indexOf("-") < 0) throw "Module name must have `-` symbol";
+	    
+	    /*
+	    Create component
+	    */
+	    var componentFactory = new ComponentPreFactory({
+	        name: name, // Component name
+	        engine: engine // Component engine
 	    });
 
 	    /*
-	    Преобразуем строкове представление engine в объект
+	    Create default preset
 	    */
-	    if ("string"===typeof componentOptions.engine) {
-	        componentOptions.engine = {
-	            name: componentOptions.engine,
-	            initial: false
-	        }
-	    } else if ("object"===typeof componentOptions.engine&&componentOptions.engine instanceof Array) {
-	        componentOptions.engine = {
-	            name: componentOptions.engine[0],
-	            initial: componentOptions.engine[1]||false
-	        }
-	    }
-
-	    if (componentOptions.name.indexOf("-") < 0) throw "Module name must have `-` symbol";
-
-	    var componentFactory = new ComponentPreFactory(componentOptions),
-	    prototype = smartCallback.call({
-	        $component: componentFactory
-	    }, constructor)();
-
-	    if ("object"===typeof prototype) {
-	        componentFactory.proto(prototype);
-	    } else if ("function"===typeof prototype) {
-	        componentFactory.construct(prototype);
-	    }
-
-	    // Normalize scope
-	    componentOptions.scope = "object"===typeof componentOptions.scope ? componentOptions.scope : {};
+	    var preset = componentFactory.createPreset('@');
+	    /*
+	    Import scope
+	    */
+	    if (scope) preset.$scope(scope);
+	    /*
+	    Import general workshop
+	    */
+	    preset.$run(workshop);
 
 	    /*
 	    Если мы используем angular, то помимо копонента мы создаем минимальную директиву,
 	    задача которой будет создавать изолированный scope для каждого компонента
 	    */
-	    if (componentOptions.engine.name==='angular') {
+	    if (engine.name==='angular') {
 	        /* Creates angular app if not exists. Why i'm speaking english??? */
 	        if ("undefined"===typeof Synthetic.$$angularApp) {
 	            initAngular();
 	        }
 	        
-	        if ("function"===typeof componentFactory.options.engine.initial) {
-	            componentFactory.options.engine.initial(Synthetic.$$angularApp);
+	        if ("function"===typeof componentFactory.engine.initial) {
+	            componentFactory.engine.initial(Synthetic.$$angularApp);
 	        }
 
-	        var rcolor = getRandomColor();
-	        Synthetic.$$angularApp.directive(camelize(componentOptions.name), function() {
+	        /*
+	        Creating angular directive
+	        */
+	        Synthetic.$$angularApp.directive(camelize(name), function() {
 	            return {
 	                restrict: 'E',
 	                priority: 998,
 	                scope: true,
-	                controller: function($element) {
-
-	                },
 	                compile: function($element, $rscope, $a, $controllersBoundTransclude) {
 
 	                    // Запоминаем стартовое значение html
 	                    var $defaultHtml = $element[0].innerHTML;
 
-	                    if (Synthetic($element[0]))
-	                    Synthetic($element[0]).__config__.$$angularDirectived = true;
-	                    else {
-	                        /* Если директива отработала быстрей через компонент, то мы производим незамедлительную инициализацию */
+	                    // If element already initialized change angular directived status to true
+	                    if (Synthetic($element[0])) {
+	                        Synthetic($element[0]).__config__.$$angularDirectived = true;
+	                    } else {
+	                        /*
+	                        If web-component still unitialized, initialize it by the force
+	                        */
 	                        componentCreater.call($element[0], componentFactory);
 	                    }
 
 	                    
 	                    return {
 	                        pre: function($scope, $element) {
+	                            /*
+	                            Элемент не может быть обработан директивой, если он не синтезирован
+	                            */
 	                            if (!Synthetic($element[0])) return;
+
 	                            Synthetic($element[0]).__config__.$$angularDirectived = true;
 	                            /*
 	                            В данной ситуации пришлось отказаться от использования extend для
@@ -341,51 +369,36 @@ return /******/ (function(modules) { // webpackBootstrap
 	                            приводит к катастрофическим ошибкам, связанным с записью данных в источник.
 
 	                            Функция startextend гарантирует, что все копируемые свойства будут перевоссозданы заново,
-	                            однако эта функция не осуствляет миксим с существующими значениями $scope, поэтому ее можно
+	                            однако эта функция не осуществляет mixin с существующими значениями $scope, поэтому ее можно
 	                            использовать только при первичной инициализации.
 
 	                            Желательно выяснить по какой причине extend не создает требуемых копий свойств.
 	                            */
-	                            startextend($scope, componentOptions.scope);
-
+	                            startextend($scope, componentFactory.presets['@'].$import.scope);
 	                            
 	                            /*
-	                            Если scope для элемента не установлен, то вероятно этот элемент используется в ngRepeat и временно
-	                            пермещен в documentFragment. Такой элемент не нужно инициализировать.
-
-	                            !!! Однако если мы размещаем диерктивы по приоритету ниже чем ng-repeat, то pre не вызывается в принципе.
-	                            TODO: решить это
+	                            Кастомизируем scope
 	                            */
-	                            /*if (angular.element($element[0]).scope()===undefined) {
-	                                console.log("%c<custom-directive>", "color:blue;font-weight:bold;", 'destroy', $element, $scope);
-	                                Synthetic($element[0]).$destroy();
-	                                return;
-	                            }*/
-
-
-	                            Synthetic($element[0]).__config__.$$angularDirectived = true;
 	                            scopeGenerator($element[0].synthetic, $scope);
-
-	                            return function(scope) {
-	                                //console.log('prePost', scope);
-	                            }
-	                           
 	                        },
 	                        post: function($scope, $element) {
 	                            if (!Synthetic($element[0])) return;
-	                            // 3 этап инициализации angular означает, что объект полностью
-	                            // инициализирован
+	                            /*
+	                            Инициализация директивы полностью завершена и мы можем перейти к 
+	                            этапу 3
+	                            */
 	                            Synthetic($element[0]).__config__.$$angularInitialedStage = 3;
 	                        }
 	                    }
-	                    
-	                    /**/
 	                }
 	            }
 	        });
 	    };
 
-	    var prototype = window[componentOptions.HTMLElementPrototype || "HTMLElement"].prototype;
+	    /*
+	    Начинаем работу с кастомизацией элемента
+	    */
+	    var prototype = window[HTMLElementPrototype].prototype;
 	    var elementOptions = {
 	        prototype: Object.create(prototype, {
 	            createdCallback: {
@@ -441,10 +454,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	                                    // позже. Это снизит нагрузку
 	                                    $self.$digest(function() {
 	                                        
-	                                        $self.$injectors.$scope.attributes[camelized] = value;
+	                                        $self.$scope.attributes[camelized] = value;
 	                                        
 	                                        if (name.substr(0,5)==='data-') {
-	                                                $self.$injectors.$scope.properties[camelize(name.substr(5))] = value;
+	                                                $self.$scope.properties[camelize(name.substr(5))] = value;
 	                                        }
 
 	                                        if ($self.$$attrsWatchers[camelized]) {
@@ -462,10 +475,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	                            }
 	                        } else {
 	                            if (previousValue !== value) {
-	                                this.synthetic.$injectors.$scope.attributes[camelize(name)] = value;
+	                                this.synthetic.$scope.attributes[camelize(name)] = value;
 	                                if (name.substr(0,5)==='data-') {
 	                                   
-	                                        this.synthetic.$injectors.$scope.properties[camelize(name.substr(5))] = value;
+	                                        this.synthetic.$scope.properties[camelize(name.substr(5))] = value;
 	                                   
 	                                }
 	                            }
@@ -476,10 +489,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	        })
 	    };
 
-	    if (componentOptions.extends) elementOptions.extends = componentOptions.extends;
-	    document.registerElement(componentOptions.name, elementOptions);
+	    // ??????
+	    //if (componentOptions.extends) elementOptions.extends = componentOptions.extends;
+
+	    document.registerElement(name, elementOptions);
+	    Synthetic.components[name] = componentFactory;
 	    return componentFactory;
 	}
+
+	Synthetic.getComponent = function(name) {
+	    if ("object"===typeof Synthetic.components[name])
+	    return Synthetic.components[name];
+	    else return new Creed(function(resolve, reject) { reject('Component not found'); });
+	};
 
 	if ("object"===typeof window) window['Synthetic']=Synthetic;
 	module.exports = Synthetic;
@@ -582,7 +604,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 				aClass.apply(this, args);
 			}
-			Mixin.prototype = Object.create(superprototype,{
+			Mixin.prototype = Object.create(superprototype, {
 				
 				/*
 				Для быстрого кроссбраузерного доступа к суперпроототипу будет использоваться свойство __super__
@@ -659,43 +681,10 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ },
 /* 3 */
-/***/ function(module, exports) {
-
-	
-		var mixinup = function(a,b) { 
-			for(var i in b) { 
-				
-				if (b.hasOwnProperty(i)) { 
-		          	
-					a[i]=b[i]; 
-				} 
-			} 
-			return a; 
-		};
-
-		/*
-		Функция слияние двух объектов. Объекты копируются по ссылке, поэтому любые изменения в одном объекте,
-		приведут к изменениям во втором.
-		Использование:
-		mixin(foo, bar1, bar2, bar3 .. barN);
-		*/
-		module.exports = function(a) { 
-			var i=1; 
-			for (;i<arguments.length;i++) { 
-				if ("object"===typeof arguments[i]) {
-
-					mixinup(a,arguments[i]); 
-				} 
-			} 
-			return a;
-		}
-
-/***/ },
-/* 4 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	    var smartCallback = __webpack_require__(5);
+	    var smartCallback = __webpack_require__(4);
 
 		var Events = function() {
 			this.eventListners = {};
@@ -929,16 +918,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	            Call callback if event already fired
 	            */
 	            if ("object"===typeof this.eventTracks[e]) callback.apply(this.eventTracks[e][0], this.eventTracks[e][1]);
-
-	            if (!once) {
-
+	            
 	                this.eventListners[e].push({
 	                    callback: this.$inject(callback),
 	                    once: once||false
 	                });
 
 	                var $handler = new eventListner(this, e, this.eventListners[e].length-1);
-	            }
+	            
 
 	            return function() {
 	                $handler.destroy();
@@ -999,7 +986,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 5 */
+/* 4 */
 /***/ function(module, exports) {
 
 	
@@ -1038,7 +1025,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    };
 
 /***/ },
-/* 6 */
+/* 5 */
 /***/ function(module, exports) {
 
 	module.exports = function(txt) {
@@ -1048,73 +1035,1772 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 7 */
+/* 6 */
 /***/ function(module, exports, __webpack_require__) {
 
-	
-		var mixin = __webpack_require__(3);
+	// onCreatedCallbacks
+
+
+		var mixin = __webpack_require__(2);
+		var Creed = __webpack_require__(7).Creed;
+		var smartCallback = __webpack_require__(4);
+		var ComponentPreset = __webpack_require__(14);
 
 		var preFactory = function(options) {
-			this.options = options;
-
-			this.onCreatedCallbacks = [];
-			this.onAttachedCallbacks = [];
-			this.onDetachedCallbacks = [];
-			this.onAttributeChangedCallbacks = [];
-			this.generator = false;
-			this.prototypes = [];
-			this.constructors = [];
-			this.watchers = [];
-			this.conceivedCallers = [];
+			this.name = options.name;
+			this.engine = options.engine;
+			this.config = {}; // Configuration
+			this.presets = {}; // List of user presets
 		}
-		preFactory.prototype = {
+		.inherit(Creed)
+		.proto({
 			constructor: preFactory,
+			// Temp method
 			$addConceivedMethod: function(fn, args) {
-				this.conceivedCallers.push([fn, args]);
+				this.presets['@'].$conceivedCallers(fn, args);
 			},
 			created: function(callback) {
-				
-				this.onCreatedCallbacks.push(callback);
+				this.presets['@'].$create(callback);
 				return this;
 			},
 			attached: function(callback) {
-				this.onAttachedCallbacks.push(callback);
+				this.presets['@'].$attach(callback);
 				return this;
 			},
 			detached: function(callback) {
-				this.onDetachedCallbacks.push(callback);
+				this.presets['@'].$detach(callback);
 				return this;
 			},
 			attributeChanged: function(callback) {
-				this.onAttributeChangedCallbacks.push(callback);
+				this.presets['@'].$attrsChange(callback);
 				return this;
 			},
 			watch: function() {
-				this.watchers.push(Array.prototype.slice.apply(arguments));
+				this.presets['@'].$watch.apply(this.presets['@'], Array.prototype.slice.apply(arguments));
 				return this;
 			},
 			proto: function(proto) {
-				this.prototypes.push(proto);
+				this.presets['@'].$methods(proto);
 				return this;
 			},
 			construct: function(c) {
-				this.constructors.push(c);
+				this.presets['@'].$cunstruct(callback);
 				return this;
 			},
 			template: function() {
-				this.$addConceivedMethod('$template', arguments);
+				this.presets['@'].$template.apply(this.presets['@'], Array.prototype.slice.apply(arguments));
 				return this;
 			},
-			config: function(useroptions) {
-				this.options = mixin(this.options, useroptions);
+			config: function(config) {
+				this.presets['@'].$config(config);
+				return this;
+			},
+			createPreset: function(name, workshop) {
+
+				this.presets[name] = new ComponentPreset(this, name, workshop);
+				return this.presets[name];
+			},
+			/*
+			Execute workshop with prest
+			*/
+			$usePreset: function(name, workshop, context) {
+				if (!(name instanceof Array)) name = [name];
+				for (var i = 0;i<name.length;++i) {
+					if ("object"!==typeof this.presets[name[i]]) throw 'Undefined preset';
+					this.presets[name[i]].$use(workshop, context);
+				}
 				return this;
 			}
-		}
+		});
 
 		module.exports = preFactory;
 
 /***/ },
+/* 7 */
+/***/ function(module, exports, __webpack_require__) {
+
+	/* WEBPACK VAR INJECTION */(function(global) {
+	var Promise = __webpack_require__(8).Promise;
+	var inject = __webpack_require__(13).inject;
+
+	var Polypromise = function() {
+
+	}
+
+	/*
+	Сredible
+	*/
+	var Creed = function(cb) {
+
+		Object.defineProperty(this, '__credible__', {
+			enumerable: false,
+			writable: false,
+			configurable: false,
+			pending: false,
+			resolver: false,
+			value: {
+				state: 0, // Wait for state
+				resolveQueue: [], // Queue of then callback functions
+				rejectQueue: [], // Queue of catch callback functions
+				data: []
+			}
+		});
+
+		if ("function"===typeof cb) this.$eval(cb);
+	};
+
+	Creed.prototype = {
+		constructor: Creed,
+		/*
+		Just eval cb like classic promise resolver
+		*/
+		$eval: function(cb) {
+			var self = this;
+			this.__credible__.resolver = cb;
+			cb.call(this, function() {
+				self.$resolve.apply(self, arguments);
+			}, function(result) { self.$reject.apply(self, arguments); });
+			return this;
+		},
+		/*
+		Ignore last pending resolver if got new pending
+		*/
+		$pending: function(cb) {
+			this.__credible__.state=0;
+			if (this.__credible__.pending) {
+				delete this.__credible__.pending;
+			}
+
+			var p = new Creed();
+			this.__credible__.pending = p;
+			var self = this;
+			p.then(function(response) {
+				if (self.__credible__.pending===p) // Ignore deprecated pendings
+				
+				self.$resolve(response);
+			})
+			.catch(function(response) {
+				if (self.__credible__.pending===p) // Ignore deprecated pendings
+				self.$reject(response);
+			});
+
+			p.$eval(cb);
+		},
+		$resolve: function() {
+			//if (this.__credible__.state!==0) throw 'You can not change Creed state twice';
+			this.__credible__.state = 1;
+			this.__credible__.data = Array.prototype.slice.apply(arguments);
+			for (var i =0;i<this.__credible__.resolveQueue.length;++i) {
+				this.__credible__.resolveQueue[i][0].apply(this, this.__credible__.data);
+				if (!this.__credible__.resolveQueue[i][1]) {
+					this.__credible__.resolveQueue.splice(i, 1);i--;
+				}
+			}
+		},
+		$reject: function() {
+			//if (this.__credible__.state!==0) throw 'You can not change Creed state twice';
+			this.__credible__.state = 2;
+			this.__credible__.data = Array.prototype.slice.apply(arguments);
+			for (var i =0;i<this.__credible__.rejectQueue.length;++i) {
+				this.__credible__.rejectQueue[i][0].apply(this, this.__credible__.data);
+				if (!this.__credible__.rejectQueue[i][1]) {
+					this.__credible__.rejectQueue.splice(i, 1);i--;
+				}
+			}
+		},
+		then: function(cb, stayalive) {
+			if (this.__credible__.state===0 || stayalive) this.__credible__.resolveQueue.push([cb, !!stayalive]);
+			if (this.__credible__.state===1) {
+
+	            cb.apply(this, this.__credible__.data);
+	        }
+			return this;
+		},
+		catch: function(cb, stayalive) { 
+			if (this.__credible__.state===0 || stayalive) this.__credible__.rejectQueue.push([cb, !!stayalive]);
+			if (this.__credible__.state===2) cb.apply(this, this.__credible__.data);
+			return this;
+		}
+	}
+
+	/*
+	Promises
+	*/
+	var Promises = function(spawn) {
+		// Inherit Creed
+		Creed.apply(this);
+
+		this.$promises = [];
+		this.$results = [];
+		this.$state = 0;
+		this.$completed = 0;
+		this.$finished = false;
+		var self = this;
+		var SubPromise = function(cb) {
+			if ("object"===typeof window&&this===window||"object"===typeof global&&this===global) {
+				var sp = new SubPromise(cb);
+			} else {
+				// Inherit Creed
+				Creed.call(this, cb);
+				self.$promises.push(this);
+			}
+		};
+
+		SubPromise.prototype = Object.create(Creed.prototype, {
+			constructor: {
+		        value: SubPromise
+		    }
+		});
+
+		spawn(SubPromise);
+
+		if (this.$promises.length>0)
+		for (var i = 0;i<this.$promises.length;++i) {
+			this.$promises[i]
+			.then(function(io, val) {
+				this.$results[io[0]] = val;
+				if (!io[1]) { ++this.$completed; io[1]=true; }
+				this.$$test();
+			}.bind(this, [i,false]), true)
+			.catch(function(io, e) {
+				this.$results[io[0]] = e;
+				this.$state = 2; // Force reject
+				if (!io[1]) { ++this.$completed; io[1]=true; }
+				this.$$test();
+			}.bind(this, [i,false]), true);
+		}
+		else {
+			this.$state = 1; // Force reject
+			this.$$test();
+		}
+	}
+
+	Promises.prototype = Object.create(Creed.prototype, {
+		constructor: {
+	        value: Promises
+	    },
+		$$test: {
+	        value: function() {
+	            if (this.$completed===this.$promises.length) {
+	                this.$state = this.$state!==2 ? 1 : 2;
+	                this.$finished = true;
+	                this[this.$state===1 ? '$resolve' : '$reject'].apply(this, this.$results);
+	            }
+	        }
+	    }
+	});
+
+
+	/*
+	Pending
+	*/
+	var pendings = {}, 
+	Pending = function(callback, args) {
+		Creed.apply(this);
+		this.$id = null;
+		var id = callback.toString()+( "object"===typeof args ? JSON.stringify(args) : (args===undefined ? '' : args.toString()) );
+		this.$id = id;
+		if (pendings[id]) {
+			pendings[id].queue.push(this);
+		} else {
+			pendings[id] = {
+				queue: [],
+				result: null,
+				done: 0
+			};
+			pendings[id].queue.push(this);
+
+			if ("function"===typeof callback) {
+
+	            var promising = new Creed(function(resolve, reject) {
+	            	var injector = inject(callback, {
+		            	resolve: resolve,
+		            	reject: reject
+		            }, this);
+		            injector.apply(this, args);
+	            });
+	        } else if ("object"===typeof callback) {
+	            var promising = callback;
+	        } else {
+	            throw 'Pending first argument can be function or Promise, but '+typeof callback+' found';
+	        }
+
+			promising.then(function(result) {
+				var requeue = pendings[id].queue;
+				pendings[id].result = result;
+				pendings[id].status = 1;
+
+				for (var i = 0; i < requeue.length;++i) {
+					requeue[i].$resolve(result);
+				}
+
+				// Clear pending queue list after moment
+				setTimeout(function() {
+					delete pendings[id];
+				});
+			})
+			.catch(function(result) {
+				var requeue = pendings[id].queue;
+				pendings[id].result = result;
+				pendings[id].status = 2;
+				for (var i = 0; i < requeue.length;++i) {
+					requeue[i].$catch(result);
+				}
+				// Clear pending queue list after moment
+				setTimeout(function() {
+					delete pendings[id];
+				});
+			});
+		}
+	};
+
+	Pending.prototype = {
+		constructor: Pending,
+	    $resolve: function() {
+	        if (this.__credible__.state!==0) throw 'You can not change Creed state twice';
+	        this.__credible__.state = 1;
+	        this.__credible__.data = Array.prototype.slice.apply(arguments);
+	        for (var i =0;i<this.__credible__.resolveQueue.length;++i) {
+	            this.__credible__.resolveQueue[i][0].apply(this, this.__credible__.data);
+	            if (!this.__credible__.resolveQueue[i][1]) {
+	                this.__credible__.resolveQueue.splice(i, 1);i--;
+	            }
+	        }
+	    },
+	    $reject: function() {
+	        if (this.__credible__.state!==0) throw 'You can not change Creed state twice';
+	        this.__credible__.state = 2;
+	        this.__credible__.data = Array.prototype.slice.apply(arguments);
+	        for (var i =0;i<this.__credible__.rejectQueue.length;++i) {
+	            this.__credible__.rejectQueue[i][0].apply(this, this.__credible__.data);
+	            if (!this.__credible__.rejectQueue[i][1]) {
+	                this.__credible__.rejectQueue.splice(i, 1);i--;
+	            }
+	        }
+	    },
+	    then: function(cb, stayalive) {
+	        if (this.__credible__.state===0) this.__credible__.resolveQueue.push([cb, !!stayalive]);
+	        else if (this.__credible__.state===1) cb.apply(this, this.__credible__.data);
+	        return this;
+	    },
+	    catch: function(cb, stayalive) {
+	        if (this.__credible__.state===0) this.__credible__.rejectQueue.push([cb, !!stayalive]);
+	        else if (this.__credible__.state===2) cb.apply(this, this.__credible__.data);
+	        return this;
+	    }
+	};
+
+	Polypromise.Promise = Promise;
+	Polypromise.Promises = Promises;
+	Polypromise.Pending = Pending;
+	Polypromise.Creed = Creed;
+
+
+	module.exports = Polypromise;
+
+	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
+
+/***/ },
 /* 8 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var require;var __WEBPACK_AMD_DEFINE_RESULT__;/* WEBPACK VAR INJECTION */(function(process, global, module) {/*!
+	 * @overview es6-promise - a tiny implementation of Promises/A+.
+	 * @copyright Copyright (c) 2014 Yehuda Katz, Tom Dale, Stefan Penner and contributors (Conversion to ES6 API by Jake Archibald)
+	 * @license   Licensed under MIT license
+	 *            See https://raw.githubusercontent.com/jakearchibald/es6-promise/master/LICENSE
+	 * @version   3.0.2
+	 */
+
+	(function() {
+	    "use strict";
+	    function lib$es6$promise$utils$$objectOrFunction(x) {
+	      return typeof x === 'function' || (typeof x === 'object' && x !== null);
+	    }
+
+	    function lib$es6$promise$utils$$isFunction(x) {
+	      return typeof x === 'function';
+	    }
+
+	    function lib$es6$promise$utils$$isMaybeThenable(x) {
+	      return typeof x === 'object' && x !== null;
+	    }
+
+	    var lib$es6$promise$utils$$_isArray;
+	    if (!Array.isArray) {
+	      lib$es6$promise$utils$$_isArray = function (x) {
+	        return Object.prototype.toString.call(x) === '[object Array]';
+	      };
+	    } else {
+	      lib$es6$promise$utils$$_isArray = Array.isArray;
+	    }
+
+	    var lib$es6$promise$utils$$isArray = lib$es6$promise$utils$$_isArray;
+	    var lib$es6$promise$asap$$len = 0;
+	    var lib$es6$promise$asap$$toString = {}.toString;
+	    var lib$es6$promise$asap$$vertxNext;
+	    var lib$es6$promise$asap$$customSchedulerFn;
+
+	    var lib$es6$promise$asap$$asap = function asap(callback, arg) {
+	      lib$es6$promise$asap$$queue[lib$es6$promise$asap$$len] = callback;
+	      lib$es6$promise$asap$$queue[lib$es6$promise$asap$$len + 1] = arg;
+	      lib$es6$promise$asap$$len += 2;
+	      if (lib$es6$promise$asap$$len === 2) {
+	        // If len is 2, that means that we need to schedule an async flush.
+	        // If additional callbacks are queued before the queue is flushed, they
+	        // will be processed by this flush that we are scheduling.
+	        if (lib$es6$promise$asap$$customSchedulerFn) {
+	          lib$es6$promise$asap$$customSchedulerFn(lib$es6$promise$asap$$flush);
+	        } else {
+	          lib$es6$promise$asap$$scheduleFlush();
+	        }
+	      }
+	    }
+
+	    function lib$es6$promise$asap$$setScheduler(scheduleFn) {
+	      lib$es6$promise$asap$$customSchedulerFn = scheduleFn;
+	    }
+
+	    function lib$es6$promise$asap$$setAsap(asapFn) {
+	      lib$es6$promise$asap$$asap = asapFn;
+	    }
+
+	    var lib$es6$promise$asap$$browserWindow = (typeof window !== 'undefined') ? window : undefined;
+	    var lib$es6$promise$asap$$browserGlobal = lib$es6$promise$asap$$browserWindow || {};
+	    var lib$es6$promise$asap$$BrowserMutationObserver = lib$es6$promise$asap$$browserGlobal.MutationObserver || lib$es6$promise$asap$$browserGlobal.WebKitMutationObserver;
+	    var lib$es6$promise$asap$$isNode = typeof process !== 'undefined' && {}.toString.call(process) === '[object process]';
+
+	    // test for web worker but not in IE10
+	    var lib$es6$promise$asap$$isWorker = typeof Uint8ClampedArray !== 'undefined' &&
+	      typeof importScripts !== 'undefined' &&
+	      typeof MessageChannel !== 'undefined';
+
+	    // node
+	    function lib$es6$promise$asap$$useNextTick() {
+	      // node version 0.10.x displays a deprecation warning when nextTick is used recursively
+	      // see https://github.com/cujojs/when/issues/410 for details
+	      return function() {
+	        process.nextTick(lib$es6$promise$asap$$flush);
+	      };
+	    }
+
+	    // vertx
+	    function lib$es6$promise$asap$$useVertxTimer() {
+	      return function() {
+	        lib$es6$promise$asap$$vertxNext(lib$es6$promise$asap$$flush);
+	      };
+	    }
+
+	    function lib$es6$promise$asap$$useMutationObserver() {
+	      var iterations = 0;
+	      var observer = new lib$es6$promise$asap$$BrowserMutationObserver(lib$es6$promise$asap$$flush);
+	      var node = document.createTextNode('');
+	      observer.observe(node, { characterData: true });
+
+	      return function() {
+	        node.data = (iterations = ++iterations % 2);
+	      };
+	    }
+
+	    // web worker
+	    function lib$es6$promise$asap$$useMessageChannel() {
+	      var channel = new MessageChannel();
+	      channel.port1.onmessage = lib$es6$promise$asap$$flush;
+	      return function () {
+	        channel.port2.postMessage(0);
+	      };
+	    }
+
+	    function lib$es6$promise$asap$$useSetTimeout() {
+	      return function() {
+	        setTimeout(lib$es6$promise$asap$$flush, 1);
+	      };
+	    }
+
+	    var lib$es6$promise$asap$$queue = new Array(1000);
+	    function lib$es6$promise$asap$$flush() {
+	      for (var i = 0; i < lib$es6$promise$asap$$len; i+=2) {
+	        var callback = lib$es6$promise$asap$$queue[i];
+	        var arg = lib$es6$promise$asap$$queue[i+1];
+
+	        callback(arg);
+
+	        lib$es6$promise$asap$$queue[i] = undefined;
+	        lib$es6$promise$asap$$queue[i+1] = undefined;
+	      }
+
+	      lib$es6$promise$asap$$len = 0;
+	    }
+
+	    function lib$es6$promise$asap$$attemptVertx() {
+	      try {
+	        var r = require;
+	        var vertx = __webpack_require__(11);
+	        lib$es6$promise$asap$$vertxNext = vertx.runOnLoop || vertx.runOnContext;
+	        return lib$es6$promise$asap$$useVertxTimer();
+	      } catch(e) {
+	        return lib$es6$promise$asap$$useSetTimeout();
+	      }
+	    }
+
+	    var lib$es6$promise$asap$$scheduleFlush;
+	    // Decide what async method to use to triggering processing of queued callbacks:
+	    if (lib$es6$promise$asap$$isNode) {
+	      lib$es6$promise$asap$$scheduleFlush = lib$es6$promise$asap$$useNextTick();
+	    } else if (lib$es6$promise$asap$$BrowserMutationObserver) {
+	      lib$es6$promise$asap$$scheduleFlush = lib$es6$promise$asap$$useMutationObserver();
+	    } else if (lib$es6$promise$asap$$isWorker) {
+	      lib$es6$promise$asap$$scheduleFlush = lib$es6$promise$asap$$useMessageChannel();
+	    } else if (lib$es6$promise$asap$$browserWindow === undefined && "function" === 'function') {
+	      lib$es6$promise$asap$$scheduleFlush = lib$es6$promise$asap$$attemptVertx();
+	    } else {
+	      lib$es6$promise$asap$$scheduleFlush = lib$es6$promise$asap$$useSetTimeout();
+	    }
+
+	    function lib$es6$promise$$internal$$noop() {}
+
+	    var lib$es6$promise$$internal$$PENDING   = void 0;
+	    var lib$es6$promise$$internal$$FULFILLED = 1;
+	    var lib$es6$promise$$internal$$REJECTED  = 2;
+
+	    var lib$es6$promise$$internal$$GET_THEN_ERROR = new lib$es6$promise$$internal$$ErrorObject();
+
+	    function lib$es6$promise$$internal$$selfFulfillment() {
+	      return new TypeError("You cannot resolve a promise with itself");
+	    }
+
+	    function lib$es6$promise$$internal$$cannotReturnOwn() {
+	      return new TypeError('A promises callback cannot return that same promise.');
+	    }
+
+	    function lib$es6$promise$$internal$$getThen(promise) {
+	      try {
+	        return promise.then;
+	      } catch(error) {
+	        lib$es6$promise$$internal$$GET_THEN_ERROR.error = error;
+	        return lib$es6$promise$$internal$$GET_THEN_ERROR;
+	      }
+	    }
+
+	    function lib$es6$promise$$internal$$tryThen(then, value, fulfillmentHandler, rejectionHandler) {
+	      try {
+	        then.call(value, fulfillmentHandler, rejectionHandler);
+	      } catch(e) {
+	        return e;
+	      }
+	    }
+
+	    function lib$es6$promise$$internal$$handleForeignThenable(promise, thenable, then) {
+	       lib$es6$promise$asap$$asap(function(promise) {
+	        var sealed = false;
+	        var error = lib$es6$promise$$internal$$tryThen(then, thenable, function(value) {
+	          if (sealed) { return; }
+	          sealed = true;
+	          if (thenable !== value) {
+	            lib$es6$promise$$internal$$resolve(promise, value);
+	          } else {
+	            lib$es6$promise$$internal$$fulfill(promise, value);
+	          }
+	        }, function(reason) {
+	          if (sealed) { return; }
+	          sealed = true;
+
+	          lib$es6$promise$$internal$$reject(promise, reason);
+	        }, 'Settle: ' + (promise._label || ' unknown promise'));
+
+	        if (!sealed && error) {
+	          sealed = true;
+	          lib$es6$promise$$internal$$reject(promise, error);
+	        }
+	      }, promise);
+	    }
+
+	    function lib$es6$promise$$internal$$handleOwnThenable(promise, thenable) {
+	      if (thenable._state === lib$es6$promise$$internal$$FULFILLED) {
+	        lib$es6$promise$$internal$$fulfill(promise, thenable._result);
+	      } else if (thenable._state === lib$es6$promise$$internal$$REJECTED) {
+	        lib$es6$promise$$internal$$reject(promise, thenable._result);
+	      } else {
+	        lib$es6$promise$$internal$$subscribe(thenable, undefined, function(value) {
+	          lib$es6$promise$$internal$$resolve(promise, value);
+	        }, function(reason) {
+	          lib$es6$promise$$internal$$reject(promise, reason);
+	        });
+	      }
+	    }
+
+	    function lib$es6$promise$$internal$$handleMaybeThenable(promise, maybeThenable) {
+	      if (maybeThenable.constructor === promise.constructor) {
+	        lib$es6$promise$$internal$$handleOwnThenable(promise, maybeThenable);
+	      } else {
+	        var then = lib$es6$promise$$internal$$getThen(maybeThenable);
+
+	        if (then === lib$es6$promise$$internal$$GET_THEN_ERROR) {
+	          lib$es6$promise$$internal$$reject(promise, lib$es6$promise$$internal$$GET_THEN_ERROR.error);
+	        } else if (then === undefined) {
+	          lib$es6$promise$$internal$$fulfill(promise, maybeThenable);
+	        } else if (lib$es6$promise$utils$$isFunction(then)) {
+	          lib$es6$promise$$internal$$handleForeignThenable(promise, maybeThenable, then);
+	        } else {
+	          lib$es6$promise$$internal$$fulfill(promise, maybeThenable);
+	        }
+	      }
+	    }
+
+	    function lib$es6$promise$$internal$$resolve(promise, value) {
+	      if (promise === value) {
+	        lib$es6$promise$$internal$$reject(promise, lib$es6$promise$$internal$$selfFulfillment());
+	      } else if (lib$es6$promise$utils$$objectOrFunction(value)) {
+	        lib$es6$promise$$internal$$handleMaybeThenable(promise, value);
+	      } else {
+	        lib$es6$promise$$internal$$fulfill(promise, value);
+	      }
+	    }
+
+	    function lib$es6$promise$$internal$$publishRejection(promise) {
+	      if (promise._onerror) {
+	        promise._onerror(promise._result);
+	      }
+
+	      lib$es6$promise$$internal$$publish(promise);
+	    }
+
+	    function lib$es6$promise$$internal$$fulfill(promise, value) {
+	      if (promise._state !== lib$es6$promise$$internal$$PENDING) { return; }
+
+	      promise._result = value;
+	      promise._state = lib$es6$promise$$internal$$FULFILLED;
+
+	      if (promise._subscribers.length !== 0) {
+	        lib$es6$promise$asap$$asap(lib$es6$promise$$internal$$publish, promise);
+	      }
+	    }
+
+	    function lib$es6$promise$$internal$$reject(promise, reason) {
+	      if (promise._state !== lib$es6$promise$$internal$$PENDING) { return; }
+	      promise._state = lib$es6$promise$$internal$$REJECTED;
+	      promise._result = reason;
+
+	      lib$es6$promise$asap$$asap(lib$es6$promise$$internal$$publishRejection, promise);
+	    }
+
+	    function lib$es6$promise$$internal$$subscribe(parent, child, onFulfillment, onRejection) {
+	      var subscribers = parent._subscribers;
+	      var length = subscribers.length;
+
+	      parent._onerror = null;
+
+	      subscribers[length] = child;
+	      subscribers[length + lib$es6$promise$$internal$$FULFILLED] = onFulfillment;
+	      subscribers[length + lib$es6$promise$$internal$$REJECTED]  = onRejection;
+
+	      if (length === 0 && parent._state) {
+	        lib$es6$promise$asap$$asap(lib$es6$promise$$internal$$publish, parent);
+	      }
+	    }
+
+	    function lib$es6$promise$$internal$$publish(promise) {
+	      var subscribers = promise._subscribers;
+	      var settled = promise._state;
+
+	      if (subscribers.length === 0) { return; }
+
+	      var child, callback, detail = promise._result;
+
+	      for (var i = 0; i < subscribers.length; i += 3) {
+	        child = subscribers[i];
+	        callback = subscribers[i + settled];
+
+	        if (child) {
+	          lib$es6$promise$$internal$$invokeCallback(settled, child, callback, detail);
+	        } else {
+	          callback(detail);
+	        }
+	      }
+
+	      promise._subscribers.length = 0;
+	    }
+
+	    function lib$es6$promise$$internal$$ErrorObject() {
+	      this.error = null;
+	    }
+
+	    var lib$es6$promise$$internal$$TRY_CATCH_ERROR = new lib$es6$promise$$internal$$ErrorObject();
+
+	    function lib$es6$promise$$internal$$tryCatch(callback, detail) {
+	      try {
+	        return callback(detail);
+	      } catch(e) {
+	        lib$es6$promise$$internal$$TRY_CATCH_ERROR.error = e;
+	        return lib$es6$promise$$internal$$TRY_CATCH_ERROR;
+	      }
+	    }
+
+	    function lib$es6$promise$$internal$$invokeCallback(settled, promise, callback, detail) {
+	      var hasCallback = lib$es6$promise$utils$$isFunction(callback),
+	          value, error, succeeded, failed;
+
+	      if (hasCallback) {
+	        value = lib$es6$promise$$internal$$tryCatch(callback, detail);
+
+	        if (value === lib$es6$promise$$internal$$TRY_CATCH_ERROR) {
+	          failed = true;
+	          error = value.error;
+	          value = null;
+	        } else {
+	          succeeded = true;
+	        }
+
+	        if (promise === value) {
+	          lib$es6$promise$$internal$$reject(promise, lib$es6$promise$$internal$$cannotReturnOwn());
+	          return;
+	        }
+
+	      } else {
+	        value = detail;
+	        succeeded = true;
+	      }
+
+	      if (promise._state !== lib$es6$promise$$internal$$PENDING) {
+	        // noop
+	      } else if (hasCallback && succeeded) {
+	        lib$es6$promise$$internal$$resolve(promise, value);
+	      } else if (failed) {
+	        lib$es6$promise$$internal$$reject(promise, error);
+	      } else if (settled === lib$es6$promise$$internal$$FULFILLED) {
+	        lib$es6$promise$$internal$$fulfill(promise, value);
+	      } else if (settled === lib$es6$promise$$internal$$REJECTED) {
+	        lib$es6$promise$$internal$$reject(promise, value);
+	      }
+	    }
+
+	    function lib$es6$promise$$internal$$initializePromise(promise, resolver) {
+	      try {
+	        resolver(function resolvePromise(value){
+	          lib$es6$promise$$internal$$resolve(promise, value);
+	        }, function rejectPromise(reason) {
+	          lib$es6$promise$$internal$$reject(promise, reason);
+	        });
+	      } catch(e) {
+	        lib$es6$promise$$internal$$reject(promise, e);
+	      }
+	    }
+
+	    function lib$es6$promise$enumerator$$Enumerator(Constructor, input) {
+	      var enumerator = this;
+
+	      enumerator._instanceConstructor = Constructor;
+	      enumerator.promise = new Constructor(lib$es6$promise$$internal$$noop);
+
+	      if (enumerator._validateInput(input)) {
+	        enumerator._input     = input;
+	        enumerator.length     = input.length;
+	        enumerator._remaining = input.length;
+
+	        enumerator._init();
+
+	        if (enumerator.length === 0) {
+	          lib$es6$promise$$internal$$fulfill(enumerator.promise, enumerator._result);
+	        } else {
+	          enumerator.length = enumerator.length || 0;
+	          enumerator._enumerate();
+	          if (enumerator._remaining === 0) {
+	            lib$es6$promise$$internal$$fulfill(enumerator.promise, enumerator._result);
+	          }
+	        }
+	      } else {
+	        lib$es6$promise$$internal$$reject(enumerator.promise, enumerator._validationError());
+	      }
+	    }
+
+	    lib$es6$promise$enumerator$$Enumerator.prototype._validateInput = function(input) {
+	      return lib$es6$promise$utils$$isArray(input);
+	    };
+
+	    lib$es6$promise$enumerator$$Enumerator.prototype._validationError = function() {
+	      return new Error('Array Methods must be provided an Array');
+	    };
+
+	    lib$es6$promise$enumerator$$Enumerator.prototype._init = function() {
+	      this._result = new Array(this.length);
+	    };
+
+	    var lib$es6$promise$enumerator$$default = lib$es6$promise$enumerator$$Enumerator;
+
+	    lib$es6$promise$enumerator$$Enumerator.prototype._enumerate = function() {
+	      var enumerator = this;
+
+	      var length  = enumerator.length;
+	      var promise = enumerator.promise;
+	      var input   = enumerator._input;
+
+	      for (var i = 0; promise._state === lib$es6$promise$$internal$$PENDING && i < length; i++) {
+	        enumerator._eachEntry(input[i], i);
+	      }
+	    };
+
+	    lib$es6$promise$enumerator$$Enumerator.prototype._eachEntry = function(entry, i) {
+	      var enumerator = this;
+	      var c = enumerator._instanceConstructor;
+
+	      if (lib$es6$promise$utils$$isMaybeThenable(entry)) {
+	        if (entry.constructor === c && entry._state !== lib$es6$promise$$internal$$PENDING) {
+	          entry._onerror = null;
+	          enumerator._settledAt(entry._state, i, entry._result);
+	        } else {
+	          enumerator._willSettleAt(c.resolve(entry), i);
+	        }
+	      } else {
+	        enumerator._remaining--;
+	        enumerator._result[i] = entry;
+	      }
+	    };
+
+	    lib$es6$promise$enumerator$$Enumerator.prototype._settledAt = function(state, i, value) {
+	      var enumerator = this;
+	      var promise = enumerator.promise;
+
+	      if (promise._state === lib$es6$promise$$internal$$PENDING) {
+	        enumerator._remaining--;
+
+	        if (state === lib$es6$promise$$internal$$REJECTED) {
+	          lib$es6$promise$$internal$$reject(promise, value);
+	        } else {
+	          enumerator._result[i] = value;
+	        }
+	      }
+
+	      if (enumerator._remaining === 0) {
+	        lib$es6$promise$$internal$$fulfill(promise, enumerator._result);
+	      }
+	    };
+
+	    lib$es6$promise$enumerator$$Enumerator.prototype._willSettleAt = function(promise, i) {
+	      var enumerator = this;
+
+	      lib$es6$promise$$internal$$subscribe(promise, undefined, function(value) {
+	        enumerator._settledAt(lib$es6$promise$$internal$$FULFILLED, i, value);
+	      }, function(reason) {
+	        enumerator._settledAt(lib$es6$promise$$internal$$REJECTED, i, reason);
+	      });
+	    };
+	    function lib$es6$promise$promise$all$$all(entries) {
+	      return new lib$es6$promise$enumerator$$default(this, entries).promise;
+	    }
+	    var lib$es6$promise$promise$all$$default = lib$es6$promise$promise$all$$all;
+	    function lib$es6$promise$promise$race$$race(entries) {
+	      /*jshint validthis:true */
+	      var Constructor = this;
+
+	      var promise = new Constructor(lib$es6$promise$$internal$$noop);
+
+	      if (!lib$es6$promise$utils$$isArray(entries)) {
+	        lib$es6$promise$$internal$$reject(promise, new TypeError('You must pass an array to race.'));
+	        return promise;
+	      }
+
+	      var length = entries.length;
+
+	      function onFulfillment(value) {
+	        lib$es6$promise$$internal$$resolve(promise, value);
+	      }
+
+	      function onRejection(reason) {
+	        lib$es6$promise$$internal$$reject(promise, reason);
+	      }
+
+	      for (var i = 0; promise._state === lib$es6$promise$$internal$$PENDING && i < length; i++) {
+	        lib$es6$promise$$internal$$subscribe(Constructor.resolve(entries[i]), undefined, onFulfillment, onRejection);
+	      }
+
+	      return promise;
+	    }
+	    var lib$es6$promise$promise$race$$default = lib$es6$promise$promise$race$$race;
+	    function lib$es6$promise$promise$resolve$$resolve(object) {
+	      /*jshint validthis:true */
+	      var Constructor = this;
+
+	      if (object && typeof object === 'object' && object.constructor === Constructor) {
+	        return object;
+	      }
+
+	      var promise = new Constructor(lib$es6$promise$$internal$$noop);
+	      lib$es6$promise$$internal$$resolve(promise, object);
+	      return promise;
+	    }
+	    var lib$es6$promise$promise$resolve$$default = lib$es6$promise$promise$resolve$$resolve;
+	    function lib$es6$promise$promise$reject$$reject(reason) {
+	      /*jshint validthis:true */
+	      var Constructor = this;
+	      var promise = new Constructor(lib$es6$promise$$internal$$noop);
+	      lib$es6$promise$$internal$$reject(promise, reason);
+	      return promise;
+	    }
+	    var lib$es6$promise$promise$reject$$default = lib$es6$promise$promise$reject$$reject;
+
+	    var lib$es6$promise$promise$$counter = 0;
+
+	    function lib$es6$promise$promise$$needsResolver() {
+	      throw new TypeError('You must pass a resolver function as the first argument to the promise constructor');
+	    }
+
+	    function lib$es6$promise$promise$$needsNew() {
+	      throw new TypeError("Failed to construct 'Promise': Please use the 'new' operator, this object constructor cannot be called as a function.");
+	    }
+
+	    var lib$es6$promise$promise$$default = lib$es6$promise$promise$$Promise;
+	    /**
+	      Promise objects represent the eventual result of an asynchronous operation. The
+	      primary way of interacting with a promise is through its `then` method, which
+	      registers callbacks to receive either a promise's eventual value or the reason
+	      why the promise cannot be fulfilled.
+
+	      Terminology
+	      -----------
+
+	      - `promise` is an object or function with a `then` method whose behavior conforms to this specification.
+	      - `thenable` is an object or function that defines a `then` method.
+	      - `value` is any legal JavaScript value (including undefined, a thenable, or a promise).
+	      - `exception` is a value that is thrown using the throw statement.
+	      - `reason` is a value that indicates why a promise was rejected.
+	      - `settled` the final resting state of a promise, fulfilled or rejected.
+
+	      A promise can be in one of three states: pending, fulfilled, or rejected.
+
+	      Promises that are fulfilled have a fulfillment value and are in the fulfilled
+	      state.  Promises that are rejected have a rejection reason and are in the
+	      rejected state.  A fulfillment value is never a thenable.
+
+	      Promises can also be said to *resolve* a value.  If this value is also a
+	      promise, then the original promise's settled state will match the value's
+	      settled state.  So a promise that *resolves* a promise that rejects will
+	      itself reject, and a promise that *resolves* a promise that fulfills will
+	      itself fulfill.
+
+
+	      Basic Usage:
+	      ------------
+
+	      ```js
+	      var promise = new Promise(function(resolve, reject) {
+	        // on success
+	        resolve(value);
+
+	        // on failure
+	        reject(reason);
+	      });
+
+	      promise.then(function(value) {
+	        // on fulfillment
+	      }, function(reason) {
+	        // on rejection
+	      });
+	      ```
+
+	      Advanced Usage:
+	      ---------------
+
+	      Promises shine when abstracting away asynchronous interactions such as
+	      `XMLHttpRequest`s.
+
+	      ```js
+	      function getJSON(url) {
+	        return new Promise(function(resolve, reject){
+	          var xhr = new XMLHttpRequest();
+
+	          xhr.open('GET', url);
+	          xhr.onreadystatechange = handler;
+	          xhr.responseType = 'json';
+	          xhr.setRequestHeader('Accept', 'application/json');
+	          xhr.send();
+
+	          function handler() {
+	            if (this.readyState === this.DONE) {
+	              if (this.status === 200) {
+	                resolve(this.response);
+	              } else {
+	                reject(new Error('getJSON: `' + url + '` failed with status: [' + this.status + ']'));
+	              }
+	            }
+	          };
+	        });
+	      }
+
+	      getJSON('/posts.json').then(function(json) {
+	        // on fulfillment
+	      }, function(reason) {
+	        // on rejection
+	      });
+	      ```
+
+	      Unlike callbacks, promises are great composable primitives.
+
+	      ```js
+	      Promise.all([
+	        getJSON('/posts'),
+	        getJSON('/comments')
+	      ]).then(function(values){
+	        values[0] // => postsJSON
+	        values[1] // => commentsJSON
+
+	        return values;
+	      });
+	      ```
+
+	      @class Promise
+	      @param {function} resolver
+	      Useful for tooling.
+	      @constructor
+	    */
+	    function lib$es6$promise$promise$$Promise(resolver) {
+	      this._id = lib$es6$promise$promise$$counter++;
+	      this._state = undefined;
+	      this._result = undefined;
+	      this._subscribers = [];
+
+	      if (lib$es6$promise$$internal$$noop !== resolver) {
+	        if (!lib$es6$promise$utils$$isFunction(resolver)) {
+	          lib$es6$promise$promise$$needsResolver();
+	        }
+
+	        if (!(this instanceof lib$es6$promise$promise$$Promise)) {
+	          lib$es6$promise$promise$$needsNew();
+	        }
+
+	        lib$es6$promise$$internal$$initializePromise(this, resolver);
+	      }
+	    }
+
+	    lib$es6$promise$promise$$Promise.all = lib$es6$promise$promise$all$$default;
+	    lib$es6$promise$promise$$Promise.race = lib$es6$promise$promise$race$$default;
+	    lib$es6$promise$promise$$Promise.resolve = lib$es6$promise$promise$resolve$$default;
+	    lib$es6$promise$promise$$Promise.reject = lib$es6$promise$promise$reject$$default;
+	    lib$es6$promise$promise$$Promise._setScheduler = lib$es6$promise$asap$$setScheduler;
+	    lib$es6$promise$promise$$Promise._setAsap = lib$es6$promise$asap$$setAsap;
+	    lib$es6$promise$promise$$Promise._asap = lib$es6$promise$asap$$asap;
+
+	    lib$es6$promise$promise$$Promise.prototype = {
+	      constructor: lib$es6$promise$promise$$Promise,
+
+	    /**
+	      The primary way of interacting with a promise is through its `then` method,
+	      which registers callbacks to receive either a promise's eventual value or the
+	      reason why the promise cannot be fulfilled.
+
+	      ```js
+	      findUser().then(function(user){
+	        // user is available
+	      }, function(reason){
+	        // user is unavailable, and you are given the reason why
+	      });
+	      ```
+
+	      Chaining
+	      --------
+
+	      The return value of `then` is itself a promise.  This second, 'downstream'
+	      promise is resolved with the return value of the first promise's fulfillment
+	      or rejection handler, or rejected if the handler throws an exception.
+
+	      ```js
+	      findUser().then(function (user) {
+	        return user.name;
+	      }, function (reason) {
+	        return 'default name';
+	      }).then(function (userName) {
+	        // If `findUser` fulfilled, `userName` will be the user's name, otherwise it
+	        // will be `'default name'`
+	      });
+
+	      findUser().then(function (user) {
+	        throw new Error('Found user, but still unhappy');
+	      }, function (reason) {
+	        throw new Error('`findUser` rejected and we're unhappy');
+	      }).then(function (value) {
+	        // never reached
+	      }, function (reason) {
+	        // if `findUser` fulfilled, `reason` will be 'Found user, but still unhappy'.
+	        // If `findUser` rejected, `reason` will be '`findUser` rejected and we're unhappy'.
+	      });
+	      ```
+	      If the downstream promise does not specify a rejection handler, rejection reasons will be propagated further downstream.
+
+	      ```js
+	      findUser().then(function (user) {
+	        throw new PedagogicalException('Upstream error');
+	      }).then(function (value) {
+	        // never reached
+	      }).then(function (value) {
+	        // never reached
+	      }, function (reason) {
+	        // The `PedgagocialException` is propagated all the way down to here
+	      });
+	      ```
+
+	      Assimilation
+	      ------------
+
+	      Sometimes the value you want to propagate to a downstream promise can only be
+	      retrieved asynchronously. This can be achieved by returning a promise in the
+	      fulfillment or rejection handler. The downstream promise will then be pending
+	      until the returned promise is settled. This is called *assimilation*.
+
+	      ```js
+	      findUser().then(function (user) {
+	        return findCommentsByAuthor(user);
+	      }).then(function (comments) {
+	        // The user's comments are now available
+	      });
+	      ```
+
+	      If the assimliated promise rejects, then the downstream promise will also reject.
+
+	      ```js
+	      findUser().then(function (user) {
+	        return findCommentsByAuthor(user);
+	      }).then(function (comments) {
+	        // If `findCommentsByAuthor` fulfills, we'll have the value here
+	      }, function (reason) {
+	        // If `findCommentsByAuthor` rejects, we'll have the reason here
+	      });
+	      ```
+
+	      Simple Example
+	      --------------
+
+	      Synchronous Example
+
+	      ```javascript
+	      var result;
+
+	      try {
+	        result = findResult();
+	        // success
+	      } catch(reason) {
+	        // failure
+	      }
+	      ```
+
+	      Errback Example
+
+	      ```js
+	      findResult(function(result, err){
+	        if (err) {
+	          // failure
+	        } else {
+	          // success
+	        }
+	      });
+	      ```
+
+	      Promise Example;
+
+	      ```javascript
+	      findResult().then(function(result){
+	        // success
+	      }, function(reason){
+	        // failure
+	      });
+	      ```
+
+	      Advanced Example
+	      --------------
+
+	      Synchronous Example
+
+	      ```javascript
+	      var author, books;
+
+	      try {
+	        author = findAuthor();
+	        books  = findBooksByAuthor(author);
+	        // success
+	      } catch(reason) {
+	        // failure
+	      }
+	      ```
+
+	      Errback Example
+
+	      ```js
+
+	      function foundBooks(books) {
+
+	      }
+
+	      function failure(reason) {
+
+	      }
+
+	      findAuthor(function(author, err){
+	        if (err) {
+	          failure(err);
+	          // failure
+	        } else {
+	          try {
+	            findBoooksByAuthor(author, function(books, err) {
+	              if (err) {
+	                failure(err);
+	              } else {
+	                try {
+	                  foundBooks(books);
+	                } catch(reason) {
+	                  failure(reason);
+	                }
+	              }
+	            });
+	          } catch(error) {
+	            failure(err);
+	          }
+	          // success
+	        }
+	      });
+	      ```
+
+	      Promise Example;
+
+	      ```javascript
+	      findAuthor().
+	        then(findBooksByAuthor).
+	        then(function(books){
+	          // found books
+	      }).catch(function(reason){
+	        // something went wrong
+	      });
+	      ```
+
+	      @method then
+	      @param {Function} onFulfilled
+	      @param {Function} onRejected
+	      Useful for tooling.
+	      @return {Promise}
+	    */
+	      then: function(onFulfillment, onRejection) {
+	        var parent = this;
+	        var state = parent._state;
+
+	        if (state === lib$es6$promise$$internal$$FULFILLED && !onFulfillment || state === lib$es6$promise$$internal$$REJECTED && !onRejection) {
+	          return this;
+	        }
+
+	        var child = new this.constructor(lib$es6$promise$$internal$$noop);
+	        var result = parent._result;
+
+	        if (state) {
+	          var callback = arguments[state - 1];
+	          lib$es6$promise$asap$$asap(function(){
+	            lib$es6$promise$$internal$$invokeCallback(state, child, callback, result);
+	          });
+	        } else {
+	          lib$es6$promise$$internal$$subscribe(parent, child, onFulfillment, onRejection);
+	        }
+
+	        return child;
+	      },
+
+	    /**
+	      `catch` is simply sugar for `then(undefined, onRejection)` which makes it the same
+	      as the catch block of a try/catch statement.
+
+	      ```js
+	      function findAuthor(){
+	        throw new Error('couldn't find that author');
+	      }
+
+	      // synchronous
+	      try {
+	        findAuthor();
+	      } catch(reason) {
+	        // something went wrong
+	      }
+
+	      // async with promises
+	      findAuthor().catch(function(reason){
+	        // something went wrong
+	      });
+	      ```
+
+	      @method catch
+	      @param {Function} onRejection
+	      Useful for tooling.
+	      @return {Promise}
+	    */
+	      'catch': function(onRejection) {
+	        return this.then(null, onRejection);
+	      }
+	    };
+	    function lib$es6$promise$polyfill$$polyfill() {
+	      var local;
+
+	      if (typeof global !== 'undefined') {
+	          local = global;
+	      } else if (typeof self !== 'undefined') {
+	          local = self;
+	      } else {
+	          try {
+	              local = Function('return this')();
+	          } catch (e) {
+	              throw new Error('polyfill failed because global object is unavailable in this environment');
+	          }
+	      }
+
+	      var P = local.Promise;
+
+	      if (P && Object.prototype.toString.call(P.resolve()) === '[object Promise]' && !P.cast) {
+	        return;
+	      }
+
+	      local.Promise = lib$es6$promise$promise$$default;
+	    }
+	    var lib$es6$promise$polyfill$$default = lib$es6$promise$polyfill$$polyfill;
+
+	    var lib$es6$promise$umd$$ES6Promise = {
+	      'Promise': lib$es6$promise$promise$$default,
+	      'polyfill': lib$es6$promise$polyfill$$default
+	    };
+
+	    /* global define:true module:true window: true */
+	    if ("function" === 'function' && __webpack_require__(12)['amd']) {
+	      !(__WEBPACK_AMD_DEFINE_RESULT__ = function() { return lib$es6$promise$umd$$ES6Promise; }.call(exports, __webpack_require__, exports, module), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
+	    } else if (typeof module !== 'undefined' && module['exports']) {
+	      module['exports'] = lib$es6$promise$umd$$ES6Promise;
+	    } else if (typeof this !== 'undefined') {
+	      this['ES6Promise'] = lib$es6$promise$umd$$ES6Promise;
+	    }
+
+	    lib$es6$promise$polyfill$$default();
+	}).call(this);
+
+
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(9), (function() { return this; }()), __webpack_require__(10)(module)))
+
+/***/ },
+/* 9 */
+/***/ function(module, exports) {
+
+	// shim for using process in browser
+
+	var process = module.exports = {};
+	var queue = [];
+	var draining = false;
+	var currentQueue;
+	var queueIndex = -1;
+
+	function cleanUpNextTick() {
+	    draining = false;
+	    if (currentQueue.length) {
+	        queue = currentQueue.concat(queue);
+	    } else {
+	        queueIndex = -1;
+	    }
+	    if (queue.length) {
+	        drainQueue();
+	    }
+	}
+
+	function drainQueue() {
+	    if (draining) {
+	        return;
+	    }
+	    var timeout = setTimeout(cleanUpNextTick);
+	    draining = true;
+
+	    var len = queue.length;
+	    while(len) {
+	        currentQueue = queue;
+	        queue = [];
+	        while (++queueIndex < len) {
+	            if (currentQueue) {
+	                currentQueue[queueIndex].run();
+	            }
+	        }
+	        queueIndex = -1;
+	        len = queue.length;
+	    }
+	    currentQueue = null;
+	    draining = false;
+	    clearTimeout(timeout);
+	}
+
+	process.nextTick = function (fun) {
+	    var args = new Array(arguments.length - 1);
+	    if (arguments.length > 1) {
+	        for (var i = 1; i < arguments.length; i++) {
+	            args[i - 1] = arguments[i];
+	        }
+	    }
+	    queue.push(new Item(fun, args));
+	    if (queue.length === 1 && !draining) {
+	        setTimeout(drainQueue, 0);
+	    }
+	};
+
+	// v8 likes predictible objects
+	function Item(fun, array) {
+	    this.fun = fun;
+	    this.array = array;
+	}
+	Item.prototype.run = function () {
+	    this.fun.apply(null, this.array);
+	};
+	process.title = 'browser';
+	process.browser = true;
+	process.env = {};
+	process.argv = [];
+	process.version = ''; // empty string to avoid regexp issues
+	process.versions = {};
+
+	function noop() {}
+
+	process.on = noop;
+	process.addListener = noop;
+	process.once = noop;
+	process.off = noop;
+	process.removeListener = noop;
+	process.removeAllListeners = noop;
+	process.emit = noop;
+
+	process.binding = function (name) {
+	    throw new Error('process.binding is not supported');
+	};
+
+	process.cwd = function () { return '/' };
+	process.chdir = function (dir) {
+	    throw new Error('process.chdir is not supported');
+	};
+	process.umask = function() { return 0; };
+
+
+/***/ },
+/* 10 */
+/***/ function(module, exports) {
+
+	module.exports = function(module) {
+		if(!module.webpackPolyfill) {
+			module.deprecate = function() {};
+			module.paths = [];
+			// module.parent = undefined by default
+			module.children = [];
+			module.webpackPolyfill = 1;
+		}
+		return module;
+	}
+
+
+/***/ },
+/* 11 */
+/***/ function(module, exports) {
+
+	/* (ignored) */
+
+/***/ },
+/* 12 */
+/***/ function(module, exports) {
+
+	module.exports = function() { throw new Error("define cannot be used indirect"); };
+
+
+/***/ },
+/* 13 */
+/***/ function(module, exports) {
+
+	var scopesregex = /({[^{}}]*[\n\r]*})/g,
+	funcarguments = new RegExp(/[\d\t]*function[ ]?\(([^\)]*)\)/i),
+	getFunctionArguments = function(code) {
+		if (funcarguments.test(code)) {
+			var match = funcarguments.exec(code);
+			return match[1].replace(/[\s\n\r\t]*/g,'').split(',');
+		}
+		return [];
+	};
+
+	var inject = function(callback, args, context) {
+		var locals = [],
+		requiredArguments = getFunctionArguments(callback.toString());
+		
+
+		for (var i = 0;i<requiredArguments.length;++i) {
+			if (args instanceof Array) {
+				for (var j = 0;j<args.length;++j) {
+					if (args[j].hasOwnProperty(requiredArguments[i])
+						&&("object"===typeof args[j][requiredArguments[i]]||"function"===typeof args[j][requiredArguments[i]])) {
+						locals[i] = args[j][requiredArguments[i]];
+					}
+				}
+			}
+			else if (args.hasOwnProperty(requiredArguments[i])) {
+				locals[i] = args[requiredArguments[i]];
+			}
+		}
+		
+		var injected;
+		injected = function() {
+			return callback.apply(context||this, locals.concat(Array.prototype.slice.call(arguments)));
+		}
+		injected.$$injected = true;
+		return injected;
+	};
+
+	module.exports = {
+		inject: inject
+	};
+
+/***/ },
+/* 14 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var Creed = __webpack_require__(7).Creed;
+	var smartCallback = __webpack_require__(4);
+	var extend = __webpack_require__(15);
+	__webpack_require__(16);
+
+	module.exports = function(component, name, workshop) {
+		this.component = component;
+		this.name = name;
+		this.performed = false;
+		this.$import = {
+			config: {},
+			prototype: {},
+			scope: {}, // Default scope
+			onConstruct: [], // Functions on construct
+			onCreate: [], // Functions on created
+			onAttach: [], // Functions on attached
+			onDetach: [], // Functions on detached
+			onDestroy: [], // Functions on destroyed
+			conceivedCallers: [], // After create static functions
+			watchers: [], // Default watchers
+			template: false, // Default template (can be an array 1 => String, 2 => Class)
+			observeAttrs: [] // Change attrs callbacks
+		};
+
+		if (workshop) this.$run(workshop);
+
+		
+	}.inherit(Creed)
+	.proto({
+		$conceivedCallers: function(fn, args) {
+			this.$import.conceivedCallers.push([fn, args]);
+		},
+		$onCreate: function(callback) {
+			this.$import.onCreate.push(callback);
+		},
+		// Construct (onCreated callback)
+		$construct: function(callback) {
+			this.$import.onConstruct.push(callback);
+		},
+		// Attach callback
+		$onAttach: function(callback) {
+			this.$import.onAttach.push(callback);
+		},
+		// Detach callback
+		$onDetach: function(callback) {
+			this.$import.onDetach.push(callback);
+		},
+		// Destroy callback
+		$onDestroy: function(callback) {
+			this.$import.onDestroy.push(callback);
+		},
+		// Extend scope
+		$scope: function(data) {
+			extend(this.$import.scope, data);
+		},
+		// Watchers
+		$watch: function() {
+			this.$import.watchers.push(Array.prototype.slice.apply(arguments));
+		},
+		// Prototype
+		$methods: function(prototype) {
+			extend(this.$import.prototype, prototype);
+		},
+		// Default config
+		$setup: function(config) {
+			if ("object"!==typeof config) throw 'Configuration must be an object';
+			extend(this.$import.config, config);
+		},
+		// Template
+		$template: function() {
+			this.$import.template = Array.prototype.slice.apply(arguments);
+		},
+		// Attrs change callbacks
+		$observeAttrs: function(callback) {
+			this.$import.observeAttrs.push(callback);
+		},
+		// run preset creator workshop
+		$run: function(workshop) {
+			var self = this, prototype = smartCallback.call({
+				// It self
+				$component: this.component,
+				$conceivedCallers: function() { self.$conceivedCallers.apply(self, arguments); },
+				$onCreate: function() { self.$onCreate.apply(self, arguments); },
+				$init: function() { self.$onCreate.apply(self, arguments); },
+				$construct: function() { self.$construct.apply(self, arguments); },
+				$onAttach: function() { self.$onAttach.apply(self, arguments); },
+				$onDetach: function() { self.$onDetach.apply(self, arguments); },
+				$onDestroy: function() { self.$onDestroy.apply(self, arguments); },
+				$scope: function() { self.$scope.apply(self, arguments); },
+				$watch: function() { self.$watch.apply(self, arguments); },
+				$proto: function() { self.$methods.apply(self, arguments); },
+				$methods: function() { self.$methods.apply(self, arguments); },
+				$setup: function() { self.$setup.apply(self, arguments); },
+				$template: function() { self.$template.apply(self, arguments); },
+				$observeAttrs: function() { self.$observeAttrs.apply(self, arguments); }
+			}, workshop, this)();
+
+			if ("object"===typeof prototype) {
+		        extend(this.$import.prototype, prototype);
+		    }
+
+		    return this;
+		},
+		// use preset reader workshop
+		$use: function(workshop, context, getinjector) {
+			var injector = smartCallback.call(this.$import, workshop, context||this);
+			if (getinjector) return injector;
+			injector();
+			return this;
+		}
+	});
+
+/***/ },
+/* 15 */
+/***/ function(module, exports) {
+
+	/* Протестировано */
+
+		/* Extend function (modified with pseudo Reference) */
+		var hasOwn = Object.prototype.hasOwnProperty;
+		var toStr = Object.prototype.toString;
+
+		var isArray = function isArray(arr) {
+			if (typeof Array.isArray === 'function') {
+				return Array.isArray(arr);
+			}
+
+			return toStr.call(arr) === '[object Array]';
+		};
+
+		var isPlainObject = function isPlainObject(obj) {
+			'use strict';
+
+			if (!obj || toStr.call(obj) !== '[object Object]') {
+				return false;
+			}
+
+			var has_own_constructor = hasOwn.call(obj, 'constructor');
+			var has_is_property_of_method = obj.constructor && obj.constructor.prototype && hasOwn.call(obj.constructor.prototype, 'isPrototypeOf');
+			// Not own constructor property must be Object
+			if (obj.constructor && !has_own_constructor && !has_is_property_of_method) {
+				return false;
+			}
+
+			// Own properties are enumerated firstly, so to speed up,
+			// if last one is own, then all properties are own.
+			var key;
+			for (key in obj) {/**/}
+
+			return typeof key === 'undefined' || hasOwn.call(obj, key);
+		};
+
+		var extend = function() {
+			'use strict';
+
+			var options, name, src, copy, copyIsArray, clone,
+				target = arguments[0],
+				i = 1,
+				length = arguments.length,
+				deep = false;
+
+			// Handle a deep copy situation
+			if (typeof target === 'boolean') {
+				deep = target;
+				target = arguments[1] || {};
+				// skip the boolean and the target
+				i = 2;
+			} else if ((typeof target !== 'object' && typeof target !== 'function') || target == null) {
+				target = {};
+			}
+
+			for (; i < length; ++i) {
+				options = arguments[i];
+				// Only deal with non-null/undefined values
+				if (options != null) {
+					// Extend the base object
+					for (name in options) {
+						src = target[name];
+						copy = options[name];
+
+
+
+						// Prevent never-ending loop
+						if (target !== copy) {
+							// Recurse if we're merging plain objects or arrays
+							if (deep && copy && (isPlainObject(copy) || (copyIsArray = isArray(copy)))) {
+								if (copyIsArray) {
+									copyIsArray = false;
+									clone = src && isArray(src) ? src : [];
+								} else {
+									clone = src && isPlainObject(src) ? src : {};
+								}
+
+								if (copy.constructor.name!=='Ref')
+								// Never move original objects, clone them
+								target[name] = extend(deep, clone, copy);
+
+							// Don't bring in undefined values
+							} else if (typeof copy !== 'undefined') {
+								target[name] = copy;
+							}
+						}
+					}
+				}
+			}
+
+			// Return the modified object
+			return target;
+		};
+
+		module.exports = extend;
+
+
+/***/ },
+/* 16 */
+/***/ function(module, exports, __webpack_require__) {
+
+	var mixin = __webpack_require__(2);
+	var inherit = __webpack_require__(1);
+
+	module.exports = (function() {
+		Function.prototype.inherit = function() {
+		    var classes = Array.prototype.slice.apply(arguments);
+		    return inherit(this, classes);
+		}
+
+		Function.prototype.proto = function(proto) {
+			if ("object"!==typeof this.prototype) this.prototype = {
+				constructor: this
+			};
+			mixin(this.prototype, proto);
+			return this;
+		}
+
+		Function.prototype.construct = function() {
+			
+			this.__disableContructor__ = true;
+			
+			var module = new this();
+			var args = arguments[0] instanceof Array ? arguments[0] : [];
+			
+			this.apply(module, args);
+			return module;
+		}
+
+		return inherit;
+
+	})();
+
+
+/***/ },
+/* 17 */
 /***/ function(module, exports) {
 
 	module.exports = function() {
@@ -1275,13 +2961,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 9 */
+/* 18 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	    var mixin = __webpack_require__(3);
-	    var camelize = __webpack_require__(6);
-	    var scopeUtilits = __webpack_require__(10);
+	    var mixin = __webpack_require__(2);
+	    var camelize = __webpack_require__(5);
+	    var scopeUtilits = __webpack_require__(19);
 
 	    module.exports = function($self, $$scope, $attrs) {
 	        /*
@@ -1328,7 +3014,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	        */
 	        $$scope.$sid = $self.$sid;
 
-	        $self.$injectors.$scope = $$scope;
+	        $self.$injectors[0].$scope = $$scope;
+
+	        /*
+	        Register angular scope as child scope of component
+	        */
+	        $self.$appendScope($$scope);
 
 	        $self.__config__.allWaitingForResolve = false;
 
@@ -1340,8 +3031,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        ///////////////   
 
 	        /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-	         * Этот код на вес золота, я его решал несколько дней. Его смысл прикрепить контроллер к синтету. *
-
+	        
 	         Посколько после того как angular проходит стадию bootstrap он перестается следить на деревом, к
 	         которому он не относится, все вновь созданные компоненты должны быть инициализированны принудительно.
 	         За исключением тех случаев, когда шаблон для них устанавливается через интерфейс $generator.render()
@@ -1375,10 +3065,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	    };
 
 /***/ },
-/* 10 */
+/* 19 */
 /***/ function(module, exports, __webpack_require__) {
 
-	__webpack_require__(11);
+	__webpack_require__(16);
 	module.exports = function($) {
 		this.$ = $; // Link to synthetic controller
 	}.proto({
@@ -1405,260 +3095,132 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 11 */
-/***/ function(module, exports, __webpack_require__) {
-
-	var mixin = __webpack_require__(12);
-	var inherit = __webpack_require__(13);
-
-	module.exports = (function() {
-		Function.prototype.inherit = function() {
-		    var classes = Array.prototype.slice.apply(arguments);
-		    return inherit(this, classes);
-		}
-
-		Function.prototype.proto = function(proto) {
-			if ("object"!==typeof this.prototype) this.prototype = {
-				constructor: this
-			};
-			mixin(this.prototype, proto);
-			return this;
-		}
-
-		Function.prototype.construct = function() {
-			
-			this.__disableContructor__ = true;
-			
-			var module = new this();
-			var args = arguments[0] instanceof Array ? arguments[0] : [];
-			
-			this.apply(module, args);
-			return module;
-		}
-
-		return inherit;
-
-	})();
-
-
-/***/ },
-/* 12 */
-/***/ function(module, exports) {
-
-	
-		var mixinup = function(a,b) { 
-			for(var i in b) { 
-				
-				if (b.hasOwnProperty(i)) { 
-		          	
-					a[i]=b[i]; 
-				} 
-			} 
-			return a; 
-		};
-
-		/*
-		Функция слияние двух объектов. Объекты копируются по ссылке, поэтому любые изменения в одном объекте,
-		приведут к изменениям во втором.
-		Использование:
-		mixin(foo, bar1, bar2, bar3 .. barN);
-		*/
-		module.exports = function(a) { 
-			var i=1; 
-			for (;i<arguments.length;i++) { 
-				if ("object"===typeof arguments[i]) {
-
-					mixinup(a,arguments[i]); 
-				} 
-			} 
-			return a;
-		}
-
-/***/ },
-/* 13 */
-/***/ function(module, exports, __webpack_require__) {
-
-	/* WEBPACK VAR INJECTION */(function(global) {var mixin = __webpack_require__(14);
-
-		/*
-		Функция наследования одним классом другого. Расширяет прототип и конструктор. 
-		Не требует ручного вызова конструктора родительских классов.
-		*/
-		module.exports = function(aClass, classes) {
-
-			if (!(classes instanceof Array)) classes = [classes];
-			var cl=classes.length;
-			
-			var superconstructor = function(){
-				 var args = Array.prototype.slice.apply(arguments);
-	            /*
-				Поскольку в процессе построения экземпляра будут выполняться функции конструкторы всех наследуемых
-				классов, нам необходимо запоминать тех, которые уже были вызваны, во избежании повторного вызова.
-				*/
-				if ("object"!==typeof this.constructors) Object.defineProperty(this, 'constructors', {
-	                configurable: false,
-	                enumerable: false,
-	                writable: false,
-	                value: []
-	            });
-	               
-				for (var i=0;i<cl;++i) {
-
-					/*
-					Мы должны помнить какие конструкторы уже были выполнены для этого объект.
-					Поэтому всю историю конструкторов необходимо хранить в прототипе,
-					во избежании повторного его вызова. Так как мы можем наследовать классы,
-					которые происходят от одного предка. В это случае конструктор предка будет
-					вызван несколько раз, чего не требуется.
-					*/
-
-
-					if (this.constructors.indexOf(classes[i])>=0) continue;
-					this.constructors.push(classes[i]);
-
-					classes[i].apply(this, args);
-				}
-			},
-			superprototype = superconstructor.prototype = {};
-
-			/*
-			Первым делом мы должны позаботиться о том, что если у расширяемого класса уже есть __super__ прототип,
-			он должен быть перенесен в новый superprototype.
-			*/
-			if (aClass.prototype&&aClass.prototype!==null&&aClass.prototype.__super__) mixin(superprototype, aClass.prototype.__super__);
-			/*
-			Мы должны миксировать данный суперпрототип с прототипами всех наследуемых классов,
-			а так же с их суперпрототипами. Так как в их прототипе содержатся собственные методы класса,
-			а в __super__ миксины тех классов, которые они, возможно наследовали.
-			*/
-			for (var i=0;i<cl;++i) {
-				if (classes[i].prototype) {
-					if (classes[i].prototype.__super__) superprototype = mixin(superprototype, classes[i].prototype.__super__);
-					superprototype = mixin(superprototype, classes[i].prototype);
-				}
-			}
-
-			/*
-			Мы связывает суперпрототип с суперконструктором.
-			*/
-			superprototype.constructor = superconstructor;
-
-			/*
-			Польскольку мы не можем взять и подменить тело функции у существующей функции,
-			нам придется подменить орегинальную функцию на собственную. 
-			*/
-			var Mixin = function() {
-
-				/*
-				Если в прототипе класса вдруг возникла переменная __disableContructor__, значит кто то 
-				не хочет, что бы при создании экземпляра класса происходил вызов конструкторов.
-				Это может применять в методе construct абстрактного прототипа Function, для вызова
-				контруктора через функцию Apply.
-				*/
-				if (this.constructor && this.constructor.__disableContructor__) {
-					this.constructor.__disableContructor__ = false;
-					return false;
-				}
-
-				var args = Array.prototype.slice.apply(arguments);
-
-				/*
-				Мы выполняем расширенные функции только если мы являемся экземпляром Mixin
-				*/			
-				
-				if (! ("object"==typeof window&&(this===window)||"object"==typeof global&&(this===global) )) {
-					superconstructor.apply(this, args)
-				}
-
-				aClass.apply(this, args);
-			}
-			Mixin.prototype = Object.create(superprototype,{
-				
-				/*
-				Для быстрого кроссбраузерного доступа к суперпроототипу будет использоваться свойство __super__
-				*/
-				__super__: {
-					configurable: false,
-					enumerable: false,
-					writable: false,
-					value: superprototype
-				}
-			});
-			/*
-			Все свойства и методы из старого прототипа мы переносим в новый. Нам необходимо сделать так,
-			что бы новый класс ничем не отличался от старого, кроме нового суперпрототипа.
-			*/
-			if (aClass.prototype) mixin(Mixin.prototype, aClass.prototype);
-			/*
-			Кроме того, все статичные свойства так же должны быть скопированы
-			*/
-			for (var prop in aClass) {
-				if (aClass.hasOwnProperty(prop)) Mixin[prop] = aClass[prop];
-			}
-			Object.defineProperty(Mixin.prototype, "constructor", {
-				configurable: false,
-				enumerable: false,
-				writable: false,
-				value: Mixin
-			});
-			/*
-			Если браузер не поддерживает __proto__, то мы создадим его, хотя он будет
-			являться нечто иным, чем оригинальный __proto__, так как __proto__.__proto__
-			не вернет прототип прототипа. 
-			*/
-			if (!Mixin.prototype.__proto__) {
-				Mixin.prototype.__proto__ = Mixin.prototype;
-			}
-
-			return Mixin;
-		}
-	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
-
-/***/ },
-/* 14 */
-/***/ function(module, exports) {
-
-	
-		var mixinup = function(a,b) { 
-			for(var i in b) { 
-				
-				if (b.hasOwnProperty(i)) { 
-		          	
-					a[i]=b[i]; 
-				} 
-			} 
-			return a; 
-		};
-
-		/*
-		Функция слияние двух объектов. Объекты копируются по ссылке, поэтому любые изменения в одном объекте,
-		приведут к изменениям во втором.
-		Использование:
-		mixin(foo, bar1, bar2, bar3 .. barN);
-		*/
-		module.exports = function(a) { 
-			var i=1; 
-			for (;i<arguments.length;i++) { 
-				if ("object"===typeof arguments[i]) {
-
-					mixinup(a,arguments[i]); 
-				} 
-			} 
-			return a;
-		}
-
-/***/ },
-/* 15 */
+/* 20 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	    var WebElementPrototype = __webpack_require__(16);
-	    var mixin = __webpack_require__(3);
-	    var extend = __webpack_require__(21);
-	    var Generator = __webpack_require__(22);
-	    var camelize = __webpack_require__(6);
-	    var getNonScopeValue = __webpack_require__(18);
-	    __webpack_require__(11);
+	    var WebElementPrototype = __webpack_require__(21);
+	    var mixin = __webpack_require__(2);
+	    var extend = __webpack_require__(15);
+	    var Generator = __webpack_require__(28);
+	    var camelize = __webpack_require__(5);
+	    var getNonScopeValue = __webpack_require__(23);
+	    __webpack_require__(16);
+
+	    var presetImport = {};
+
+	    var regScriptContent = /<script[^>]*>([.\w\d\r\t\n\.\s;'"{}\(\)]*)<\/script>/i,
+	    regSyntheticScript = /^[\t\r\s]*Synthetic\(/i;
+	    
+	    /*
+	    Процедура импорта методов прототипа
+	    */
+	    presetImport['presetImportPrototype'] = function(prototype) {
+	        for (var p in prototype) {
+	            if (prototype.hasOwnProperty(p)) {
+	                this[p] = this.$inject(prototype[p]);
+	            }
+	        }
+	    };
+
+	    /*
+	    Процедура импорта опции сохранения родного innerHtml
+	    */
+	    presetImport['presetImportDefaults'] = function(defaultHtml, config) {
+	        var self = this;
+	        switch (defaultHtml) {
+	            case "preserve": // Сохранить в documentFragment
+	                self.$injectors[0].$defaultHtml = document.createDocumentFragment();
+
+	                for (var i = 0; i < self.element.childNodes.length; ++i) {
+	                    /*
+	                    При клонировании элемента обязательно нужно указывать параметр deep (протестировано на sag)
+	                    */
+	                    if (self.element.childNodes[i].nodeType === 1 || self.element.childNodes[i].nodeType === 3) {
+	                        self.$injectors[0].$defaultHtml.appendChild(self.element.childNodes[i].cloneNode(true));
+	                    }
+	                }
+
+	            break;
+	            case "clear": // Очистить и забыть
+	                self.element.innerHTML = "";
+	            break;
+	        }
+
+	        mixin(self.$$scope.$config, config);
+	    }
+
+	    /*
+	    Коллекция метода импорта значений из preset
+	    */
+	    presetImport['presetImportWatchers'] = function(watchers) {
+	        /*
+	        Переносим наблюдение за scope
+	        */
+	        for (var i = 0;i<watchers.length;++i) {
+	            this.$watch.apply(this, watchers[i]);
+	        }
+	    };
+
+	    /*
+	    Процедура импорта callback-функций из presets
+	    */
+	    presetImport['presetImportCallbacksAction'] = function(conceivedCallers, template, onCreate, onAttach, onDetach, observeAttrs) {
+	        var self = this;
+	        /*
+	        Component conceived methods
+	        */
+	        for (var i = 0;i<conceivedCallers.length;++i) {
+	            self[conceivedCallers[i][0]].apply(self, conceivedCallers[i][1]);
+	        }
+
+	        /*
+	        Устанавливаем шаблон по умолчанию, если он указан
+	        */
+	        if (template) {
+	            self.$template.apply(self, template);
+	        }
+
+	        /*
+	        Поочередно вызываем функции для события created (если created уже был)
+	        */
+	        if (self.__config__.createdEventFires) {
+	            for (var i = 0;i<onCreate.length;++i) {
+	                self.$inject(onCreate[i])();
+	            }
+	        } else {
+	            for (var i = 0;i<onCreate.length;++i) {
+	                self.on("created", onCreate[i]);
+	            }
+	        }
+
+	        /*
+	        Поочередно вызываем функции для события attached (если attached уже был)
+	        */
+	        if (self.__config__.attachedEventFires) {
+	            for (var i = 0;i<onAttach.length;++i) {
+	                self.$inject(onAttach[i])();
+	            }
+	        } else {
+	            for (var i = 0;i<onAttach.length;++i) {
+	                self.on("attached", onAttach[i]);
+	            }
+	        }
+
+	        /*
+	        Переносим callback для detached
+	        */
+	        for (var i = 0;i<onDetach.length;++i) {
+	            self.on("detached", onDetach[i]);
+	        }
+
+	        /*
+	        Переносим callback для attributeChanged
+	        */
+	        for (var i = 0;i<observeAttrs.length;++i) {
+	            self.on("attributeChanged", observeAttrs[i]);
+	        }
+	    };
 
 	    /*
 	     Как только элемент попадает в DOM он проходит данную инициализацию.
@@ -1670,59 +3232,68 @@ return /******/ (function(modules) { // webpackBootstrap
 	     модуль.
 	     */
 	    module.exports = function(element, component) {
+	        var self = this;
+	        /*
+	        Указываем последнюю factory для элемента. Она используется при внедлении скрипта через тэг <script>
+	        внутри компонента
+	        */
+	        Synthetic.$$lastElementFactory = this;
 
 	        /*
-	         Устанавливаем отладочную идентификацию
-	         */
+	        Set element synthetic identifier named as $sid.
+	        $sid is a unique name of syntehtic element.
+	        */
 	        this.$sid = 'sid'+(new Date()).getTime()+Math.round(Math.random()*10000000);
 
 	        /*
-	         DEPRODATED: Если в качестве движка выбран angular мы должны добавить аттрибут-директиру, которая уже описана при регистрации компонента
-	         TODO: Убедиться, что процедура больше не нужна
-	         */
-	        if (component.options.engine.name==='angular') {
-	            element.setAttribute("sid", this.$sid);
-	            this.$$attrsWatchers = {}; // Дополнительный ресурс для watchers, ускоряющий работу за отслеживанием аттрибутов
-	        }
+	        Add sid to element attributes
+	        */
+	        element.setAttribute("sid", this.$sid);
 
+	        /*
+	        Capture cross event `destroy` of parent element and destroy this element 
+	        */
 	        this.capture('destroy', function() {
 	            this.$destroy();
 	        });
 
 	        /*
-	         Указываем последнюю factory для элемента
-	         */
-	        Synthetic.$$lastElementFactory = this;
+	        Дополнительный ресурс для watchers, ускоряющий работу за отслеживанием аттрибутов
+	        */
+	        this.$$attrsWatchers = {};
 
 	        /*
-	        Устанавливаем ссылку на родительский компонент
+	        Устанавливаем ссылку на родительский компонент по умолчанию
 	        */
 	        this.$parent = false;
 
 	        /*
-	        Устанавливаем ссылки на дочерние компоненты
+	        Устанавливаем ссылки на дочерние компоненты по умолчанию
 	        */
 	        this.$childs = {};
 
 	        /*
-	         Устанавливаем пямять для запросов к данным scope
-	         */
+	        Устанавливаем пямять для запросов к данным scope.
+	        Используется для кеширования тех запросов, что уже были созданы и позволяет
+	        отсеивать дублирубщие запросы.
+	        */
 	        this.$scopeSnaps = {};
 
 	        /*
-	         Привязываем элемент к его контроллеру
-	         */
+	        Привязываем элемент к его контроллеру
+	        */
 	        this.$element = element;
 
 	        /*
-	         Привязываем образ компонента
-	         */
+	        Привязываем образ компонента к самому себе
+	        */
 	        this.component = component;
 
+
 	        /*
-	         Привязываем контроллер к его элементу
-	         Достигаем обратного связывания
-	         */
+	        Привязываем контроллер к его элементу
+	        Достигаем обратного связывания
+	        */
 	        Object.defineProperty(element, 'synthetic', {
 	            enumerable: false,
 	            writable: false,
@@ -1731,23 +3302,21 @@ return /******/ (function(modules) { // webpackBootstrap
 	        });
 
 	        /*
-	         Создаем основное системное конфигурационное свойство
-	         */
+	        Создаем основное системное конфигурационное свойство
+	        */
 	        Object.defineProperty(this, '__config__', {
 	            enumerable: false,
 	            writable: false,
 	            configurable: true,
 	            value: mixin({
-	                allWaitingForResolve: false, // Используется при инициализации angular.
-	                // DOTO: delete depricated element
-	                generator: false, // Depricated
+	                allWaitingForResolve: false, // Используется при инициализации angular
 	                $$angularInitialedStage: 0, // Этап инициализации angular
 	                $$angularDirectived: false, // Поддерживает ли этот элемент директива angular
 	                createdEventFires: false, // Произошло ли событие created
 	                attachedEventFires: false, // Произошло ли событие attached
 	                templateModulePrototype: false, // Класс, которым автоматичнески расширяется модуль шаблона
-	                rendered: false
-	            }, component.options)
+	                rendered: false // Произведен ли рендеринг элемента TODO: проверить факт юзабельности
+	            })
 	        });
 
 	        /*
@@ -1756,28 +3325,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	        this.$$scope = {
 	            attributes: {}, // Содержит все аттрибуты элемента
 	            properties: {}, // Содержит все аттрибуты data-*
+	            $config: {},
 	            $shadowTemplate: null,
 	            uid: 'syntheticElement'+Math.round(Math.random()*10000)
 	        };
 
 	        /*
-	        Расширяем scope пользовательскими настройками
-	        DEPRICATED - Формирование дефолтного скоуп будет происходить
-	        на уровне директивы
-	         */
-	        /*if ("object"===typeof component.options.scope) {
-	            this.$$scope = extend(this.$$scope, component.options.scope);
-	        }*/
-
-	        /*
-	         Создаем доступное свойство scope, которое назависимо от используемого движка
+	        Создаем доступное свойство scope, которое назависимо от используемого движка
 	         вернет текущий scope
-	         */
-	         var self = this;
+	        */
+	       
 	        Object.defineProperty(this, '$scope', {
 	            enumberable: true,
 	            get: function() {
-	                return self.$injectors.$scope;
+	                return self.$injectors[0].$scope;
 	            }
 	        });
 
@@ -1788,21 +3349,38 @@ return /******/ (function(modules) { // webpackBootstrap
 	            enumerable: false,
 	            writable: false,
 	            configurable: true,
-	            value: {
-	                $scope: this.$$scope,
-	                $element: element,
-	                $self: this,
-	                $component: component,
-	                $generator: new Generator(this),
-	                $stock: {}
-	            }
+	            value: [
+	                {
+	                    $scope: this.$$scope,
+	                    $element: element,
+	                    $self: this,
+	                    $component: component,
+	                    $generator: null, // Инициализируем генератор
+	                    $stock: {},
+	                    $config: function(properties, callback) {
+	                        debugger;
+	                        self.$fetch('$config', properties, self.$deploy(callback));
+	                    },
+	                    $setup: function(data) {
+	                        self.$employ(function() {
+	                            extend(self.$scope.$config, data);
+	                        });
+	                    },
+	                    $warning: function() {
+	                        console.warn.apply(console, arguments);
+	                    }
+	                }
+	            ]
 	        });
 
+	        this.$generator = new Generator(this);
+	        this.$injectors[0].$generator = this.$generator;
+
 	        /*
-	         Комплекс действий по инициализации angular, произойдет это только в том случае если в опциях
-	         компонента указано, что он должен использовать angular
-	         */
-	        if ("object"===typeof angular&&angular.bootstrap&&component.options.engine.name==='angular') {
+	        Комплекс действий по инициализации angular, произойдет это только в том случае если в опциях
+	        компонента указано, что он должен использовать angular
+	        */
+	        if ("object"===typeof angular&&angular.bootstrap&&component.engine.name==='angular') {
 	            var $self = this;
 
 	            // TODO: Depricate
@@ -1844,7 +3422,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	                            */
 	                            Synthetic.$$angularCompile($self.$element)(Synthetic.$$angularRootScope.$new());
 	                        } catch(e) {
-	                            console.error('damn', e, $self.$element);
+	                            console.error('Angular fatal error. Scope is not created.', e, $self.$element);
 	                        }
 	                    }
 	                }
@@ -1853,8 +3431,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	        }
 
 	        /*
-	         Собираем дерево элементов в $scope
-	         */
+	        Собираем дерево элементов в $scope
+	        */
 	        for (var i = 0;i<element.childNodes.length;++i) {
 	            if (element.childNodes[i].nodeType===1) {
 	                /*
@@ -1889,28 +3467,50 @@ return /******/ (function(modules) { // webpackBootstrap
 	                }
 	            }
 	        }
-	        
-	        /*
-	        Опция позволяет явно указать что делать с дефолтным html
-	        */
-	        switch (component.options.defaultHtml) {
-	            case "preserve": // Сохранить в documentFragment
-	                this.$injectors.$defaultHtml = document.createDocumentFragment();
 
-	                for (var i = 0; i < element.childNodes.length; ++i) {
-	                    /*
-	                    При клонировании элемента обязательно нужно указывать параметр deep (протестировано на sag)
-	                    */
-	                    if (element.childNodes[i].nodeType === 1 || element.childNodes[i].nodeType === 3) {
-	                        this.$injectors.$defaultHtml.appendChild(element.childNodes[i].cloneNode(true));
+	        /*
+	        Пришло время работать с preset
+	        */
+	        var presets = ['@'],
+	        userPreset = element.getAttribute('preset');
+
+	        if (userPreset!==null&&userPreset.charAt(0)!=='{') {
+	            presets.push(userPreset);
+	        }
+
+	        /*
+	        Отмечаем выделенные preset как отработанные
+	        */
+	        for (var i = 0;i<presets.length;++i) {
+	            component.presets[presets[i]].performed = true;
+	        }
+
+	        /*
+	        Начинаем наблюдение за переменной preset
+	        */
+	        var watchPresetValue = function() {
+	            self.$watch('attributes.preset', function(preset) {
+	                if (!preset) return;
+	                if (!component.presets[preset].performed) {
+	                    for (var prop in presetImport) {
+	                        if (presetImport.hasOwnProperty(prop))
+	                        component.$usePreset(presets, presetImport[prop], this);
 	                    }
 	                }
-
-	            break;
-	            case "clear": // Очистить и забыть
-	                element.innerHTML = "";
-	            break;
+	            });
+	        };
+	        if (!this.$parent) {
+	            this.bind('parentDefined', function() {
+	                watchPresetValue();
+	            }, true);
+	        } else {
+	            watchPresetValue();
 	        }
+	        
+	        /*
+	        Анализ опции, указывающей на то как поступить с родным innerHtml элемента
+	        */
+	        component.$usePreset(presets, presetImport['presetImportDefaults'], this);
 
 	        /*
 	        Ожидаем инициализации движка
@@ -1942,86 +3542,32 @@ return /******/ (function(modules) { // webpackBootstrap
 	            */
 	            for (var z = 0; z < element.attributes.length; z++) {
 	                var value = getNonScopeValue(element.attributes[z].value);
-	                this.$injectors.$scope.attributes[camelize(element.attributes[z].name)] = value;
+	                this.$scope.attributes[camelize(element.attributes[z].name)] = value;
 	                if (element.attributes[z].name.substr(0,5)==='data-') {
 
-	                    this.$injectors.$scope.properties[camelize(element.attributes[z].name.substr(5))] = value;
+	                    this.$scope.properties[camelize(element.attributes[z].name.substr(5))] = value;
 	                }
 	            }
 
 	            /*
-	            Преобраузем пользователський прототип c внедрением селфи аргументов
+	            Преобраузем прототип компонента c применем inject
 	            */
-	            for (var i = 0;i<component.prototypes.length;++i) {
-	                for (var p in component.prototypes[i]) {
-	                    if (component.prototypes[i].hasOwnProperty(p)) {
-	                        this[p] = this.$inject(component.prototypes[i][p]);
-	                    }
-	                }
-	            }
+	            component.$usePreset(presets, presetImport['presetImportPrototype'], this);
 
+	            /*
+	            Отправляем событие created
+	            */
 	            this.trigger("created", [ this.element ]);
 	            this.__config__.createdEventFires = true;
+	            
+	            component.$usePreset(presets, presetImport['presetImportCallbacksAction'], this);
+
 
 	            /*
-	            Component conceived methods
+	            Анонимная evalWatchers поможет начать наблюдение за scope в нужный момент
 	            */
-	            for (var i = 0;i<component.conceivedCallers.length;++i) {
-	                this[component.conceivedCallers[i][0]].apply(this, component.conceivedCallers[i][1]);
-	            }
-
-	            /*
-	            Поочередно вызываем функции для события created (если created уже был)
-	            */
-	            if (this.__config__.createdEventFires) {
-
-	                for (var i = 0;i<component.onCreatedCallbacks.length;++i) {
-
-	                    this.$inject(component.onCreatedCallbacks[i])();
-	                }
-	            } else {
-
-	                for (var i = 0;i<component.onCreatedCallbacks.length;++i) {
-
-	                    this.on("created", component.onCreatedCallbacks[i]);
-	                }
-	            }
-
-	            /*
-	            Поочередно вызываем функции для события attached (если attached уже был)
-	            */
-	            if (this.__config__.attachedEventFires) {
-	                for (var i = 0;i<component.onAttachedCallbacks.length;++i) {
-	                    this.$inject(component.onAttachedCallbacks[i])();
-	                }
-	            } else {
-	                for (var i = 0;i<component.onAttachedCallbacks.length;++i) {
-	                    this.on("attached", component.onAttachedCallbacks[i]);
-	                }
-	            }
-
-	            /*
-	             Переносим callback для detached
-	             */
-	            for (var i = 0;i<component.onDetachedCallbacks.length;++i) {
-	                this.on("detached", component.onDetachedCallbacks[i]);
-	            }
-
-	            /*
-	            Переносим callback для attributeChanged
-	            */
-	            for (var i = 0;i<component.onAttributeChangedCallbacks.length;++i) {
-	                this.on("attributeChanged", component.onAttributeChangedCallbacks[i]);
-	            }
-
 	            var evalWatchers = function() {
-
-	                /*
-	                Переносим наблюдение за scope
-	                 */
-	                for (var i = 0;i<component.watchers.length;++i) {
-	                    this.$watch.apply(this, component.watchers[i]);
-	                }
+	                component.$usePreset(presets, presetImport['presetImportWatchers'], self);
 	            }
 
 	            /*
@@ -2038,25 +3584,24 @@ return /******/ (function(modules) { // webpackBootstrap
 	            
 	            this.trigger("rendered", [this.$element]);
 	            this.__config__.rendered = true;
-	            //this.bubbling('shake'); // Shake all roots
-
 	        });
 
 	    }.inherit(WebElementPrototype);
 
 /***/ },
-/* 16 */
+/* 21 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-		var getObjectByXPath = __webpack_require__(17);
-		var smartCallback = __webpack_require__(5);
-		var classEvents = __webpack_require__(4);
-		var getNonScopeValue = __webpack_require__(18);
-		var Box = __webpack_require__(19);
-		var camelize = __webpack_require__(6);
-		var dasherize = __webpack_require__(20);
-		__webpack_require__(11);
+		var getObjectByXPath = __webpack_require__(22);
+		var smartCallback = __webpack_require__(4);
+		var classEvents = __webpack_require__(3);
+		var getNonScopeValue = __webpack_require__(23);
+		var Box = __webpack_require__(24);
+		var camelize = __webpack_require__(5);
+		var dasherize = __webpack_require__(25);
+		var Scope = __webpack_require__(26);
+		__webpack_require__(16);
 
 		/*
 		Модифицируем стандартный classEvents
@@ -2074,12 +3619,140 @@ return /******/ (function(modules) { // webpackBootstrap
 			Hitchers
 			*/
 			this.$hitchers = {};
+			/*
+			Config
+			*/
+			this.$config = {};
+			/*
+			Tuning up Polyscope
+			*/
+			this.$polyscope.customization.watchExprRouters = [
+				/*
+				Callback attachers
+				*/
+				{
+					match: /^(attributes\.|properties\.)/,
+					replace: false,
+					overrideMethod: function(expr, callback, bitoptions) {
+						var self = this, sharing = /^(attributes|properties)\./.exec(expr);
+						expr = expr.replace(/^(attributes\.|properties\.)/, '');
+						var attrn = sharing[1]==='properties'?'data'+expr.charAt(0).toUpperCase()+expr.substr(1):expr,
+						value;
+							
+						var unwatcher = function(attrn, i) {
+								this[attrn][i] = null;
+							}.bind(self.$$attrsWatchers, attrn, self.$$attrsWatchers[attrn] ? self.$$attrsWatchers[attrn].length : 0);
+						self.$watchersHistory.push({
+							"unwatch": unwatcher
+						});
+						
+						if ("object"!==typeof self.$$attrsWatchers[attrn]) {
+							self.$$attrsWatchers[attrn] = [];
+							/*
+							Если такой аттрибут еще никогда не отслеживался, мы должны немедленно проверить его значение, но только 
+							в случае, если событие attached уже случилось
+							*/
+							
+							if (self.__config__.attachedEventFires) { 
+								var dashed = dasherize(attrn), 
+								value = self.$element.getAttribute(dashed); 
+								if (null===value) value = Synthetic.config.undefinedAttributeDefaultValue;
+								
+								self.$scope.attributes[attrn] = value; 
+								if (dashed.substr(0, 5) === "data-") { 
+									self.$scope.properties[camelize(dashed.substr(5))] = value; 
+								} 
+
+								callback.apply(self, !!(bitoptions||0 & POLYSCOPE_DITAILS) ?  [value, value, Synthetic.config.undefinedAttributeDefaultValue] : [value]);
+							} else { 
+								self.bind("attached", function() { 
+									var dashed = dasherize(attrn), 
+									value = self.$element.getAttribute(dashed); 
+									if (null===value) value = Synthetic.config.undefinedAttributeDefaultValue;
+									
+									self.$scope.attributes[attrn] = value; 
+									if (dashed.substr(0, 5) === "data-") { 
+										self.$scope.properties[camelize(dashed.substr(5))] = value; 
+									} 
+									callback.apply(self, !!(bitoptions||0 & POLYSCOPE_DITAILS) ?  [value, value, Synthetic.config.undefinedAttributeDefaultValue] : [value]);
+								}, true); 
+							}
+						}
+						var attrOnChangeCallback;
+						attrOnChangeCallback = function(old, action, value) {
+							attrOnChangeCallback.last = [old, action, value];
+							callback.apply(self, !!(bitoptions||0 & POLYSCOPE_DITAILS) ?  [value, value, old] : [value]);
+						};
+						self.$$attrsWatchers[attrn].push(attrOnChangeCallback);
+
+						return {
+							destroy: unwatcher
+						};
+					}
+				},
+				/*
+				Watch using angular engine
+				*/
+				{
+					match: true,
+					replace: false,
+					overrideMethod: function(expr, callback, bitoptions) {
+						var self = this;
+						/*
+						Проверка задержки
+						*/
+						if (self.__config__.allWaitingForResolve) {
+
+							/*
+							В случае, если система ожидает инициализации какого то приложения,
+							функции прослушивания переменных задерживаются до инициализации
+							*/
+							var unwatcher = self.$queue(function(args) {
+								unwatcher = (self.$watchExpr.apply(self, args)).destroy;
+							}.bind(self, arguments));
+
+							return {
+								destroy: function() {
+									unwatcher.apply(self, arguments);
+								}
+							}
+						}
+						callback.watcher = {
+							last: Synthetic.config.undefinedAttributeDefaultValue,
+							diff: Synthetic.config.undefinedAttributeDefaultValue
+						};
+						callback.watcher.destroy = self.$scope.$watch(expr, function(value) {
+							
+							callback.watcher.diff = !!(bitoptions & POLYSCOPE_DITAILS) ? self.$$scopeDeepCompare(callback.last, newValue) : value;
+							var last = callback.watcher.last;
+							callback.watcher.last = value;
+							callback.apply(self, !!(bitoptions||0 & POLYSCOPE_DITAILS) ?  [value, callback.watcher.diff, last] : [value]);
+						}, !!(bitoptions||0 & POLYSCOPE_DITAILS) && !!(bitoptions||0 & POLYSCOPE_COMPARE));
+
+						return callback.watcher;
+					}
+				}
+			];
+
+			/*
+			Supports angular compatibility
+			*/
+			this.$polyscope.customization.digestEmploymentsRoutes = [{
+				match: function(object) { // Angular has method $evalAsync
+					return "function"===typeof object.$evalAsync;
+				},
+				overrideMethod: function(object) {
+					object.$evalAsync();
+				}
+			}];
 
 			this.$$applyPortions = {
 				applies: [],
 				timer: 0
 			}
-		}.inherit(classEvents)
+		}
+		.inherit(classEvents)
+		.inherit(Scope)
 		.proto({
 			$read: function() {
 
@@ -2115,7 +3788,7 @@ return /******/ (function(modules) { // webpackBootstrap
 				}
 
 				var alldata = [];
-				if (self.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp)
+				if (self.$component.engine.name==='angular'&&Synthetic.$$angularApp)
 				{
 					for (var x = 0;x<requiredProperties.length;++x) {
 						
@@ -2124,12 +3797,12 @@ return /******/ (function(modules) { // webpackBootstrap
 							
 							alldata.push(getNonScopeValue(self.$element.getAttribute(dasherize(attrn))));
 						} else {
-							alldata.push(getNonScopeValue(self.$injectors.$scope.$eval(requiredProperties[x].join('.'))));
+							alldata.push(getNonScopeValue(self.$scope.$eval(requiredProperties[x].join('.'))));
 						}
 					}
 				} else {
 					for (var x = 0;x<requiredProperties.length;++x) {
-						alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
+						alldata.push(getNonScopeValue(getObjectByXPath(self.$scope, requiredProperties[x])));
 					}
 				}
 
@@ -2156,7 +3829,10 @@ return /******/ (function(modules) { // webpackBootstrap
 				else
 				self.$inject(callback).apply(self, alldata);
 			},
-			$watch: function() {
+			/*
+			Old method of watching with angular compatible
+			*/
+			$watchAngular: function() {
 				var self = this;
 				/*
 				Проверка задержки
@@ -2230,10 +3906,10 @@ return /******/ (function(modules) { // webpackBootstrap
 								alldata.push(getNonScopeValue(newValue));
 							}
 							else {
-								if (self.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp) {
-									alldata.push(getNonScopeValue(self.$injectors.$scope.$eval(requiredProperties[x].join('.'))));
+								if (self.component.engine.name==='angular'&&Synthetic.$$angularApp) {
+									alldata.push(getNonScopeValue(self.$scope.$eval(requiredProperties[x].join('.'))));
 								} else {
-									alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
+									alldata.push(getNonScopeValue(getObjectByXPath(self.$scope, requiredProperties[x])));
 								}
 							}
 						}
@@ -2276,7 +3952,7 @@ return /******/ (function(modules) { // webpackBootstrap
 					// Обнуляем snaps
 					if ("undefined"===typeof self.$scopeSnaps[JSON.stringify(requiredProperties)]) self.$scopeSnaps[JSON.stringify(requiredProperties)] = false;
 
-					if (self.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
+					if (self.component.engine.name==='angular'&&Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
 
 						
 							var compiledCallbacker;
@@ -2310,9 +3986,9 @@ return /******/ (function(modules) { // webpackBootstrap
 										value = self.$element.getAttribute(dashed); 
 										if (null===value) value = Synthetic.config.undefinedAttributeDefaultValue;
 										compiledCallbacker.call(self, false, "set", value); 
-										self.$injectors.$scope.attributes[attrn] = value; 
+										self.$scope.attributes[attrn] = value; 
 										if (dashed.substr(0, 5) === "data-") { 
-											self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value; 
+											self.$scope.properties[camelize(dashed.substr(5))] = value; 
 										} 
 									} else { 
 										self.bind("attached", function() { 
@@ -2320,9 +3996,9 @@ return /******/ (function(modules) { // webpackBootstrap
 											value = self.$element.getAttribute(dashed); 
 											if (null===value) value = Synthetic.config.undefinedAttributeDefaultValue;
 											compiledCallbacker.call(self, false, "set", value); 
-											self.$injectors.$scope.attributes[attrn] = value; 
+											self.$scope.attributes[attrn] = value; 
 										if (dashed.substr(0, 5) === "data-") { 
-											self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value; 
+											self.$scope.properties[camelize(dashed.substr(5))] = value; 
 										} 
 										}, true); 
 									}
@@ -2332,7 +4008,7 @@ return /******/ (function(modules) { // webpackBootstrap
 								
 
 							} else {
-								var unwatcher = self.$injectors.$scope.$watch(rprops.join('.'), function(newValue) {
+								var unwatcher = self.$scope.$watch(rprops.join('.'), function(newValue) {
 									try {
 										compiledCallbacker.call(self, false, 'set', newValue, unwatcher);
 									} catch(e) {
@@ -2362,7 +4038,7 @@ return /******/ (function(modules) { // webpackBootstrap
 				
 				for (var i = 0;i<requiredProperties.length;++i) {
 
-					unwacthers = unwacthers.inherit(watchFabric(requiredProperties[i], getObjectByXPath(this.$injectors.$scope, requiredProperties[i].slice(0, requiredProperties[i].length-1)), requiredProperties[i][requiredProperties[i].length-1]));
+					unwacthers = unwacthers.inherit(watchFabric(requiredProperties[i], getObjectByXPath(this.$scope, requiredProperties[i].slice(0, requiredProperties[i].length-1)), requiredProperties[i][requiredProperties[i].length-1]));
 				}
 				return unwacthers;
 			},
@@ -2375,16 +4051,49 @@ return /******/ (function(modules) { // webpackBootstrap
 			$inject: function(callback, $injectors) {
 				
 				if (Synthetic.$$angularApp&&this.__config__.$$angularScope&&this.__config__.$$angularInitialedStage>1) {
-					var self = this, injected = smartCallback.call($injectors ? [self.$injectors, $injectors] : self.$injectors, callback, self);
+					var self = this, injected = smartCallback.call($injectors ? ([]).concat(self.$injectors, $injectors) : self.$injectors, callback, self);
 					return function() {
 						var nargs = Array.prototype.slice.apply(arguments),context=this;
 						return injected.apply(context, nargs);
 					}				
 				} else {
-					return smartCallback.call("object"===typeof $injectors ? [this.$injectors, $injectors] : this.$injectors, callback, this);
+					return smartCallback.call("object"===typeof $injectors ? ([]).concat(this.$injectors, $injectors) : this.$injectors, callback, this);
 				}
 				
 			},
+			/*
+			Функция сочитающая в себя 3 мощных механизма:
+			- injector
+			- digest
+			- hitch
+
+			$employ нужно использовать в задачах связанных конкретно с данным элементом
+			*/
+			$employ: function(callback) {
+				return this.$eval(this.$inject(callback));
+			},
+			/*
+			Фабрикует функцию, сочитающую в себе 3 мощных механизма:
+			- injector
+			- apply
+
+			В отличии от $employ запускает глобальный цикл, который запускается от самого корневого элемента.
+			$deploy необходимо использовать в глобальных операциях.
+
+			* Функция не выполняет callback автоматически
+			*/
+			$deploy: function(callback) {
+				var self = this;
+				return function() {
+					var args = Array.prototype.slice.apply(arguments);
+					return self.$apply(function() {
+						return self.$inject(callback).apply(this, args);
+					});				
+				}
+			},
+			/*
+			Inject с автозапуском
+			*/
 			$run: function(cb) {
 				return this.$inject(cb)();
 			},
@@ -2399,19 +4108,21 @@ return /******/ (function(modules) { // webpackBootstrap
 					Модификация возврата дестроера на наблюдатель из версии sag, вместо this.bind используется this.on возвращающий собственный дестроер;
 					Это модификация не проверена тестами.
 					*/
-					return this.on(this.__config__.allWaitingForResolve, function() {
+					return this.$on(this.__config__.allWaitingForResolve, function() {
 						if (self.$destroyed) return false;
 						callback.apply(this, arguments);
 					}, true);
 				} else {
 
-					return callback.apply(this);
+					callback.apply(this);
+					return function() { }
 				}
 			},
-			$digest: function(expr) {
-				this.$injectors.$scope.$evalAsync(expr);
+			$digestAngular: function(expr) {
+
+				this.$scope.$evalAsync(expr);
 			},
-			$apply: function($as, callback, destructor){
+			$applyAngular: function($as, callback, destructor){
 				/*
 				Вызов функцции может быть перегружен тремя объектами сразу
 				0 - свойство scope
@@ -2456,14 +4167,14 @@ return /******/ (function(modules) { // webpackBootstrap
 
 				
 
-				if (this.$injectors.$component.options.engine.name==='angular'&&Synthetic.$$angularApp)
+				if (this.component.engine.name==='angular'&&Synthetic.$$angularApp)
 				this.$scope.$applyAsync(realCallback);
 				else
 				setTimeout(realCallback);
 			},
 			
 			$template: function(content) {
-				return this.$injectors.$generator.template(content);
+				return this.$generator.template(content);
 			},
 			/*
 			Принудительно выполняет действия связанные с deatch
@@ -2476,7 +4187,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            /*
 				Если у модуля есть темплейт, мы должны произвести дестрой его модуля
 	            */
-	            this.$injectors.$generator.destroy();
+	            this.$generator.destroy();
 
 	            this.trigger("detached", [ this.synthetic ]);
 			},
@@ -2523,8 +4234,8 @@ return /******/ (function(modules) { // webpackBootstrap
 				Удаляем generator
 				*/
 
-				this.$injectors.$generator.destroy();
-				this.$injectors.$generator = null;
+				this.$generator.destroy();
+				this.$generator = null;
 				/*
 				Удаляем привязку объекта к элементу
 				*/
@@ -2571,7 +4282,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		});
 
 /***/ },
-/* 17 */
+/* 22 */
 /***/ function(module, exports) {
 
 	module.exports = function(start, xpath) {
@@ -2586,7 +4297,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 18 */
+/* 23 */
 /***/ function(module, exports) {
 
 	module.exports = function(newValue) {
@@ -2596,7 +4307,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 19 */
+/* 24 */
 /***/ function(module, exports, __webpack_require__) {
 
 	__webpack_require__(1);
@@ -2680,7 +4391,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		});
 
 /***/ },
-/* 20 */
+/* 25 */
 /***/ function(module, exports) {
 
 	module.exports = function(text) {
@@ -2688,113 +4399,589 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 21 */
-/***/ function(module, exports) {
+/* 26 */
+/***/ function(module, exports, __webpack_require__) {
 
-	/* Протестировано */
+	__webpack_require__(16);
+	var Promises = __webpack_require__(7).Promises,
+	extend = __webpack_require__(15),
+	compareObjects = __webpack_require__(27),
+	dataSnap = function(data) {
+	    var snap;
+	    if ("object"===typeof data && null!==data) {
+	        try {
+	            snap = JSON.stringify(data); // Lite JSON method to take smapshot
+	        } catch(e) {
+	            snap = extend(true, {}, data); // Heavy method for recrussive objects
+	        }
+	    } else if (null===data || undefined===data) {
+	        snap = data;
+	    } else {
+	        snap = data.toString()
+	    }
 
-		/* Extend function (modified with pseudo Reference) */
-		var hasOwn = Object.prototype.hasOwnProperty;
-		var toStr = Object.prototype.toString;
+	    return snap;
+	},
+	bitPush = function(bitNumber, mask) {
+	    if (!(bitNumber & mask)) bitNumber = bitNumber | mask;
+	    return bitNumber;
+	}
 
-		var isArray = function isArray(arr) {
-			if (typeof Array.isArray === 'function') {
-				return Array.isArray(arr);
-			}
+	// Set global constants
+	POLYSCOPE_DEFAULT = 1 << 0;
+	POLYSCOPE_WATCH = 1 << 1;
+	POLYSCOPE_ONCE = 1 << 2;
+	POLYSCOPE_DEEP = 1 << 3;
+	POLYSCOPE_DITAILS = 1 << 4;
+	POLYSCOPE_COMPARE = 1 << 5;
+	POLYSCOPE_ARRAYRESULT = 1 << 10;
 
-			return toStr.call(arr) === '[object Array]';
-		};
-
-		var isPlainObject = function isPlainObject(obj) {
-			'use strict';
-
-			if (!obj || toStr.call(obj) !== '[object Object]') {
-				return false;
-			}
-
-			var has_own_constructor = hasOwn.call(obj, 'constructor');
-			var has_is_property_of_method = obj.constructor && obj.constructor.prototype && hasOwn.call(obj.constructor.prototype, 'isPrototypeOf');
-			// Not own constructor property must be Object
-			if (obj.constructor && !has_own_constructor && !has_is_property_of_method) {
-				return false;
-			}
-
-			// Own properties are enumerated firstly, so to speed up,
-			// if last one is own, then all properties are own.
-			var key;
-			for (key in obj) {/**/}
-
-			return typeof key === 'undefined' || hasOwn.call(obj, key);
-		};
-
-		var extend = function() {
-			'use strict';
-
-			var options, name, src, copy, copyIsArray, clone,
-				target = arguments[0],
-				i = 1,
-				length = arguments.length,
-				deep = false;
-
-			// Handle a deep copy situation
-			if (typeof target === 'boolean') {
-				deep = target;
-				target = arguments[1] || {};
-				// skip the boolean and the target
-				i = 2;
-			} else if ((typeof target !== 'object' && typeof target !== 'function') || target == null) {
-				target = {};
-			}
-
-			for (; i < length; ++i) {
-				options = arguments[i];
-				// Only deal with non-null/undefined values
-				if (options != null) {
-					// Extend the base object
-					for (name in options) {
-						src = target[name];
-						copy = options[name];
+	var flagsFndRegExpr = /^([?+]+)/;
 
 
+	var Scope = function($$parent) {
+	    this.$$digestRequired = false;
+	    this.$$digestInProgress = false;
+	    this.$$watchers = [];
+	    this.$$digestInterationCount=0;
+	    this.$polyscope={
+	        customization:{
+	            /*
+	            Engine of watchExpr. It allows you to control methods and options of watch and parse process
+	            ```
+	            {
+	                match: /^scope\./,
+	                replace: /^(scope)/,
+	                scope: someobject,
+	                overrideMethod: function(expr, callback, bitconfig) { ... }
+	            }
+	            ```
+	            */
+	            watchExprRouters: [],
+	            digestEmploymentsRoutes: []
+	        }
+	    };
 
-						// Prevent never-ending loop
-						if (target !== copy) {
-							// Recurse if we're merging plain objects or arrays
-							if (deep && copy && (isPlainObject(copy) || (copyIsArray = isArray(copy)))) {
-								if (copyIsArray) {
-									copyIsArray = false;
-									clone = src && isArray(src) ? src : [];
-								} else {
-									clone = src && isPlainObject(src) ? src : {};
-								}
+	    /* Set parent scope */
+	    if ("object"===typeof $$parent) {
+	        this.$$parentScope = $$parent;
+	        if ($$parent.$$childScopes instanceof Array) $$parent.$$childScopes.push(this);
+	    }
+	    /*
+	    Make self childs
+	    */
+	    if ("undefined"===typeof this.$$childScopes) this.$$childScopes = [];
+	}.proto({
+	    /*
+	    Creates new scope
+	    */
+	    $newScope: function() {
+	        this.$$childScopes.push(new Scope(this));
+	        return this.$$childScopes[this.$$childScopes.length-1];
+	    },
+	    /*
+	    Append existing scope as child
+	    */
+	    $appendScope: function($scope) {
+	        this.$$childScopes.push($scope);
+	        $scope.$$parentScope = this;
+	        return this;
+	    },
+	    /*
+	    Returns user customizing data from this.$polyscope.customization
+	    */
+	    $$getCustomizationByMatch: function(customizer, expr) {
+	        if (this.$polyscope.customization[customizer].length>0) {
+	            for (i=0;i<this.$polyscope.customization[customizer].length;++i) {
+	                if (this.$polyscope.customization[customizer][i].match && "undefined"!==typeof expr && null!==expr
+	                    && (this.$polyscope.customization[customizer][i].match===true || (this.$polyscope.customization[customizer][i].match instanceof RegExp && this.$polyscope.customization[customizer][i].match.test(expr)) || ("function"===typeof this.$polyscope.customization[customizer][i].match && this.$polyscope.customization[customizer][i].match(expr)))) {
+	                        return this.$polyscope.customization[customizer][i];
+	                }
+	            }
+	        }
+	        return false;
+	    },
+	    /*
+	    Watch an expression (function) or set of expressions (means array)
 
-								if (copy.constructor.name!=='Ref')
-								// Never move original objects, clone them
-								target[name] = extend(deep, clone, copy);
+	    Arguments:
+	    * expr - string or function
+	    * For example $watch('person.name', function() { })
+	    * Or $watch(function() { return person.name; }, function() { });
 
-							// Don't bring in undefined values
-							} else if (typeof copy !== 'undefined') {
-								target[name] = copy;
-							}
-						}
-					}
-				}
-			}
+	    * callback - function
 
-			// Return the modified object
-			return target;
-		};
+	    * bitoptions - special set of bit options. Use constants POLYSCOPE_WATCH, POLYSCOPE_DEEP, POLYSCOPE_INFO to specify options.
+	    * For example: $watch('person.name', function() { }, POLYSCOPE_WATCH | POLYSCOPE_DEEP)
+	    * If u use at last one of bitoption constants, be carefull, other options
 
-		module.exports = extend;
+	    */
+	    $watch: function(expr, callback, bitoption, reserve) {
+	        var shared=false;
+	        /*
+	        Support capabilities specify the name of a shared object
+	        */
+	        this.$fetch.apply(this, (callback instanceof Array && "string"===typeof expr) ? [expr, callback, bitoption, bitPush(reserve||0, POLYSCOPE_WATCH)] : [expr, callback, bitoption])
+	    },
+	    /*
+	    Get some value from current object by expression.
+	    Use special symbols at start of string to setup deep, watch and ditails options for each of expression.
+	    '+' - watch an expression
+	    '++' - deep watch an expression
+	    '?' - return full info for each expression result (value, diff, oldvalue)
+
+	    For example:
+	    ```
+	    $fetch('?++person', function(person) { }); // Watch person object with deep comparsion and full info
+	    $fetch('++person', function(person) { }); // Watch person object with deep comparsion
+	    $fetch('+person', function(person) { }); // Watch person object
+	    $fetch('person', function(person) { }); // Just get value of expression once
+	    ```
+
+	    Multiple expressions:
+	    ```
+	    $fetch(['+person', 'status.weight', '?++money'], function(person, weight, money) {
+
+	    });
+	    ```
+
+	    Using custom functions instead expression:
+	    $fetch(['+person', function() { return this.status.weight; }, '?++money'], function(...) { });
+
+	    If you wont to specify options to the function in single fetch, put to the 3th argument bitoptions.
+	    Just like that:
+
+	    ```
+	    $fetch(function() { return person }, callback, POLYSCOPE_WATCH | POLYSCOPE_DITAILS | POLYSCOPR_DEEP);
+	    ```
+
+	    Anyway, if you wanna to use custom functions array and also bitoptions
+	    you should replace each function to an array with simple structure:
+
+	    ```
+	    $fetch([
+	        [function() { ... }, POLYSCOPE_WATCH | POLYSCOPE_DITAILS | POLYSCOPR_DEEP]
+	    ], callback);
+	    ```
+	    */
+	    $fetch: function(expressions, callback, bitoptions, reserve) {
+	        var singleRequest=false,shared=false;
+	        if (callback instanceof Array && "string"===typeof expressions) {
+	            shared=expressions;
+	            expressions=callback;
+	            callback=bitoptions;
+	            bitoptions=reserve;
+	            if (shared) expressions = expressions.map(function(exp) { var flags = flagsFndRegExpr.exec(exp); return (flags?flags[1]:'')+shared+'.'+exp.replace(flagsFndRegExpr, '')});
+	        }
+	        else if (!(expressions instanceof Array)) {
+	            singleRequest = true;
+	            expressions = "string" === typeof expressions ? [expressions] : [[expressions, bitoptions || (POLYSCOPE_ONCE)]];
+	        }
+	        var self=this,
+	        watchable = expressions.map(function(val) {
+	            if ("string"===typeof val) {
+	                var map = 0,q;
+	                if (q = (/^[?+]?([+]{1,2})/).exec(val)) { 
+	                    map = map | POLYSCOPE_WATCH;
+	                    if (q[1].length>1) map = map | POLYSCOPE_DEEP;
+	                    if (q[1].length>2) map = map | POLYSCOPE_COMPARE;
+	                } else {
+	                    map = map | POLYSCOPE_ONCE;
+	                }
+	                if (/^[?+]?([?]{1})/.test(val))
+	                    map = map | POLYSCOPE_DITAILS;
+	                if (map===0) map = POLYSCOPE_DEFAULT;
+
+	                return [
+	                    val.replace(/^[+?]*/, ''),
+	                    map
+	                ];
+	            } else {
+	                return val;
+	            }
+	        });
+
+	        return this.$watchSet(watchable, function() {
+	            var results = singleRequest ? Array.prototype.slice.apply(arguments) : Array.prototype.slice.apply(arguments).map(function(val, index) {
+	                return watchable[index] instanceof Array ? (watchable[index][1] & POLYSCOPE_DITAILS ? val : val[0]) : val[0];
+	            });
+	            callback.apply(self, singleRequest ?
+	                    results[0]:
+	                results);
+	        }, POLYSCOPE_ARRAYRESULT);
+	    },
+	    /*
+	    Watch set
+	    $watchSet([expr1, expr2, expr3], function(val1, val2, val3) { })
+
+	    Option `fullinfo` make passible to get full info about result value. The result will be an array, where first key is new value, second value id diff.
+	    val1 = [value, diff];
+
+	    There is a way to specify watching mode while watching expression. To perform it value must be performed as array where first value is expression, and second is a number
+	    To specify options use next bitmap
+
+	    1 - watch
+	    2 - standart watching with plain comparing
+	    4 - deep compare
+
+	    for example, to set options !watch and deep and fullstack
+
+	    [function() { }, (2 | 4)]
+
+	    $watchSet(['start', 0], ['height', 1] , ['mystack', 2])
+	    
+	    */
+	    $watchSet: function(expressions, callback, advoption) {
+	        advoption = advoption || 0;
+	        var self = this, 
+	        snapshot = '';
+	        if (!(expressions instanceof Array)) {
+	            expressions = [expressions];
+	        }
+	        var unwatchers = Array(),
+	        unwacther = function() {
+	            for (var i = 0;i<unwatchers.length;++i) {
+	                unwatchers[i].destroy();
+	            }
+	        };
+	        new Promises(function(Promise) {
+	           for (var prop in expressions) {
+	            if (expressions.hasOwnProperty(prop)) {
+	                Promise(function(resolve, reject) {
+	                    var deep = false,
+	                    watch=false,
+	                    fullinfo=false,
+	                    unwatcher;
+	                    var bitoptions;
+	                    if (expressions[prop] instanceof Array) {
+	                        bitoptions = expressions[prop][1];
+
+	                    } else {
+	                        bitoptions = POLYSCOPE_WATCH;
+	                        fullinfo = false;
+	                    }
+	                    
+	                    unwatcher = self.$watchExpr(expressions[prop] instanceof Array ? expressions[prop][0] : expressions[prop], function(val) {
+
+	                        resolve.apply(self, (advoption & POLYSCOPE_ARRAYRESULT ? [Array.prototype.slice.apply(arguments)] : Array.prototype.slice.apply(arguments)));
+	                    }, bitoptions);
+	                    unwatchers.push(unwatcher);
+	                });
+	            }
+	           } 
+	        })
+	        .then(function() {
+	            var snap = dataSnap(Array.prototype.slice.apply(arguments));
+	            if (snap===snapshot) return; // Data not changed
+	            callback.apply(self, arguments);
+	        }, true)
+	        .catch(function() {
+	            var snap = dataSnap(Array.prototype.slice.apply(arguments));
+	            if (snap===snapshot) return; // Data not changed
+	            callback.apply(self, arguments);
+	        }, true);
+
+	        return unwacther;
+	    },
+	    /*
+	    Watch expression and return value to fn.
+	    Option `config` means that there will be an in-depth comparison.
+
+	    Furthermore, the option may include bit map, you can use next constants to set
+	    next options:
+	     POLYSCOPE_DEEP - deep comparison
+	     POLYSCOPE_ONCE - destroy watcher after first react
+	     POLYSCOPE_DITAILS - force full info
+
+	     Notice: if you dont wanna to watch expression and keep it alive use POLYSCOPE_ONCE
+
+	    CUSTOMIZE ==
+	    You can customize watch engine via configuration
+	    ```
+	    __$$polyscope.customized.watchExprRouters.push({
+	        match: /^scope\./,
+	        replace: /^(scope)/,
+	        scope: someobject,
+	        overrideMethod: function(expr, callback, bitconfig) { ... }
+	    })
+	    ```
+	    New method should take arguments:
+	    - expr: expression or function
+	    - callback: callback function
+	    - bitconfig: bit options WHERE
+	        - !!(bitconfig & POLYSCOPE_DEEP): deep flag (parse objects deep)
+	        - !(bitconfig & POLYSCOPE_ONCE) || !!(bitconfig & POLYSCOPE_WATCH): keep watching (is false - once)
+	        - !!(bitconfig & POLYSCOPE_DITAILS): return 3 aguments (newvalue, difference, oldvalue)
+	        - !!(bitconfig & POLYSCOPE_COMPARE) || !!(bitconfig & POLYSCOPE_DITAILS): superdeep comparison mode
+	    
+	    Watch method must send back at least one argument `newvalue`, in mode !!(bitconfig & POLYSCOPE_DITAILS) it should send 3 arguments (newvalue, difference, oldvalue)
+	    Function itself must return an object with method destroy that destroy a watcher^
+
+	    */
+	    $watchExpr: function(expr, callback, bitconfig) {
+	        var deep,
+	        watch,
+	        fullinfo,
+	        self=this,
+	        i=0,
+	        scope=this,
+	        overrideMethod=!1;
+	        if ("number"===typeof bitconfig) {
+	            deep = !!(bitconfig & POLYSCOPE_DEEP);
+	            watch = !(bitconfig & POLYSCOPE_ONCE);
+	            fullinfo = !!(bitconfig & POLYSCOPE_DITAILS);
+	            compare = !!(bitconfig & POLYSCOPE_COMPARE) || !!(bitconfig & POLYSCOPE_DITAILS);
+	        } else {
+	            deep = !!bitconfig;
+	            watch = true;
+	            fullinfo = false;
+	            compare = false;
+	        }
+
+	        /*
+	        Configurated overrides and custom conditional options predetermined in this.$$polyscope.customized.watchExprRouters[]
+	        this.$$polyscope.customized.watchExprRouters[] must have property `match` with regexpr determines its participation.
+	        Property `replace` contains regular expression to replace some text in expression. Property `scope` set up default scopr for this expression
+	        */
+	        var customizer = "string"===typeof expr ? this.$$getCustomizationByMatch('watchExprRouters', expr) : false;
+	        if (customizer){
+	                if (customizer.scope)
+	                    scope = customizer.match[i].scope;
+	                if (customizer.replace instanceof RegExp) 
+	                    expr = expr.replace(customizer.replace, '');
+	                if (customizer.overrideMethod) 
+	                    overrideMethod = customizer.overrideMethod;
+	        }
+	        /*
+	        Main part of execution. Check and run override method or use native.
+	        */
+	        if ("function"===typeof overrideMethod) {
+	            var watcher;
+	            watcher = overrideMethod.call(scope, expr, function() {
+	                var rargs = Array.prototype.slice.apply(arguments);
+	                setTimeout(function() {
+
+	                    if (!watch) watcher.destroy();
+	                    callback.apply(self, rargs);
+	                });
+	            }, bitconfig);
+	        } else {
+	            var result = this.$parse(expr, scope);
+	            
+	            if ("object"===typeof result)
+	            var l = compare ? extend(true, {}, result) : result;
+	            else l = result;
+	            var watcher = {
+	                expr: expr,
+	                listner: callback || false,
+	                last: l,
+	                diff: l, // Last value of diff
+	                deep: !!deep, // Compare objects without diff
+	                compare: !!compare, // Deep analysis for objects diff
+	                once: !watch,
+	                fullinfo: fullinfo,
+	                scope: scope
+	            };
+
+	            this.$$watchers.push(watcher);
+	            var index = this.$$watchers.length-1, watchers=this.$$watchers;
+
+	            watcher.destroy = function() {
+	                watchers[index]=null;
+	            }
+
+	            // Callback now
+	            callback(l,l,l);
+	            if (watcher.once) watcher.destroy();
+	        }
+
+	        return watcher;
+	    },
+	    $parse: function(expr, scope) {
+	        var result, customizer;
+	        if (("undefined"===typeof scope) && ("string"===typeof expr) && (customizer = this.$$getCustomizationByMatch('watchExprRouters', expr))) {
+	            if (customizer.scope) scope = customizer.scope;
+	            if (customizer.replace instanceof RegExp) expr.replace(customizer.replace, '');
+	        }
+
+	        if ("function"===typeof expr) {
+	            result = expr.apply(scope||this);
+	        } else if ("string"===typeof expr) {
+	            with(scope||this) {
+	                try {
+	                    eval('result = '+expr+';');
+	                } catch(e) {
+	                    throw 'Error in expression: '+'result = '+expr+';';
+	                    result = new Error(e);
+	                }
+	            }
+	        } else {
+	            result = expr;
+	        }
+	        return result;
+	    },
+	    /*
+	    Вносит изменения в cache и запускает digest во всем дереве
+	    */
+	    $apply: function(exprFn, data, context) {
+	        var result = this.$parse(exprFn, context||undefined);
+	        
+	        var parent = this;
+	        while(null!==this.$$parentScope && "object"===typeof this.$$parentScope && "function"===typeof this.$$parentScope.$digest) {
+	            parent = this.$$parentScope;
+	        }
+	        parent.$digest();
+	        return result;
+	    },
+	    /* Выполняет выражение и запускает цикл */
+	    $eval: function(exprFn, data, context) {
+	        var result = this.$parse(exprFn, context||undefined);
+	        this.$digest();
+	        return result;
+	    },
+	    /*
+	    Получает суммарные данные объекта. Это значит что перед тем как
+	    вернуть объект он мержит все его ветки в одну. На выходе получается
+	    объект с самыми свежими правками.
+	    Можно специфицировать ветку для выдачи в параметре branch, тогда будет
+	    возвращен объект только с учетом изменений в указанной ветке.
+	    */
+	    $digest: function() {
+	        var self = this;
+
+	        // Immersion to childs
+	        if (this.$$childScopes instanceof Array) {
+	            for (var i = 0;i<this.$$childScopes.length;++i) {
+	                
+	                if ("function"===typeof this.$$childScopes[i].$digest) {
+	                    /*
+	                    Customization of childrens digest call
+	                    */
+	                    var cd = this.$$getCustomizationByMatch('digestEmploymentsRoutes', this.$$childScopes[i]);
+	                    if (cd) cd.overrideMethod.call(this, this.$$childScopes[i]);
+	                    else
+	                    this.$$childScopes[i].$digest();
+	                }
+	            }
+	        }
+
+	        if (this.$$digestInProgress) { this.$$digestRequired = true; return }
+	        this.$$digestInProgress = true;
+
+	        this.$$watchers.forEach(function(watch) {
+	            if (watch===null) return;
+	            var newly = self.$parse(watch.expr, watch.scope),different=false;
+	            if ("object"===typeof newly && "object"===typeof watch.last) {
+	                
+	                if (watch.deep) {
+	                    if (watch.compare) {
+	                        var diff = compareObjects(newly, watch.last);
+	                        if (diff.$$hashKey) delete diff.$$hashKey; // Удаляем hashKey angular
+	                        different=(JSON.stringify(diff) !== '{}');
+	                    } else {
+	                        different=(JSON.stringify(newly)!==JSON.stringify(watch.last));
+
+	                        if (different) diff = newly;
+	                        else diff = {};
+	                    }
+	                } else {
+	                    different= (newly!==watch.last);
+	                    diff = newly;
+	                }
+	                
+	            } else if (typeof newly !== typeof watch.last) {
+
+	                different = true;
+	                diff = newly;
+	            } else {
+	                
+	                if (newly!==watch.last) {
+	                    
+	                    different = true;
+	                    diff = newly;
+	                } else {
+	                    
+	                    different = false;
+	                    diff = '';
+	                }               
+	            };
+	            
+	            watch.diff = diff;            
+	            if (different) {
+	             watch.listner(newly, diff, watch.last);
+	              if (watch.once) watch.destroy();
+	              watch.last = "object"===typeof newly ? (watch.compare ? extend(true, {}, newly) : newly) : newly;
+	            }
+	            
+	        });
+	        if (this.$$digestRequired) {
+	            this.$$digestInterationCount++;
+	            if (this.$digestInterationCount>5) {
+	                throw 'Digest max interation count';
+	            }
+	            this.$digest();
+	        } else {
+	            this.$$digestInterationCount=0;
+	            this.$$digestInProgress = false;
+	        }
+	    },
+	    $approve: function() {
+	        sx.utils.eachArray(this.$$watchers, function(watch) {
+	            if (watch===null) return;
+	            var newly = this.$parse(watch.expr);
+	            var diff = sx.utils.compareObjects(newly, watch.last);
+	            if (diff.$$hashKey) delete diff.$$hashKey; // Удаляем hashKey angular
+	            if (JSON.stringify(diff) !== '{}') {
+	                watch.last = extend(true, {}, newly);
+	            }
+	        });
+	    }
+	});
+
+	module.exports = Scope;
 
 
 /***/ },
-/* 22 */
+/* 27 */
+/***/ function(module, exports) {
+
+	
+	module.exports = function(newly, oldy) {
+		/*
+		Вначае делаем проверностную проверку
+		*/
+		if ("object"!==typeof newly || "object"!==typeof oldy) throw 'You can not compare not objects as objects';
+		if ((JSON.stringify(newly)===JSON.stringify(oldy)) ) return {};
+
+		var diff = {};
+		for (var prop in newly) {
+			if (newly.hasOwnProperty(prop)) {
+				if ("object" === typeof newly[prop]) {
+					if ("object" !== typeof oldy[prop]) {
+						diff[prop] = newly[prop];
+					}
+					else {
+						if (JSON.stringify(newly[prop])!==JSON.stringify(oldy[prop]))
+						diff[prop] = newly[prop];
+					}
+				} else {
+					if (newly[prop] !== oldy[prop]) {
+						diff[prop] = newly[prop];
+					}
+				}
+			}
+		}
+		return diff;
+	}
+
+
+/***/ },
+/* 28 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	    var classEvents = __webpack_require__(4);
-	    var synthetModule = __webpack_require__(23);
+	    var classEvents = __webpack_require__(3);
+	    var synthetModule = __webpack_require__(29);
 
 
 	    module.exports = function(synthet) {
@@ -2809,7 +4996,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	             */
 	            var $ = this;
 	            try {
-	                this.watchers.push(angular.element(synthet.$injectors.$element).scope().$watch(function(){
+	                this.watchers.push(angular.element(synthet.$element).scope().$watch(function(){
 	                    $.trigger("DOMChanged");
 	                }));
 	            }
@@ -2880,9 +5067,9 @@ return /******/ (function(modules) { // webpackBootstrap
 	                        })($.configuration.template, $.configuration.module);
 	                    } else {
 	                        throw 'NOT READY';
-	                        $.$.$injectors.$element.innerHTML = $.$.$injectors.$element.innerHTML = minTemplate($.configuration.template, $.$.$injectors.$scope);
+	                        $.$.$element.innerHTML = $.$.$element.innerHTML = minTemplate($.configuration.template, $.$.$scope);
 	                        
-	                        resolve($.$.$injectors.$element);
+	                        resolve($.$.$element);
 
 	                        if ($.configuration.module) {
 	                            $.setup($.configuration.module);
@@ -2971,10 +5158,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	        });
 
 /***/ },
-/* 23 */
+/* 29 */
 /***/ function(module, exports, __webpack_require__) {
 
-	__webpack_require__(11);
+	__webpack_require__(16);
 	module.exports = function() {
 	    //console.debug('DEBUG ME: because im starting after module initialization. This is very baaad.');
 	}.proto({
@@ -3010,7 +5197,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 24 */
+/* 30 */
 /***/ function(module, exports) {
 
 	/*! (C) WebReflection Mit Style License */

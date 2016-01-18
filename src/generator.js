@@ -15,7 +15,7 @@
              */
             var $ = this;
             try {
-                this.watchers.push(angular.element(synthet.$injectors.$element).scope().$watch(function(){
+                this.watchers.push(angular.element(synthet.$element).scope().$watch(function(){
                     $.trigger("DOMChanged");
                 }));
             }
@@ -86,9 +86,9 @@
                         })($.configuration.template, $.configuration.module);
                     } else {
                         throw 'NOT READY';
-                        $.$.$injectors.$element.innerHTML = $.$.$injectors.$element.innerHTML = minTemplate($.configuration.template, $.$.$injectors.$scope);
+                        $.$.$element.innerHTML = $.$.$element.innerHTML = minTemplate($.configuration.template, $.$.$scope);
                         
-                        resolve($.$.$injectors.$element);
+                        resolve($.$.$element);
 
                         if ($.configuration.module) {
                             $.setup($.configuration.module);

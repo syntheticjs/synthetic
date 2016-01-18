@@ -37,7 +37,7 @@
 			Callback attachers
 			*/
 			{
-				match: '^(attributes\.|properties\.)',
+				match: /^(attributes\.|properties\.)/,
 				replace: false,
 				overrideMethod: function(expr, callback, bitoptions) {
 					var self = this, sharing = /^(attributes|properties)\./.exec(expr);
@@ -64,9 +64,9 @@
 							value = self.$element.getAttribute(dashed); 
 							if (null===value) value = Synthetic.config.undefinedAttributeDefaultValue;
 							
-							self.$injectors.$scope.attributes[attrn] = value; 
+							self.$scope.attributes[attrn] = value; 
 							if (dashed.substr(0, 5) === "data-") { 
-								self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value; 
+								self.$scope.properties[camelize(dashed.substr(5))] = value; 
 							} 
 
 							callback.apply(self, !!(bitoptions||0 & POLYSCOPE_DITAILS) ?  [value, value, Synthetic.config.undefinedAttributeDefaultValue] : [value]);
@@ -76,9 +76,9 @@
 								value = self.$element.getAttribute(dashed); 
 								if (null===value) value = Synthetic.config.undefinedAttributeDefaultValue;
 								
-								self.$injectors.$scope.attributes[attrn] = value; 
+								self.$scope.attributes[attrn] = value; 
 								if (dashed.substr(0, 5) === "data-") { 
-									self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value; 
+									self.$scope.properties[camelize(dashed.substr(5))] = value; 
 								} 
 								callback.apply(self, !!(bitoptions||0 & POLYSCOPE_DITAILS) ?  [value, value, Synthetic.config.undefinedAttributeDefaultValue] : [value]);
 							}, true); 
@@ -104,11 +104,30 @@
 				replace: false,
 				overrideMethod: function(expr, callback, bitoptions) {
 					var self = this;
+					/*
+					Проверка задержки
+					*/
+					if (self.__config__.allWaitingForResolve) {
+
+						/*
+						В случае, если система ожидает инициализации какого то приложения,
+						функции прослушивания переменных задерживаются до инициализации
+						*/
+						var unwatcher = self.$queue(function(args) {
+							unwatcher = (self.$watchExpr.apply(self, args)).destroy;
+						}.bind(self, arguments));
+
+						return {
+							destroy: function() {
+								unwatcher.apply(self, arguments);
+							}
+						}
+					}
 					callback.watcher = {
 						last: Synthetic.config.undefinedAttributeDefaultValue,
 						diff: Synthetic.config.undefinedAttributeDefaultValue
 					};
-					callback.watcher.destroy = self.$injectors.$scope.$watch(expr, function(value) {
+					callback.watcher.destroy = self.$scope.$watch(expr, function(value) {
 						
 						callback.watcher.diff = !!(bitoptions & POLYSCOPE_DITAILS) ? self.$$scopeDeepCompare(callback.last, newValue) : value;
 						var last = callback.watcher.last;
@@ -175,7 +194,7 @@
 			}
 
 			var alldata = [];
-			if (self.$injectors.$component.engine.name==='angular'&&Synthetic.$$angularApp)
+			if (self.$component.engine.name==='angular'&&Synthetic.$$angularApp)
 			{
 				for (var x = 0;x<requiredProperties.length;++x) {
 					
@@ -184,12 +203,12 @@
 						
 						alldata.push(getNonScopeValue(self.$element.getAttribute(dasherize(attrn))));
 					} else {
-						alldata.push(getNonScopeValue(self.$injectors.$scope.$eval(requiredProperties[x].join('.'))));
+						alldata.push(getNonScopeValue(self.$scope.$eval(requiredProperties[x].join('.'))));
 					}
 				}
 			} else {
 				for (var x = 0;x<requiredProperties.length;++x) {
-					alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
+					alldata.push(getNonScopeValue(getObjectByXPath(self.$scope, requiredProperties[x])));
 				}
 			}
 
@@ -293,10 +312,10 @@
 							alldata.push(getNonScopeValue(newValue));
 						}
 						else {
-							if (self.$injectors.$component.engine.name==='angular'&&Synthetic.$$angularApp) {
-								alldata.push(getNonScopeValue(self.$injectors.$scope.$eval(requiredProperties[x].join('.'))));
+							if (self.component.engine.name==='angular'&&Synthetic.$$angularApp) {
+								alldata.push(getNonScopeValue(self.$scope.$eval(requiredProperties[x].join('.'))));
 							} else {
-								alldata.push(getNonScopeValue(getObjectByXPath(self.$injectors.$scope, requiredProperties[x])));
+								alldata.push(getNonScopeValue(getObjectByXPath(self.$scope, requiredProperties[x])));
 							}
 						}
 					}
@@ -339,7 +358,7 @@
 				// Обнуляем snaps
 				if ("undefined"===typeof self.$scopeSnaps[JSON.stringify(requiredProperties)]) self.$scopeSnaps[JSON.stringify(requiredProperties)] = false;
 
-				if (self.$injectors.$component.engine.name==='angular'&&Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
+				if (self.component.engine.name==='angular'&&Synthetic.$$angularApp) { //&&self.__config__.$$angularInitialedStage>1
 
 					
 						var compiledCallbacker;
@@ -373,9 +392,9 @@
 									value = self.$element.getAttribute(dashed); 
 									if (null===value) value = Synthetic.config.undefinedAttributeDefaultValue;
 									compiledCallbacker.call(self, false, "set", value); 
-									self.$injectors.$scope.attributes[attrn] = value; 
+									self.$scope.attributes[attrn] = value; 
 									if (dashed.substr(0, 5) === "data-") { 
-										self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value; 
+										self.$scope.properties[camelize(dashed.substr(5))] = value; 
 									} 
 								} else { 
 									self.bind("attached", function() { 
@@ -383,9 +402,9 @@
 										value = self.$element.getAttribute(dashed); 
 										if (null===value) value = Synthetic.config.undefinedAttributeDefaultValue;
 										compiledCallbacker.call(self, false, "set", value); 
-										self.$injectors.$scope.attributes[attrn] = value; 
+										self.$scope.attributes[attrn] = value; 
 									if (dashed.substr(0, 5) === "data-") { 
-										self.$injectors.$scope.properties[camelize(dashed.substr(5))] = value; 
+										self.$scope.properties[camelize(dashed.substr(5))] = value; 
 									} 
 									}, true); 
 								}
@@ -395,7 +414,7 @@
 							
 
 						} else {
-							var unwatcher = self.$injectors.$scope.$watch(rprops.join('.'), function(newValue) {
+							var unwatcher = self.$scope.$watch(rprops.join('.'), function(newValue) {
 								try {
 									compiledCallbacker.call(self, false, 'set', newValue, unwatcher);
 								} catch(e) {
@@ -425,7 +444,7 @@
 			
 			for (var i = 0;i<requiredProperties.length;++i) {
 
-				unwacthers = unwacthers.inherit(watchFabric(requiredProperties[i], getObjectByXPath(this.$injectors.$scope, requiredProperties[i].slice(0, requiredProperties[i].length-1)), requiredProperties[i][requiredProperties[i].length-1]));
+				unwacthers = unwacthers.inherit(watchFabric(requiredProperties[i], getObjectByXPath(this.$scope, requiredProperties[i].slice(0, requiredProperties[i].length-1)), requiredProperties[i][requiredProperties[i].length-1]));
 			}
 			return unwacthers;
 		},
@@ -460,17 +479,24 @@
 			return this.$eval(this.$inject(callback));
 		},
 		/*
-		Функция сочитающая в себя 3 мощных механизма:
+		Фабрикует функцию, сочитающую в себе 3 мощных механизма:
 		- injector
 		- apply
-		- hitch
 
-		В отличии от $employ запускает глобальный цикл.
+		В отличии от $employ запускает глобальный цикл, который запускается от самого корневого элемента.
+		$deploy необходимо использовать в глобальных операциях.
 
-		$deploy необходимо использовать в глобальных операциях
+		* Функция не выполняет callback автоматически
 		*/
 		$deploy: function(callback) {
-			return this.$apply(this.$inject(callback));
+			var self = this;
+			return function() {
+				var args = Array.prototype.slice.apply(arguments);
+				return self.$apply(function() {
+					debugger;
+					return self.$inject(callback).apply(this, args);
+				});				
+			}
 		},
 		/*
 		Inject с автозапуском
@@ -489,20 +515,21 @@
 				Модификация возврата дестроера на наблюдатель из версии sag, вместо this.bind используется this.on возвращающий собственный дестроер;
 				Это модификация не проверена тестами.
 				*/
-				return this.on(this.__config__.allWaitingForResolve, function() {
+				return this.$on(this.__config__.allWaitingForResolve, function() {
 					if (self.$destroyed) return false;
 					callback.apply(this, arguments);
 				}, true);
 			} else {
 
-				return callback.apply(this);
+				callback.apply(this);
+				return function() { }
 			}
 		},
 		$digestAngular: function(expr) {
 
-			this.$injectors.$scope.$evalAsync(expr);
+			this.$scope.$evalAsync(expr);
 		},
-		$apply: function($as, callback, destructor){
+		$applyAngular: function($as, callback, destructor){
 			/*
 			Вызов функцции может быть перегружен тремя объектами сразу
 			0 - свойство scope
@@ -547,14 +574,14 @@
 
 			
 
-			if (this.$injectors.$component.engine.name==='angular'&&Synthetic.$$angularApp)
+			if (this.component.engine.name==='angular'&&Synthetic.$$angularApp)
 			this.$scope.$applyAsync(realCallback);
 			else
 			setTimeout(realCallback);
 		},
 		
 		$template: function(content) {
-			return this.$injectors.$generator.template(content);
+			return this.$generator.template(content);
 		},
 		/*
 		Принудительно выполняет действия связанные с deatch
@@ -567,7 +594,7 @@
             /*
 			Если у модуля есть темплейт, мы должны произвести дестрой его модуля
             */
-            this.$injectors.$generator.destroy();
+            this.$generator.destroy();
 
             this.trigger("detached", [ this.synthetic ]);
 		},
@@ -614,8 +641,8 @@
 			Удаляем generator
 			*/
 
-			this.$injectors.$generator.destroy();
-			this.$injectors.$generator = null;
+			this.$generator.destroy();
+			this.$generator = null;
 			/*
 			Удаляем привязку объекта к элементу
 			*/

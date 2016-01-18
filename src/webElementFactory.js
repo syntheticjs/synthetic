@@ -30,14 +30,14 @@
         var self = this;
         switch (defaultHtml) {
             case "preserve": // Сохранить в documentFragment
-                self.$injectors.$defaultHtml = document.createDocumentFragment();
+                self.$injectors[0].$defaultHtml = document.createDocumentFragment();
 
                 for (var i = 0; i < self.element.childNodes.length; ++i) {
                     /*
                     При клонировании элемента обязательно нужно указывать параметр deep (протестировано на sag)
                     */
                     if (self.element.childNodes[i].nodeType === 1 || self.element.childNodes[i].nodeType === 3) {
-                        self.$injectors.$defaultHtml.appendChild(self.element.childNodes[i].cloneNode(true));
+                        self.$injectors[0].$defaultHtml.appendChild(self.element.childNodes[i].cloneNode(true));
                     }
                 }
 
@@ -238,7 +238,7 @@
         Object.defineProperty(this, '$scope', {
             enumberable: true,
             get: function() {
-                return self.$injectors.$scope;
+                return self.$injectors[0].$scope;
             }
         });
 
@@ -258,18 +258,23 @@
                     $generator: null, // Инициализируем генератор
                     $stock: {},
                     $config: function(properties, callback) {
-                        self.$fetch('$config', properties, callback);
+                        debugger;
+                        self.$fetch('$config', properties, self.$deploy(callback));
                     },
                     $setup: function(data) {
                         self.$employ(function() {
                             extend(self.$scope.$config, data);
                         });
+                    },
+                    $warning: function() {
+                        console.warn.apply(console, arguments);
                     }
                 }
             ]
         });
 
-        this.$injectors.$generator = new Generator(this);
+        this.$generator = new Generator(this);
+        this.$injectors[0].$generator = this.$generator;
 
         /*
         Комплекс действий по инициализации angular, произойдет это только в том случае если в опциях
@@ -385,6 +390,7 @@
         */
         var watchPresetValue = function() {
             self.$watch('attributes.preset', function(preset) {
+                if (!preset) return;
                 if (!component.presets[preset].performed) {
                     for (var prop in presetImport) {
                         if (presetImport.hasOwnProperty(prop))
@@ -436,10 +442,10 @@
             */
             for (var z = 0; z < element.attributes.length; z++) {
                 var value = getNonScopeValue(element.attributes[z].value);
-                this.$injectors.$scope.attributes[camelize(element.attributes[z].name)] = value;
+                this.$scope.attributes[camelize(element.attributes[z].name)] = value;
                 if (element.attributes[z].name.substr(0,5)==='data-') {
 
-                    this.$injectors.$scope.properties[camelize(element.attributes[z].name.substr(5))] = value;
+                    this.$scope.properties[camelize(element.attributes[z].name.substr(5))] = value;
                 }
             }
 
