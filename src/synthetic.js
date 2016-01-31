@@ -8,6 +8,7 @@ var initAngular = require("./initAngular.js");
 var scopeGenerator = require("./scopeGenerator.js");
 var WebElementFactory = require("./webElementFactory.js");
 var Creed = require('polypromise').Creed;
+var Pending = require('polypromise').Pending;
 require("polyinherit");
 require("document-register-element");
 
@@ -182,6 +183,13 @@ Synthetic.config = {
     undefinedAttributeDefaultValue: undefined,
     viewChangeListeners: []
 };
+
+/*
+Pending api
+*/
+Synthetic.Pending = function(resolver, args) {
+    return new Pending(resolver, args);
+}
 
 Synthetic.hasPropertySubKey = function(property, subkey) {
     if (!("string"===typeof property||property instanceof Array)) return false;
