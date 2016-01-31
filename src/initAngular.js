@@ -1,4 +1,5 @@
 module.exports = function() {
+
     /*
     Creates new angular app
     */
@@ -144,11 +145,12 @@ module.exports = function() {
 
             document.body.setAttribute("ng-jq", "");
             document.body.setAttribute("ng-controller", "syntheticController");
-
-            
-                angular.bootstrap(document.body, [ "syntheticApp" ]);
-                Synthetic.$$angularBootstraped = true;
-                Synthetic.trigger("angularBootstraped");
+                    
+            angular.bootstrap(document.body, [ "syntheticApp" ]);
+            Synthetic.$$angularBootstraped = true;
+            console.log('Synthetic: angularBootstraped;');
+            Synthetic.trigger("angularBootstraped");
+               
 
             
         }.bind(this));

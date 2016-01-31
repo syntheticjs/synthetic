@@ -187,7 +187,7 @@ Synthetic.config = {
 /*
 Pending api
 */
-Synthetic.Pending = function(resolver, args) {
+Synthetic.pending = function(resolver, args) {
     return new Pending(resolver, args);
 }
 
@@ -273,13 +273,14 @@ Synthetic.createComponent = function(componentOptions, workshop) {
         /*
         Creating angular directive
         */
+        console.log('Syntehtic: init directive', camelize(name));
         Synthetic.$$angularApp.directive(camelize(name), function() {
             return {
                 restrict: 'E',
                 priority: 998,
                 scope: true,
                 compile: function($element, $rscope, $a, $controllersBoundTransclude) {
-
+                    console.log('Syntehtic: directive compile', camelize(name));
                     // Запоминаем стартовое значение html
                     var $defaultHtml = $element[0].innerHTML;
 
@@ -299,7 +300,7 @@ Synthetic.createComponent = function(componentOptions, workshop) {
                             /*
                             Элемент не может быть обработан директивой, если он не синтезирован
                             */
-                            if (!Synthetic($element[0])) return;
+                            if (!Synthetic($element[0])) throw 'Unsynthesized element cant be directived';
 
                             Synthetic($element[0]).__config__.$$angularDirectived = true;
                             /*

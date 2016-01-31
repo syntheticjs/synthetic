@@ -71,12 +71,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	var camelize = __webpack_require__(5);
 	var smartCallback = __webpack_require__(4);
 	var ComponentPreFactory = __webpack_require__(6);
-	var initAngular = __webpack_require__(17);
-	var scopeGenerator = __webpack_require__(18);
-	var WebElementFactory = __webpack_require__(20);
+	var initAngular = __webpack_require__(18);
+	var scopeGenerator = __webpack_require__(19);
+	var WebElementFactory = __webpack_require__(21);
 	var Creed = __webpack_require__(7).Creed;
-	__webpack_require__(16);
-	__webpack_require__(30);
+	var Pending = __webpack_require__(7).Pending;
+	__webpack_require__(17);
+	__webpack_require__(31);
 
 	function getRandomColor() {
 	    var letters = '0123456789ABCDEF'.split('');
@@ -250,6 +251,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	    viewChangeListeners: []
 	};
 
+	/*
+	Pending api
+	*/
+	Synthetic.pending = function(resolver, args) {
+	    return new Pending(resolver, args);
+	}
+
 	Synthetic.hasPropertySubKey = function(property, subkey) {
 	    if (!("string"===typeof property||property instanceof Array)) return false;
 	    return !!~("string"===typeof property?property.replace(' ','').split(','):property).indexOf(subkey);
@@ -332,13 +340,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	        /*
 	        Creating angular directive
 	        */
+	        console.log('Syntehtic: init directive', camelize(name));
 	        Synthetic.$$angularApp.directive(camelize(name), function() {
 	            return {
 	                restrict: 'E',
 	                priority: 998,
 	                scope: true,
 	                compile: function($element, $rscope, $a, $controllersBoundTransclude) {
-
+	                    console.log('Syntehtic: directive compile', camelize(name));
 	                    // Запоминаем стартовое значение html
 	                    var $defaultHtml = $element[0].innerHTML;
 
@@ -358,7 +367,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	                            /*
 	                            Элемент не может быть обработан директивой, если он не синтезирован
 	                            */
-	                            if (!Synthetic($element[0])) return;
+	                            if (!Synthetic($element[0])) throw 'Unsynthesized element cant be directived';
 
 	                            Synthetic($element[0]).__config__.$$angularDirectived = true;
 	                            /*
@@ -1066,7 +1075,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		var mixin = __webpack_require__(2);
 		var Creed = __webpack_require__(7).Creed;
 		var smartCallback = __webpack_require__(4);
-		var ComponentPreset = __webpack_require__(14);
+		var ComponentPreset = __webpack_require__(15);
 
 		var preFactory = function(options) {
 			this.name = options.name;
@@ -1144,16 +1153,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	/* WEBPACK VAR INJECTION */(function(global) {
 	var Promise = __webpack_require__(8).Promise;
 	var inject = __webpack_require__(13).inject;
-
+	var bit = __webpack_require__(14);
 	var Polypromise = function() {
 
 	}
+
+	bit.define('POLYPROMISE_IMMEDIATE', 10);
 
 	/*
 	Сredible
 	*/
 	var Creed = function(cb) {
-
 		Object.defineProperty(this, '__credible__', {
 			enumerable: false,
 			writable: false,
@@ -1179,9 +1189,17 @@ return /******/ (function(modules) { // webpackBootstrap
 		$eval: function(cb) {
 			var self = this;
 			this.__credible__.resolver = cb;
-			cb.call(this, function() {
-				self.$resolve.apply(self, arguments);
-			}, function(result) { self.$reject.apply(self, arguments); });
+			var run = function() {
+				cb.call(self, function() {
+					self.$resolve.apply(self, arguments);
+				}, function(result) { self.$reject.apply(self, arguments); });
+			}
+			if (bit(cb).test(POLYPROMISE_IMMEDIATE)) {
+				run();
+			} else {
+				setTimeout(run);
+			}
+			
 			return this;
 		},
 		/*
@@ -1323,8 +1341,8 @@ return /******/ (function(modules) { // webpackBootstrap
 		var id = callback.toString()+( "object"===typeof args ? JSON.stringify(args) : (args===undefined ? '' : args.toString()) );
 		this.$id = id;
 		if (pendings[id]) {
-			pendings[id].queue.push(this);
-		} else {
+			pendings[id].queue.push(this);	} else {
+
 			pendings[id] = {
 				queue: [],
 				result: null,
@@ -1366,7 +1384,7 @@ return /******/ (function(modules) { // webpackBootstrap
 				pendings[id].result = result;
 				pendings[id].status = 2;
 				for (var i = 0; i < requeue.length;++i) {
-					requeue[i].$catch(result);
+					requeue[i].$reject(result);
 				}
 				// Clear pending queue list after moment
 				setTimeout(function() {
@@ -1412,7 +1430,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	};
 
-	Polypromise.Promise = Promise;
+	Polypromise.Promise = Creed;
 	Polypromise.Promises = Promises;
 	Polypromise.Pending = Pending;
 	Polypromise.Creed = Creed;
@@ -2569,12 +2587,179 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ },
 /* 14 */
+/***/ function(module, exports) {
+
+	var bit = function(bitmask, _) {
+		if (this === (function () { return this; })()) {
+			if ("function"===typeof bitmask) {
+				if ("object"!==typeof bitmask.__bit__) {
+					Object.defineProperty(bitmask, '__bit__', {
+						enumerable: false,
+						writable: false,
+						editable: false,
+						value: new bit(0, bitmask)
+					});
+
+					Object.defineProperty(bitmask, 'bit', {
+						enumerable: true,
+						configurable: false,
+						get: function() {
+							return this.__bit__;
+						}
+					});
+				}
+				return bitmask.__bit__;
+			} else if (arguments.length>1) {
+				return new bit(Array.prototype.splice.apply(arguments), false);
+			} else {
+				return new bit(bitmask instanceof Array ? bit.join(bitmask) : bitmask, _);
+			}
+		} else {
+			this.value = bitmask;
+			this._ = _||this;
+		}
+	}
+
+	// Create new bitmask
+	bit.create = function(number) {
+		var bitmask = 0;
+		Array.prototype.slice.apply(arguments).forEach(function(number) {
+			bitmask = bitmask | (1 << number);
+		});
+		return bitmask;
+	}
+
+	// Define global bitmask
+	bit.define = function(name, number) {
+		!(function() {
+			this[name] = 1 << number;
+		})(name, number);
+	}
+
+	// Join masks to one
+	bit.join = function() {
+		var result = 0;
+		Array.prototype.slice.apply(arguments).forEach(function(mask) {
+
+			result = result | (mask instanceof Array ? bit.join.apply(bit, mask) : mask);
+		});
+		return result;
+	}
+
+	// Make global
+	bit.globalize = function() {
+		if (!('bit' in Function.prototype))
+		Object.defineProperty(Function.prototype, 'bit', {
+			enumerable: true,
+			configurable: false,
+			get: function() {
+				if ("object"!==typeof this.__bit__) 
+				Object.defineProperty(this, '__bit__', {
+					enumerable: false,
+					writable: false,
+					editable: false,
+					value: new bit(0, this)
+				});
+
+				return this.__bit__;
+			}
+		});
+		return true;
+	}
+
+	var inc = function(bits) {
+		if (arguments.length>1) return this.inc.call(this, Array.prototype.splice.apply(arguments));
+		this.value = this.value | (bits instanceof Array ? bit.join(bits) : bits);
+		return this._;
+	};
+
+	var exc = function(bits) {
+		if (arguments.length>1) return this.exc.call(this, Array.prototype.splice.apply(arguments));
+		this.value = this.value ^ (bits instanceof Array ? bit.join(bits) : bits);
+		return this._;
+	};
+
+	/*
+	Test for bitmask present in current. 
+	*/
+	var test = function(bits) {
+		if (arguments.length===1) {
+			if (bits instanceof Array) {
+				return this.test.apply(this, bits);
+			} else {
+				return !!(this.value & bits);
+			}
+		} else if (arguments.length>1) {
+			var result = true, self = this;
+			Array.prototype.slice.apply(arguments).forEach(function(mask) {
+				if (!(self.value & (mask instanceof Array ? bit.join(mask) : mask))) result = false;
+			});
+			return result;
+		} else {
+			return false;
+		}
+	};
+
+	var havent = function() {
+		return !this.test.apply(this, arguments);
+	};
+
+	bit.prototype = {
+		construct: bit,
+		// Override to new bitmask
+		set: function(mask) {
+			if (arguments.length>1) this.set.call(this, Array.prototype.splice.apply(arguments));
+			this.value = mask instanceof Array ? bit.join(mask) : mask;
+			return this._;
+		},
+		// Include bitmask
+		inc: inc,
+		add: inc,
+		// Exclude bitmask
+		exc: exc,
+		exclude: exc,
+		remove: exc,
+		// Check entry
+		test: test,
+		have: test,
+		// Check failure
+		havent: havent,
+		without: havent,
+		// Check value exclude bits
+		is: function(bits) {
+			if (arguments.length>1) return this.is.call(this, Array.prototype.splice.apply(arguments));
+			return this.value === (bits instanceof Array ? bit.join(bits) : bits);
+		},
+		// Сheck the full entry mask is false
+		not: function(bits) {
+			if (arguments.length>1) return this.is.call(this, Array.prototype.splice.apply(arguments));
+			return this.value !== (bits instanceof Array ? bit.join(bits) : bits);
+		},
+		// Inverse current value
+		inverse: function() {
+			this.value = ~this.value;
+			return this._;
+		},
+		reset: function() {
+			this.value = 0;
+			return this._;
+		}
+	}
+
+
+
+
+
+	module.exports = bit;
+
+/***/ },
+/* 15 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var Creed = __webpack_require__(7).Creed;
 	var smartCallback = __webpack_require__(4);
-	var extend = __webpack_require__(15);
-	__webpack_require__(16);
+	var extend = __webpack_require__(16);
+	__webpack_require__(17);
 
 	module.exports = function(component, name, workshop) {
 		this.component = component;
@@ -2684,7 +2869,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 15 */
+/* 16 */
 /***/ function(module, exports) {
 
 	/* Протестировано */
@@ -2785,7 +2970,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 16 */
+/* 17 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var mixin = __webpack_require__(2);
@@ -2822,10 +3007,11 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 17 */
+/* 18 */
 /***/ function(module, exports) {
 
 	module.exports = function() {
+
 	    /*
 	    Creates new angular app
 	    */
@@ -2971,11 +3157,12 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	            document.body.setAttribute("ng-jq", "");
 	            document.body.setAttribute("ng-controller", "syntheticController");
-
-	            
-	                angular.bootstrap(document.body, [ "syntheticApp" ]);
-	                Synthetic.$$angularBootstraped = true;
-	                Synthetic.trigger("angularBootstraped");
+	                    
+	            angular.bootstrap(document.body, [ "syntheticApp" ]);
+	            Synthetic.$$angularBootstraped = true;
+	            console.log('Synthetic: angularBootstraped;');
+	            Synthetic.trigger("angularBootstraped");
+	               
 
 	            
 	        }.bind(this));
@@ -2983,13 +3170,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 18 */
+/* 19 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
 	    var mixin = __webpack_require__(2);
 	    var camelize = __webpack_require__(5);
-	    var scopeUtilits = __webpack_require__(19);
+	    var scopeUtilits = __webpack_require__(20);
 
 	    module.exports = function($self, $$scope, $attrs) {
 	        /*
@@ -3087,10 +3274,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	    };
 
 /***/ },
-/* 19 */
+/* 20 */
 /***/ function(module, exports, __webpack_require__) {
 
-	__webpack_require__(16);
+	__webpack_require__(17);
 	module.exports = function($) {
 		this.$ = $; // Link to synthetic controller
 	}.proto({
@@ -3117,17 +3304,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 20 */
+/* 21 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	    var WebElementPrototype = __webpack_require__(21);
+	    var WebElementPrototype = __webpack_require__(22);
 	    var mixin = __webpack_require__(2);
-	    var extend = __webpack_require__(15);
-	    var Generator = __webpack_require__(28);
+	    var extend = __webpack_require__(16);
+	    var Generator = __webpack_require__(29);
 	    var camelize = __webpack_require__(5);
-	    var getNonScopeValue = __webpack_require__(23);
-	    __webpack_require__(16);
+	    var getNonScopeValue = __webpack_require__(24);
+	    __webpack_require__(17);
 
 	    var presetImport = {};
 
@@ -3254,6 +3441,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	     модуль.
 	     */
 	    module.exports = function(element, component) {
+	        
 	        var self = this;
 	        /*
 	        Указываем последнюю factory для элемента. Она используется при внедлении скрипта через тэг <script>
@@ -3556,6 +3744,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        /*
 	        Ожидаем инициализации движка
 	        */
+
 	        this.$queue(function() {
 	            /*
 	            На данном этапе мы уже должны обязательно подготовить данные о $parent
@@ -3630,19 +3819,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }.inherit(WebElementPrototype);
 
 /***/ },
-/* 21 */
+/* 22 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-		var getObjectByXPath = __webpack_require__(22);
+		var getObjectByXPath = __webpack_require__(23);
 		var smartCallback = __webpack_require__(4);
 		var classEvents = __webpack_require__(3);
-		var getNonScopeValue = __webpack_require__(23);
-		var Box = __webpack_require__(24);
+		var getNonScopeValue = __webpack_require__(24);
+		var Box = __webpack_require__(25);
 		var camelize = __webpack_require__(5);
-		var dasherize = __webpack_require__(25);
-		var Scope = __webpack_require__(26);
-		__webpack_require__(16);
+		var dasherize = __webpack_require__(26);
+		var Scope = __webpack_require__(27);
+		__webpack_require__(17);
 
 		/*
 		Модифицируем стандартный classEvents
@@ -4157,6 +4346,7 @@ return /******/ (function(modules) { // webpackBootstrap
 					Модификация возврата дестроера на наблюдатель из версии sag, вместо this.bind используется this.on возвращающий собственный дестроер;
 					Это модификация не проверена тестами.
 					*/
+					console.log('Synthetic: wait for '+this.__config__.allWaitingForResolve);
 					return this.$on(this.__config__.allWaitingForResolve, function() {
 						if (self.$destroyed) return false;
 						callback.apply(this, arguments);
@@ -4331,7 +4521,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		});
 
 /***/ },
-/* 22 */
+/* 23 */
 /***/ function(module, exports) {
 
 	module.exports = function(start, xpath) {
@@ -4346,7 +4536,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 23 */
+/* 24 */
 /***/ function(module, exports) {
 
 	module.exports = function(newValue) {
@@ -4356,7 +4546,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 24 */
+/* 25 */
 /***/ function(module, exports, __webpack_require__) {
 
 	__webpack_require__(1);
@@ -4440,7 +4630,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		});
 
 /***/ },
-/* 25 */
+/* 26 */
 /***/ function(module, exports) {
 
 	module.exports = function(text) {
@@ -4448,16 +4638,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 26 */
+/* 27 */
 /***/ function(module, exports, __webpack_require__) {
 
-	__webpack_require__(16);
+	__webpack_require__(17);
+	var bit = __webpack_require__(14);
 	var Promises = __webpack_require__(7).Promises,
-	    extend = __webpack_require__(15),
+	    extend = __webpack_require__(16),
 	    clone = function(o) {
 	        return extend(true, {}, o);
 	    },
-	    compareObjects = __webpack_require__(27),
+	    compareObjects = __webpack_require__(28),
 	    inject = __webpack_require__(13).inject,
 	    dataSnap = function(data) {
 	        var snap;
@@ -4773,7 +4964,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	        new Promises(function(Promise) {
 	            for (var prop in expressions) {
 	                if (expressions.hasOwnProperty(prop)) {
-	                    Promise(function(resolve, reject) {
+	                    Promise(bit(function(resolve, reject) {
 	                        var deep = false,
 	                            watch=false,
 	                            fullinfo=false,
@@ -4792,7 +4983,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	                            resolve.apply(self, (advoption & POLYSCOPE_ARRAYRESULT ? [Array.prototype.slice.apply(arguments)] : Array.prototype.slice.apply(arguments)));
 	                        }, bitoptions);
 	                        unwatchers.push(unwatcher);
-	                    });
+	                    }).set(POLYPROMISE_IMMEDIATE));
 	                }
 	            }
 	        })
@@ -4923,8 +5114,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	            }
 
 	            // Callback now
-	            callback(l,l,l);
 	            if (watcher.once) watcher.destroy();
+	            callback(l,l,l);
 	        }
 
 	        return watcher;
@@ -5083,7 +5274,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 27 */
+/* 28 */
 /***/ function(module, exports) {
 
 	
@@ -5117,12 +5308,12 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 28 */
+/* 29 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
 	    var classEvents = __webpack_require__(3);
-	    var synthetModule = __webpack_require__(29);
+	    var synthetModule = __webpack_require__(30);
 
 
 	    module.exports = function(synthet) {
@@ -5299,10 +5490,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	        });
 
 /***/ },
-/* 29 */
+/* 30 */
 /***/ function(module, exports, __webpack_require__) {
 
-	__webpack_require__(16);
+	__webpack_require__(17);
 	module.exports = function() {
 	    //console.debug('DEBUG ME: because im starting after module initialization. This is very baaad.');
 	}.proto({
@@ -5338,11 +5529,11 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 30 */
+/* 31 */
 /***/ function(module, exports) {
 
 	/*! (C) WebReflection Mit Style License */
-	(function(e,t,n,r){"use strict";function rt(e,t){for(var n=0,r=e.length;n<r;n++)vt(e[n],t)}function it(e){for(var t=0,n=e.length,r;t<n;t++)r=e[t],nt(r,b[ot(r)])}function st(e){return function(t){j(t)&&(vt(t,e),rt(t.querySelectorAll(w),e))}}function ot(e){var t=e.getAttribute("is"),n=e.nodeName.toUpperCase(),r=S.call(y,t?v+t.toUpperCase():d+n);return t&&-1<r&&!ut(n,t)?-1:r}function ut(e,t){return-1<w.indexOf(e+'[is="'+t+'"]')}function at(e){var t=e.currentTarget,n=e.attrChange,r=e.attrName,i=e.target;Q&&(!i||i===t)&&t.attributeChangedCallback&&r!=="style"&e.prevValue!==e.newValue&&t.attributeChangedCallback(r,n===e[a]?null:e.prevValue,n===e[l]?null:e.newValue)}function ft(e){var t=st(e);return function(e){X.push(t,e.target)}}function lt(e){K&&(K=!1,e.currentTarget.removeEventListener(h,lt)),rt((e.target||t).querySelectorAll(w),e.detail===o?o:s),B&&pt()}function ct(e,t){var n=this;q.call(n,e,t),G.call(n,{target:n})}function ht(e,t){D(e,t),et?et.observe(e,z):(J&&(e.setAttribute=ct,e[i]=Z(e),e.addEventListener(p,G)),e.addEventListener(c,at)),e.createdCallback&&Q&&(e.created=!0,e.createdCallback(),e.created=!1)}function pt(){for(var e,t=0,n=F.length;t<n;t++)e=F[t],E.contains(e)||(n--,F.splice(t--,1),vt(e,o))}function dt(e){throw new Error("A "+e+" type is already registered")}function vt(e,t){var n,r=ot(e);-1<r&&(tt(e,b[r]),r=0,t===s&&!e[s]?(e[o]=!1,e[s]=!0,r=1,B&&S.call(F,e)<0&&F.push(e)):t===o&&!e[o]&&(e[s]=!1,e[o]=!0,r=1),r&&(n=e[t+"Callback"])&&n.call(e))}if(r in t)return;var i="__"+r+(Math.random()*1e5>>0),s="attached",o="detached",u="extends",a="ADDITION",f="MODIFICATION",l="REMOVAL",c="DOMAttrModified",h="DOMContentLoaded",p="DOMSubtreeModified",d="<",v="=",m=/^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$/,g=["ANNOTATION-XML","COLOR-PROFILE","FONT-FACE","FONT-FACE-SRC","FONT-FACE-URI","FONT-FACE-FORMAT","FONT-FACE-NAME","MISSING-GLYPH"],y=[],b=[],w="",E=t.documentElement,S=y.indexOf||function(e){for(var t=this.length;t--&&this[t]!==e;);return t},x=n.prototype,T=x.hasOwnProperty,N=x.isPrototypeOf,C=n.defineProperty,k=n.getOwnPropertyDescriptor,L=n.getOwnPropertyNames,A=n.getPrototypeOf,O=n.setPrototypeOf,M=!!n.__proto__,_=n.create||function mt(e){return e?(mt.prototype=e,new mt):this},D=O||(M?function(e,t){return e.__proto__=t,e}:L&&k?function(){function e(e,t){for(var n,r=L(t),i=0,s=r.length;i<s;i++)n=r[i],T.call(e,n)||C(e,n,k(t,n))}return function(t,n){do e(t,n);while((n=A(n))&&!N.call(n,t));return t}}():function(e,t){for(var n in t)e[n]=t[n];return e}),P=e.MutationObserver||e.WebKitMutationObserver,H=(e.HTMLElement||e.Element||e.Node).prototype,B=!N.call(H,E),j=B?function(e){return e.nodeType===1}:function(e){return N.call(H,e)},F=B&&[],I=H.cloneNode,q=H.setAttribute,R=H.removeAttribute,U=t.createElement,z=P&&{attributes:!0,characterData:!0,attributeOldValue:!0},W=P||function(e){J=!1,E.removeEventListener(c,W)},X,V=e.requestAnimationFrame||e.webkitRequestAnimationFrame||e.mozRequestAnimationFrame||e.msRequestAnimationFrame||function(e){setTimeout(e,10)},$=!1,J=!0,K=!0,Q=!0,G,Y,Z,et,tt,nt;O||M?(tt=function(e,t){N.call(t,e)||ht(e,t)},nt=ht):(tt=function(e,t){e[i]||(e[i]=n(!0),ht(e,t))},nt=tt),B?(J=!1,function(){var e=k(H,"addEventListener"),t=e.value,n=function(e){var t=new CustomEvent(c,{bubbles:!0});t.attrName=e,t.prevValue=this.getAttribute(e),t.newValue=null,t[l]=t.attrChange=2,R.call(this,e),this.dispatchEvent(t)},r=function(e,t){var n=this.hasAttribute(e),r=n&&this.getAttribute(e),i=new CustomEvent(c,{bubbles:!0});q.call(this,e,t),i.attrName=e,i.prevValue=n?r:null,i.newValue=t,n?i[f]=i.attrChange=1:i[a]=i.attrChange=0,this.dispatchEvent(i)},s=function(e){var t=e.currentTarget,n=t[i],r=e.propertyName,s;n.hasOwnProperty(r)&&(n=n[r],s=new CustomEvent(c,{bubbles:!0}),s.attrName=n.name,s.prevValue=n.value||null,s.newValue=n.value=t[r]||null,s.prevValue==null?s[a]=s.attrChange=0:s[f]=s.attrChange=1,t.dispatchEvent(s))};e.value=function(e,o,u){e===c&&this.attributeChangedCallback&&this.setAttribute!==r&&(this[i]={className:{name:"class",value:this.className}},this.setAttribute=r,this.removeAttribute=n,t.call(this,"propertychange",s)),t.call(this,e,o,u)},C(H,"addEventListener",e)}()):P||(E.addEventListener(c,W),E.setAttribute(i,1),E.removeAttribute(i),J&&(G=function(e){var t=this,n,r,s;if(t===e.target){n=t[i],t[i]=r=Z(t);for(s in r){if(!(s in n))return Y(0,t,s,n[s],r[s],a);if(r[s]!==n[s])return Y(1,t,s,n[s],r[s],f)}for(s in n)if(!(s in r))return Y(2,t,s,n[s],r[s],l)}},Y=function(e,t,n,r,i,s){var o={attrChange:e,currentTarget:t,attrName:n,prevValue:r,newValue:i};o[s]=e,at(o)},Z=function(e){for(var t,n,r={},i=e.attributes,s=0,o=i.length;s<o;s++)t=i[s],n=t.name,n!=="setAttribute"&&(r[n]=t.value);return r})),t[r]=function(n,r){c=n.toUpperCase(),$||($=!0,P?(et=function(e,t){function n(e,t){for(var n=0,r=e.length;n<r;t(e[n++]));}return new P(function(r){for(var i,s,o,u=0,a=r.length;u<a;u++)i=r[u],i.type==="childList"?(n(i.addedNodes,e),n(i.removedNodes,t)):(s=i.target,Q&&s.attributeChangedCallback&&i.attributeName!=="style"&&(o=s.getAttribute(i.attributeName),o!==i.oldValue&&s.attributeChangedCallback(i.attributeName,i.oldValue,o)))})}(st(s),st(o)),et.observe(t,{childList:!0,subtree:!0})):(X=[],V(function E(){while(X.length)X.shift().call(null,X.shift());V(E)}),t.addEventListener("DOMNodeInserted",ft(s)),t.addEventListener("DOMNodeRemoved",ft(o))),t.addEventListener(h,lt),t.addEventListener("readystatechange",lt),t.createElement=function(e,n){var r=U.apply(t,arguments),i=""+e,s=S.call(y,(n?v:d)+(n||i).toUpperCase()),o=-1<s;return n&&(r.setAttribute("is",n=n.toLowerCase()),o&&(o=ut(i.toUpperCase(),n))),Q=!t.createElement.innerHTMLHelper,o&&nt(r,b[s]),r},H.cloneNode=function(e){var t=I.call(this,!!e),n=ot(t);return-1<n&&nt(t,b[n]),e&&it(t.querySelectorAll(w)),t}),-2<S.call(y,v+c)+S.call(y,d+c)&&dt(n);if(!m.test(c)||-1<S.call(g,c))throw new Error("The type "+n+" is invalid");var i=function(){return f?t.createElement(l,c):t.createElement(l)},a=r||x,f=T.call(a,u),l=f?r[u].toUpperCase():c,c,p;return f&&-1<S.call(y,d+l)&&dt(l),p=y.push((f?v:d)+c)-1,w=w.concat(w.length?",":"",f?l+'[is="'+n.toLowerCase()+'"]':l),i.prototype=b[p]=T.call(a,"prototype")?a.prototype:_(H),rt(t.querySelectorAll(w),s),i}})(window,document,Object,"registerElement");
+	(function(e,t,n,r){"use strict";function rt(e,t){for(var n=0,r=e.length;n<r;n++)vt(e[n],t)}function it(e){for(var t=0,n=e.length,r;t<n;t++)r=e[t],nt(r,b[ot(r)])}function st(e){return function(t){j(t)&&(vt(t,e),rt(t.querySelectorAll(w),e))}}function ot(e){var t=e.getAttribute("is"),n=e.nodeName.toUpperCase(),r=S.call(y,t?v+t.toUpperCase():d+n);return t&&-1<r&&!ut(n,t)?-1:r}function ut(e,t){return-1<w.indexOf(e+'[is="'+t+'"]')}function at(e){var t=e.currentTarget,n=e.attrChange,r=e.attrName,i=e.target;Q&&(!i||i===t)&&t.attributeChangedCallback&&r!=="style"&&e.prevValue!==e.newValue&&t.attributeChangedCallback(r,n===e[a]?null:e.prevValue,n===e[l]?null:e.newValue)}function ft(e){var t=st(e);return function(e){X.push(t,e.target)}}function lt(e){K&&(K=!1,e.currentTarget.removeEventListener(h,lt)),rt((e.target||t).querySelectorAll(w),e.detail===o?o:s),B&&pt()}function ct(e,t){var n=this;q.call(n,e,t),G.call(n,{target:n})}function ht(e,t){D(e,t),et?et.observe(e,z):(J&&(e.setAttribute=ct,e[i]=Z(e),e.addEventListener(p,G)),e.addEventListener(c,at)),e.createdCallback&&Q&&(e.created=!0,e.createdCallback(),e.created=!1)}function pt(){for(var e,t=0,n=F.length;t<n;t++)e=F[t],E.contains(e)||(n--,F.splice(t--,1),vt(e,o))}function dt(e){throw new Error("A "+e+" type is already registered")}function vt(e,t){var n,r=ot(e);-1<r&&(tt(e,b[r]),r=0,t===s&&!e[s]?(e[o]=!1,e[s]=!0,r=1,B&&S.call(F,e)<0&&F.push(e)):t===o&&!e[o]&&(e[s]=!1,e[o]=!0,r=1),r&&(n=e[t+"Callback"])&&n.call(e))}if(r in t)return;var i="__"+r+(Math.random()*1e5>>0),s="attached",o="detached",u="extends",a="ADDITION",f="MODIFICATION",l="REMOVAL",c="DOMAttrModified",h="DOMContentLoaded",p="DOMSubtreeModified",d="<",v="=",m=/^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$/,g=["ANNOTATION-XML","COLOR-PROFILE","FONT-FACE","FONT-FACE-SRC","FONT-FACE-URI","FONT-FACE-FORMAT","FONT-FACE-NAME","MISSING-GLYPH"],y=[],b=[],w="",E=t.documentElement,S=y.indexOf||function(e){for(var t=this.length;t--&&this[t]!==e;);return t},x=n.prototype,T=x.hasOwnProperty,N=x.isPrototypeOf,C=n.defineProperty,k=n.getOwnPropertyDescriptor,L=n.getOwnPropertyNames,A=n.getPrototypeOf,O=n.setPrototypeOf,M=!!n.__proto__,_=n.create||function mt(e){return e?(mt.prototype=e,new mt):this},D=O||(M?function(e,t){return e.__proto__=t,e}:L&&k?function(){function e(e,t){for(var n,r=L(t),i=0,s=r.length;i<s;i++)n=r[i],T.call(e,n)||C(e,n,k(t,n))}return function(t,n){do e(t,n);while((n=A(n))&&!N.call(n,t));return t}}():function(e,t){for(var n in t)e[n]=t[n];return e}),P=e.MutationObserver||e.WebKitMutationObserver,H=(e.HTMLElement||e.Element||e.Node).prototype,B=!N.call(H,E),j=B?function(e){return e.nodeType===1}:function(e){return N.call(H,e)},F=B&&[],I=H.cloneNode,q=H.setAttribute,R=H.removeAttribute,U=t.createElement,z=P&&{attributes:!0,characterData:!0,attributeOldValue:!0},W=P||function(e){J=!1,E.removeEventListener(c,W)},X,V=e.requestAnimationFrame||e.webkitRequestAnimationFrame||e.mozRequestAnimationFrame||e.msRequestAnimationFrame||function(e){setTimeout(e,10)},$=!1,J=!0,K=!0,Q=!0,G,Y,Z,et,tt,nt;O||M?(tt=function(e,t){N.call(t,e)||ht(e,t)},nt=ht):(tt=function(e,t){e[i]||(e[i]=n(!0),ht(e,t))},nt=tt),B?(J=!1,function(){var e=k(H,"addEventListener"),t=e.value,n=function(e){var t=new CustomEvent(c,{bubbles:!0});t.attrName=e,t.prevValue=this.getAttribute(e),t.newValue=null,t[l]=t.attrChange=2,R.call(this,e),this.dispatchEvent(t)},r=function(e,t){var n=this.hasAttribute(e),r=n&&this.getAttribute(e),i=new CustomEvent(c,{bubbles:!0});q.call(this,e,t),i.attrName=e,i.prevValue=n?r:null,i.newValue=t,n?i[f]=i.attrChange=1:i[a]=i.attrChange=0,this.dispatchEvent(i)},s=function(e){var t=e.currentTarget,n=t[i],r=e.propertyName,s;n.hasOwnProperty(r)&&(n=n[r],s=new CustomEvent(c,{bubbles:!0}),s.attrName=n.name,s.prevValue=n.value||null,s.newValue=n.value=t[r]||null,s.prevValue==null?s[a]=s.attrChange=0:s[f]=s.attrChange=1,t.dispatchEvent(s))};e.value=function(e,o,u){e===c&&this.attributeChangedCallback&&this.setAttribute!==r&&(this[i]={className:{name:"class",value:this.className}},this.setAttribute=r,this.removeAttribute=n,t.call(this,"propertychange",s)),t.call(this,e,o,u)},C(H,"addEventListener",e)}()):P||(E.addEventListener(c,W),E.setAttribute(i,1),E.removeAttribute(i),J&&(G=function(e){var t=this,n,r,s;if(t===e.target){n=t[i],t[i]=r=Z(t);for(s in r){if(!(s in n))return Y(0,t,s,n[s],r[s],a);if(r[s]!==n[s])return Y(1,t,s,n[s],r[s],f)}for(s in n)if(!(s in r))return Y(2,t,s,n[s],r[s],l)}},Y=function(e,t,n,r,i,s){var o={attrChange:e,currentTarget:t,attrName:n,prevValue:r,newValue:i};o[s]=e,at(o)},Z=function(e){for(var t,n,r={},i=e.attributes,s=0,o=i.length;s<o;s++)t=i[s],n=t.name,n!=="setAttribute"&&(r[n]=t.value);return r})),t[r]=function(n,r){c=n.toUpperCase(),$||($=!0,P?(et=function(e,t){function n(e,t){for(var n=0,r=e.length;n<r;t(e[n++]));}return new P(function(r){for(var i,s,o,u=0,a=r.length;u<a;u++)i=r[u],i.type==="childList"?(n(i.addedNodes,e),n(i.removedNodes,t)):(s=i.target,Q&&s.attributeChangedCallback&&i.attributeName!=="style"&&(o=s.getAttribute(i.attributeName),o!==i.oldValue&&s.attributeChangedCallback(i.attributeName,i.oldValue,o)))})}(st(s),st(o)),et.observe(t,{childList:!0,subtree:!0})):(X=[],V(function E(){while(X.length)X.shift().call(null,X.shift());V(E)}),t.addEventListener("DOMNodeInserted",ft(s)),t.addEventListener("DOMNodeRemoved",ft(o))),t.addEventListener(h,lt),t.addEventListener("readystatechange",lt),t.createElement=function(e,n){var r=U.apply(t,arguments),i=""+e,s=S.call(y,(n?v:d)+(n||i).toUpperCase()),o=-1<s;return n&&(r.setAttribute("is",n=n.toLowerCase()),o&&(o=ut(i.toUpperCase(),n))),Q=!t.createElement.innerHTMLHelper,o&&nt(r,b[s]),r},H.cloneNode=function(e){var t=I.call(this,!!e),n=ot(t);return-1<n&&nt(t,b[n]),e&&it(t.querySelectorAll(w)),t}),-2<S.call(y,v+c)+S.call(y,d+c)&&dt(n);if(!m.test(c)||-1<S.call(g,c))throw new Error("The type "+n+" is invalid");var i=function(){return f?t.createElement(l,c):t.createElement(l)},a=r||x,f=T.call(a,u),l=f?r[u].toUpperCase():c,c,p;return f&&-1<S.call(y,d+l)&&dt(l),p=y.push((f?v:d)+c)-1,w=w.concat(w.length?",":"",f?l+'[is="'+n.toLowerCase()+'"]':l),i.prototype=b[p]=T.call(a,"prototype")?a.prototype:_(H),rt(t.querySelectorAll(w),s),i}})(window,document,Object,"registerElement");
 
 /***/ }
 /******/ ])

@@ -522,6 +522,7 @@
 				Модификация возврата дестроера на наблюдатель из версии sag, вместо this.bind используется this.on возвращающий собственный дестроер;
 				Это модификация не проверена тестами.
 				*/
+				console.log('Synthetic: wait for '+this.__config__.allWaitingForResolve);
 				return this.$on(this.__config__.allWaitingForResolve, function() {
 					if (self.$destroyed) return false;
 					callback.apply(this, arguments);
