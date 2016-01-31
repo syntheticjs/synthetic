@@ -220,6 +220,18 @@
         });
 
         /*
+        If angulal not ready hide element
+        */
+        if ("undefined"===typeof Synthetic.$$angularApp) {
+            element.style.opacity = 0;
+            Synthetic.bind('angularBootstraped', function() {
+                element.style.opacity = 1;
+            });
+        };
+
+            
+
+        /*
         Создаем базовый scope
         */
         this.$$scope = {
@@ -277,10 +289,17 @@
         this.$injectors[0].$generator = this.$generator;
 
         /*
+        Inherit component th-injectors to scope-injects list
+        */
+        this.$polyscope.injects = this.$polyscope.injects.concat(this.$injectors);
+
+        /*
         Комплекс действий по инициализации angular, произойдет это только в том случае если в опциях
         компонента указано, что он должен использовать angular
         */
         if ("object"===typeof angular&&angular.bootstrap&&component.engine.name==='angular') {
+            
+
             var $self = this;
 
             // TODO: Depricate

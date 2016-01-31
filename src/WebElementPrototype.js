@@ -69,7 +69,7 @@
 								self.$scope.properties[camelize(dashed.substr(5))] = value; 
 							} 
 
-							callback.apply(self, !!(bitoptions||0 & POLYSCOPE_DITAILS) ?  [value, value, Synthetic.config.undefinedAttributeDefaultValue] : [value]);
+							callback.apply(self, !!((bitoptions||0) & POLYSCOPE_DITAILS) ?  [value, value, Synthetic.config.undefinedAttributeDefaultValue] : [value]);
 						} else { 
 							self.bind("attached", function() { 
 								var dashed = dasherize(attrn), 
@@ -80,14 +80,14 @@
 								if (dashed.substr(0, 5) === "data-") { 
 									self.$scope.properties[camelize(dashed.substr(5))] = value; 
 								} 
-								callback.apply(self, !!(bitoptions||0 & POLYSCOPE_DITAILS) ?  [value, value, Synthetic.config.undefinedAttributeDefaultValue] : [value]);
+								callback.apply(self, !!((bitoptions||0) & POLYSCOPE_DITAILS) ?  [value, value, Synthetic.config.undefinedAttributeDefaultValue] : [value]);
 							}, true); 
 						}
 					}
 					var attrOnChangeCallback;
 					attrOnChangeCallback = function(old, action, value) {
 						attrOnChangeCallback.last = [old, action, value];
-						callback.apply(self, !!(bitoptions||0 & POLYSCOPE_DITAILS) ?  [value, value, old] : [value]);
+						callback.apply(self, !!((bitoptions||0) & POLYSCOPE_DITAILS) ?  [value, value, old] : [value]);
 					};
 					self.$$attrsWatchers[attrn].push(attrOnChangeCallback);
 
@@ -151,6 +151,13 @@
 				object.$evalAsync();
 			}
 		}];
+
+		/*
+        Inherit component th-injectors to scope-injects list
+        */
+        this.$polyscope.injects.push(function() {
+        	return {$box: new Box()}
+        });
 
 		this.$$applyPortions = {
 			applies: [],
