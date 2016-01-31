@@ -271,7 +271,6 @@
                     $generator: null, // Инициализируем генератор
                     $stock: {},
                     $config: function(properties, callback) {
-                        debugger;
                         self.$fetch('$config', properties, self.$deploy(callback));
                     },
                     $setup: function(data) {

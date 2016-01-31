@@ -500,7 +500,6 @@
 			return function() {
 				var args = Array.prototype.slice.apply(arguments);
 				return self.$apply(function() {
-					debugger;
 					return self.$inject(callback).apply(this, args);
 				});				
 			}
