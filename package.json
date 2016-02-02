@@ -27,7 +27,7 @@
     "mixin": "polyvitamins/mixin",
     "polyinherit": "polyvitamins/polyinherit",
     "polypromise": "github:polyvitamins/polypromise",
-    "scope": "polyvitamins/scope"
+    "scope": "github:polyvitamins/scope#1.0.1"
   },
   "devDependencies": {
     "css-loader": "^0.23.1",
