@@ -71,12 +71,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	var camelize = __webpack_require__(5);
 	var smartCallback = __webpack_require__(4);
 	var ComponentPreFactory = __webpack_require__(6);
-	var initAngular = __webpack_require__(17);
-	var scopeGenerator = __webpack_require__(18);
-	var WebElementFactory = __webpack_require__(20);
+	var initAngular = __webpack_require__(18);
+	var scopeGenerator = __webpack_require__(19);
+	var WebElementFactory = __webpack_require__(21);
 	var Creed = __webpack_require__(7).Creed;
 	var Pending = __webpack_require__(7).Pending;
-	__webpack_require__(16);
+	__webpack_require__(17);
 	__webpack_require__(32);
 
 	function getRandomColor() {
@@ -1075,7 +1075,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		var mixin = __webpack_require__(2);
 		var Creed = __webpack_require__(7).Creed;
 		var smartCallback = __webpack_require__(4);
-		var ComponentPreset = __webpack_require__(14);
+		var ComponentPreset = __webpack_require__(15);
 
 		var preFactory = function(options) {
 			this.name = options.name;
@@ -1153,16 +1153,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	/* WEBPACK VAR INJECTION */(function(global) {
 	var Promise = __webpack_require__(8).Promise;
 	var inject = __webpack_require__(13).inject;
-
+	var bit = __webpack_require__(14);
 	var Polypromise = function() {
 
 	}
+
+	bit.define('POLYPROMISE_IMMEDIATE', 10);
 
 	/*
 	Сredible
 	*/
 	var Creed = function(cb) {
-
 		Object.defineProperty(this, '__credible__', {
 			enumerable: false,
 			writable: false,
@@ -1188,9 +1189,17 @@ return /******/ (function(modules) { // webpackBootstrap
 		$eval: function(cb) {
 			var self = this;
 			this.__credible__.resolver = cb;
-			cb.call(this, function() {
-				self.$resolve.apply(self, arguments);
-			}, function(result) { self.$reject.apply(self, arguments); });
+			var run = function() {
+				cb.call(self, function() {
+					self.$resolve.apply(self, arguments);
+				}, function(result) { self.$reject.apply(self, arguments); });
+			}
+			if (bit(cb).test(POLYPROMISE_IMMEDIATE)) {
+				run();
+			} else {
+				setTimeout(run);
+			}
+			
 			return this;
 		},
 		/*
@@ -1332,8 +1341,8 @@ return /******/ (function(modules) { // webpackBootstrap
 		var id = callback.toString()+( "object"===typeof args ? JSON.stringify(args) : (args===undefined ? '' : args.toString()) );
 		this.$id = id;
 		if (pendings[id]) {
-			pendings[id].queue.push(this);
-		} else {
+			pendings[id].queue.push(this);	} else {
+
 			pendings[id] = {
 				queue: [],
 				result: null,
@@ -1375,7 +1384,7 @@ return /******/ (function(modules) { // webpackBootstrap
 				pendings[id].result = result;
 				pendings[id].status = 2;
 				for (var i = 0; i < requeue.length;++i) {
-					requeue[i].$catch(result);
+					requeue[i].$reject(result);
 				}
 				// Clear pending queue list after moment
 				setTimeout(function() {
@@ -1421,7 +1430,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }
 	};
 
-	Polypromise.Promise = Promise;
+	Polypromise.Promise = Creed;
 	Polypromise.Promises = Promises;
 	Polypromise.Pending = Pending;
 	Polypromise.Creed = Creed;
@@ -2578,12 +2587,179 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ },
 /* 14 */
+/***/ function(module, exports) {
+
+	var bit = function(bitmask, _) {
+		if (this === (function () { return this; })()) {
+			if ("function"===typeof bitmask) {
+				if ("object"!==typeof bitmask.__bit__) {
+					Object.defineProperty(bitmask, '__bit__', {
+						enumerable: false,
+						writable: false,
+						editable: false,
+						value: new bit(0, bitmask)
+					});
+
+					Object.defineProperty(bitmask, 'bit', {
+						enumerable: true,
+						configurable: false,
+						get: function() {
+							return this.__bit__;
+						}
+					});
+				}
+				return bitmask.__bit__;
+			} else if (arguments.length>1) {
+				return new bit(Array.prototype.splice.apply(arguments), false);
+			} else {
+				return new bit(bitmask instanceof Array ? bit.join(bitmask) : bitmask, _);
+			}
+		} else {
+			this.value = bitmask;
+			this._ = _||this;
+		}
+	}
+
+	// Create new bitmask
+	bit.create = function(number) {
+		var bitmask = 0;
+		Array.prototype.slice.apply(arguments).forEach(function(number) {
+			bitmask = bitmask | (1 << number);
+		});
+		return bitmask;
+	}
+
+	// Define global bitmask
+	bit.define = function(name, number) {
+		!(function() {
+			this[name] = 1 << number;
+		})(name, number);
+	}
+
+	// Join masks to one
+	bit.join = function() {
+		var result = 0;
+		Array.prototype.slice.apply(arguments).forEach(function(mask) {
+
+			result = result | (mask instanceof Array ? bit.join.apply(bit, mask) : mask);
+		});
+		return result;
+	}
+
+	// Make global
+	bit.globalize = function() {
+		if (!('bit' in Function.prototype))
+		Object.defineProperty(Function.prototype, 'bit', {
+			enumerable: true,
+			configurable: false,
+			get: function() {
+				if ("object"!==typeof this.__bit__) 
+				Object.defineProperty(this, '__bit__', {
+					enumerable: false,
+					writable: false,
+					editable: false,
+					value: new bit(0, this)
+				});
+
+				return this.__bit__;
+			}
+		});
+		return true;
+	}
+
+	var inc = function(bits) {
+		if (arguments.length>1) return this.inc.call(this, Array.prototype.splice.apply(arguments));
+		this.value = this.value | (bits instanceof Array ? bit.join(bits) : bits);
+		return this._;
+	};
+
+	var exc = function(bits) {
+		if (arguments.length>1) return this.exc.call(this, Array.prototype.splice.apply(arguments));
+		this.value = this.value ^ (bits instanceof Array ? bit.join(bits) : bits);
+		return this._;
+	};
+
+	/*
+	Test for bitmask present in current. 
+	*/
+	var test = function(bits) {
+		if (arguments.length===1) {
+			if (bits instanceof Array) {
+				return this.test.apply(this, bits);
+			} else {
+				return !!(this.value & bits);
+			}
+		} else if (arguments.length>1) {
+			var result = true, self = this;
+			Array.prototype.slice.apply(arguments).forEach(function(mask) {
+				if (!(self.value & (mask instanceof Array ? bit.join(mask) : mask))) result = false;
+			});
+			return result;
+		} else {
+			return false;
+		}
+	};
+
+	var havent = function() {
+		return !this.test.apply(this, arguments);
+	};
+
+	bit.prototype = {
+		construct: bit,
+		// Override to new bitmask
+		set: function(mask) {
+			if (arguments.length>1) this.set.call(this, Array.prototype.splice.apply(arguments));
+			this.value = mask instanceof Array ? bit.join(mask) : mask;
+			return this._;
+		},
+		// Include bitmask
+		inc: inc,
+		add: inc,
+		// Exclude bitmask
+		exc: exc,
+		exclude: exc,
+		remove: exc,
+		// Check entry
+		test: test,
+		have: test,
+		// Check failure
+		havent: havent,
+		without: havent,
+		// Check value exclude bits
+		is: function(bits) {
+			if (arguments.length>1) return this.is.call(this, Array.prototype.splice.apply(arguments));
+			return this.value === (bits instanceof Array ? bit.join(bits) : bits);
+		},
+		// Сheck the full entry mask is false
+		not: function(bits) {
+			if (arguments.length>1) return this.is.call(this, Array.prototype.splice.apply(arguments));
+			return this.value !== (bits instanceof Array ? bit.join(bits) : bits);
+		},
+		// Inverse current value
+		inverse: function() {
+			this.value = ~this.value;
+			return this._;
+		},
+		reset: function() {
+			this.value = 0;
+			return this._;
+		}
+	}
+
+
+
+
+
+	module.exports = bit;
+
+/***/ },
+/* 15 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var Creed = __webpack_require__(7).Creed;
 	var smartCallback = __webpack_require__(4);
-	var extend = __webpack_require__(15);
-	__webpack_require__(16);
+	var extend = __webpack_require__(16);
+	__webpack_require__(17);
 
 	module.exports = function(component, name, workshop) {
 		this.component = component;
@@ -2693,7 +2869,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 15 */
+/* 16 */
 /***/ function(module, exports) {
 
 	/* Протестировано */
@@ -2794,7 +2970,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 16 */
+/* 17 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var mixin = __webpack_require__(2);
@@ -2831,7 +3007,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 17 */
+/* 18 */
 /***/ function(module, exports) {
 
 	module.exports = function() {
@@ -2994,13 +3170,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 18 */
+/* 19 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
 	    var mixin = __webpack_require__(2);
 	    var camelize = __webpack_require__(5);
-	    var scopeUtilits = __webpack_require__(19);
+	    var scopeUtilits = __webpack_require__(20);
 
 	    module.exports = function($self, $$scope, $attrs) {
 	        /*
@@ -3098,10 +3274,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	    };
 
 /***/ },
-/* 19 */
+/* 20 */
 /***/ function(module, exports, __webpack_require__) {
 
-	__webpack_require__(16);
+	__webpack_require__(17);
 	module.exports = function($) {
 		this.$ = $; // Link to synthetic controller
 	}.proto({
@@ -3128,17 +3304,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 20 */
+/* 21 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	    var WebElementPrototype = __webpack_require__(21);
+	    var WebElementPrototype = __webpack_require__(22);
 	    var mixin = __webpack_require__(2);
-	    var extend = __webpack_require__(15);
+	    var extend = __webpack_require__(16);
 	    var Generator = __webpack_require__(30);
 	    var camelize = __webpack_require__(5);
-	    var getNonScopeValue = __webpack_require__(23);
-	    __webpack_require__(16);
+	    var getNonScopeValue = __webpack_require__(24);
+	    __webpack_require__(17);
 
 	    var presetImport = {};
 
@@ -3642,19 +3818,19 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }.inherit(WebElementPrototype);
 
 /***/ },
-/* 21 */
+/* 22 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-		var getObjectByXPath = __webpack_require__(22);
+		var getObjectByXPath = __webpack_require__(23);
 		var smartCallback = __webpack_require__(4);
 		var classEvents = __webpack_require__(3);
-		var getNonScopeValue = __webpack_require__(23);
-		var Box = __webpack_require__(24);
+		var getNonScopeValue = __webpack_require__(24);
+		var Box = __webpack_require__(25);
 		var camelize = __webpack_require__(5);
-		var dasherize = __webpack_require__(25);
-		var Scope = __webpack_require__(26);
-		__webpack_require__(16);
+		var dasherize = __webpack_require__(26);
+		var Scope = __webpack_require__(27);
+		__webpack_require__(17);
 
 		/*
 		Модифицируем стандартный classEvents
@@ -4343,7 +4519,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		});
 
 /***/ },
-/* 22 */
+/* 23 */
 /***/ function(module, exports) {
 
 	module.exports = function(start, xpath) {
@@ -4358,7 +4534,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 23 */
+/* 24 */
 /***/ function(module, exports) {
 
 	module.exports = function(newValue) {
@@ -4368,7 +4544,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 24 */
+/* 25 */
 /***/ function(module, exports, __webpack_require__) {
 
 	__webpack_require__(1);
@@ -4452,7 +4628,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		});
 
 /***/ },
-/* 25 */
+/* 26 */
 /***/ function(module, exports) {
 
 	module.exports = function(text) {
@@ -4460,15 +4636,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 26 */
+/* 27 */
 /***/ function(module, exports, __webpack_require__) {
 
-	__webpack_require__(16);
-	var bit = __webpack_require__(27);
+	__webpack_require__(17);
+	var bit = __webpack_require__(14);
 	var charge = __webpack_require__(28);
 	var inherit = __webpack_require__(1);
 	var Promises = __webpack_require__(7).Promises,
-	    extend = __webpack_require__(15),
+	    extend = __webpack_require__(16),
 	    clone = function(o) {
 	        return extend(true, {}, o);
 	    },
@@ -5106,177 +5282,10 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 27 */
-/***/ function(module, exports) {
-
-	var bit = function(bitmask, _) {
-		if (this === (function () { return this; })()) {
-			if ("function"===typeof bitmask) {
-				if ("object"!==typeof bitmask.__bit__) {
-					Object.defineProperty(bitmask, '__bit__', {
-						enumerable: false,
-						writable: false,
-						editable: false,
-						value: new bit(0, bitmask)
-					});
-
-					Object.defineProperty(bitmask, 'bit', {
-						enumerable: true,
-						configurable: false,
-						get: function() {
-							return this.__bit__;
-						}
-					});
-				}
-				return bitmask.__bit__;
-			} else if (arguments.length>1) {
-				return new bit(Array.prototype.splice.apply(arguments), false);
-			} else {
-				return new bit(bitmask instanceof Array ? bit.join(bitmask) : bitmask, _);
-			}
-		} else {
-			this.value = bitmask;
-			this._ = _||this;
-		}
-	}
-
-	// Create new bitmask
-	bit.create = function(number) {
-		var bitmask = 0;
-		Array.prototype.slice.apply(arguments).forEach(function(number) {
-			bitmask = bitmask | (1 << number);
-		});
-		return bitmask;
-	}
-
-	// Define global bitmask
-	bit.define = function(name, number) {
-		!(function() {
-			this[name] = 1 << number;
-		})(name, number);
-	}
-
-	// Join masks to one
-	bit.join = function() {
-		var result = 0;
-		Array.prototype.slice.apply(arguments).forEach(function(mask) {
-
-			result = result | (mask instanceof Array ? bit.join.apply(bit, mask) : mask);
-		});
-		return result;
-	}
-
-	// Make global
-	bit.globalize = function() {
-		if (!('bit' in Function.prototype))
-		Object.defineProperty(Function.prototype, 'bit', {
-			enumerable: true,
-			configurable: false,
-			get: function() {
-				if ("object"!==typeof this.__bit__) 
-				Object.defineProperty(this, '__bit__', {
-					enumerable: false,
-					writable: false,
-					editable: false,
-					value: new bit(0, this)
-				});
-
-				return this.__bit__;
-			}
-		});
-		return true;
-	}
-
-	var inc = function(bits) {
-		if (arguments.length>1) return this.inc.call(this, Array.prototype.splice.apply(arguments));
-		this.value = this.value | (bits instanceof Array ? bit.join(bits) : bits);
-		return this._;
-	};
-
-	var exc = function(bits) {
-		if (arguments.length>1) return this.exc.call(this, Array.prototype.splice.apply(arguments));
-		this.value = this.value ^ (bits instanceof Array ? bit.join(bits) : bits);
-		return this._;
-	};
-
-	/*
-	Test for bitmask present in current. 
-	*/
-	var test = function(bits) {
-		if (arguments.length===1) {
-			if (bits instanceof Array) {
-				return this.test.apply(this, bits);
-			} else {
-				return !!(this.value & bits);
-			}
-		} else if (arguments.length>1) {
-			var result = true, self = this;
-			Array.prototype.slice.apply(arguments).forEach(function(mask) {
-				if (!(self.value & (mask instanceof Array ? bit.join(mask) : mask))) result = false;
-			});
-			return result;
-		} else {
-			return false;
-		}
-	};
-
-	var havent = function() {
-		return !this.test.apply(this, arguments);
-	};
-
-	bit.prototype = {
-		construct: bit,
-		// Override to new bitmask
-		set: function(mask) {
-			if (arguments.length>1) this.set.call(this, Array.prototype.splice.apply(arguments));
-			this.value = mask instanceof Array ? bit.join(mask) : mask;
-			return this._;
-		},
-		// Include bitmask
-		inc: inc,
-		add: inc,
-		// Exclude bitmask
-		exc: exc,
-		exclude: exc,
-		remove: exc,
-		// Check entry
-		test: test,
-		have: test,
-		// Check failure
-		havent: havent,
-		without: havent,
-		// Check value exclude bits
-		is: function(bits) {
-			if (arguments.length>1) return this.is.call(this, Array.prototype.splice.apply(arguments));
-			return this.value === (bits instanceof Array ? bit.join(bits) : bits);
-		},
-		// Сheck the full entry mask is false
-		not: function(bits) {
-			if (arguments.length>1) return this.is.call(this, Array.prototype.splice.apply(arguments));
-			return this.value !== (bits instanceof Array ? bit.join(bits) : bits);
-		},
-		// Inverse current value
-		inverse: function() {
-			this.value = ~this.value;
-			return this._;
-		},
-		reset: function() {
-			this.value = 0;
-			return this._;
-		}
-	}
-
-
-
-
-
-	module.exports = bit;
-
-/***/ },
 /* 28 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var extend = __webpack_require__(15);
+	var extend = __webpack_require__(16);
 	var mixin = __webpack_require__(2);
 
 	/* Расширяет объект классом */
@@ -5541,7 +5550,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 31 */
 /***/ function(module, exports, __webpack_require__) {
 
-	__webpack_require__(16);
+	__webpack_require__(17);
 	module.exports = function() {
 	    //console.debug('DEBUG ME: because im starting after module initialization. This is very baaad.');
 	}.proto({
