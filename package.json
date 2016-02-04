@@ -1,6 +1,6 @@
 {
   "name": "synthetic",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "",
   "main": "dist/syntehtic.js",
   "scripts": {
@@ -27,7 +27,7 @@
     "mixin": "polyvitamins/mixin",
     "polyinherit": "polyvitamins/polyinherit",
     "polypromise": "github:polyvitamins/polypromise",
-    "scope": "github:polyvitamins/scope#1.0.3"
+    "scope": "github:polyvitamins/scope#1.0.5"
   },
   "devDependencies": {
     "css-loader": "^0.23.1",
