@@ -19,15 +19,16 @@
   },
   "homepage": "https://github.com/syntheticjs/synthetic#readme",
   "dependencies": {
-    "camelize": "polyvitamins/camelize",
-    "dasherize": "polyvitamins/dasherize",
-    "document-register-element": "webreflection/document-register-element",
+    "camelize": "github:polyvitamins/camelize",
+    "dasherize": "github:polyvitamins/dasherize",
+    "document-register-element": "github:webreflection/document-register-element",
     "extend": "github:polyvitamins/extend",
-    "inherit": "polyvitamins/inherit",
-    "mixin": "polyvitamins/mixin",
-    "polyinherit": "polyvitamins/polyinherit",
+    "inherit": "github:polyvitamins/inherit",
+    "mixin": "github:polyvitamins/mixin",
+    "polyinherit": "github:polyvitamins/polyinherit",
     "polypromise": "github:polyvitamins/polypromise",
-    "scope": "github:polyvitamins/scope#dev"
+    "scope": "github:polyvitamins/scope#dev",
+    "webpack": "^1.12.13"
   },
   "devDependencies": {
     "css-loader": "^0.23.1",
