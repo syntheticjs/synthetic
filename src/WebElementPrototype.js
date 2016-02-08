@@ -127,6 +127,14 @@
 						last: Synthetic.config.undefinedAttributeDefaultValue,
 						diff: Synthetic.config.undefinedAttributeDefaultValue
 					};
+					var releaseCallback = function(value) {
+						
+						callback.watcher.diff = !!(bitoptions & POLYSCOPE_DITAILS) ? self.$$scopeDeepCompare(callback.last, newValue) : value;
+						var last = callback.watcher.last;
+						callback.watcher.last = value;
+						callback.apply(self, !!(bitoptions||0 & POLYSCOPE_DITAILS) ?  [value, callback.watcher.diff, last] : [value]);
+					};
+					// bind watcher
 					callback.watcher.destroy = self.$scope.$watch(expr, function(value) {
 						
 						callback.watcher.diff = !!(bitoptions & POLYSCOPE_DITAILS) ? self.$$scopeDeepCompare(callback.last, newValue) : value;
@@ -134,6 +142,9 @@
 						callback.watcher.last = value;
 						callback.apply(self, !!(bitoptions||0 & POLYSCOPE_DITAILS) ?  [value, callback.watcher.diff, last] : [value]);
 					}, !!(bitoptions||0 & POLYSCOPE_DITAILS) && !!(bitoptions||0 & POLYSCOPE_COMPARE));
+
+					// release watcher immitetly
+					releaseCallback(self.$scope.$eval(expr));
 
 					return callback.watcher;
 				}
