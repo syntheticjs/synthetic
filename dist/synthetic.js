@@ -3977,13 +3977,19 @@ return /******/ (function(modules) { // webpackBootstrap
 							}
 						}
 						callback.watcher = {
+							vergin: true,
 							last: Synthetic.config.undefinedAttributeDefaultValue,
 							diff: Synthetic.config.undefinedAttributeDefaultValue
 						};
 						var releaseCallback;
 						releaseCallback = function(value) {
 							
-							if (value==callback.watcher.last) return false;
+							if (!callback.watcher.vergin && value==callback.watcher.last) {
+								callback.watcher.vergin = false;
+								return false;
+							}
+							callback.watcher.vergin = false;
+
 							callback.watcher.diff = !!(bitoptions & POLYSCOPE_DITAILS) ? self.$$scopeDeepCompare(callback.last, value) : value;
 							var last = callback.watcher.last;
 							callback.watcher.last = value;
