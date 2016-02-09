@@ -3859,6 +3859,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		var camelize = __webpack_require__(5);
 		var dasherize = __webpack_require__(26);
 		var Scope = __webpack_require__(27);
+		var mixin = __webpack_require__(2);
 		__webpack_require__(17);
 
 		/*
@@ -4552,6 +4553,10 @@ return /******/ (function(modules) { // webpackBootstrap
 					delete this.$childs[$ctrl.$sid];
 				}
 				return this;
+			},
+			$setup: function($scope, data) {
+				mixin($scope.$config, data);
+				this.$digest();
 			}
 		});
 

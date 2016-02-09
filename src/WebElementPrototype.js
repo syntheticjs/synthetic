@@ -7,6 +7,7 @@
 	var camelize = require("camelize");
 	var dasherize = require("dasherize");
 	var Scope = require("scope");
+	var mixin = require('mixin');
 	require("polyinherit");
 
 	/*
@@ -700,5 +701,9 @@
 				delete this.$childs[$ctrl.$sid];
 			}
 			return this;
+		},
+		$setup: function($scope, data) {
+			mixin($scope.$config, data);
+			this.$digest();
 		}
 	});
