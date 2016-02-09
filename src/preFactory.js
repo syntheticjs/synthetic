@@ -2,6 +2,7 @@
 
 
 	var mixin = require("mixin");
+	var extend = require("extend");
 	var Creed = require("polypromise").Creed;
 	var smartCallback = require("./smartCallback.js");
 	var ComponentPreset = require("./ComponentPreset.js");
@@ -9,8 +10,11 @@
 	var preFactory = function(options) {
 		this.name = options.name;
 		this.engine = options.engine;
+		this.componentOptions = options.componentOptions;
+		this.workshop = options.workshop;
 		this.config = {}; // Configuration
 		this.presets = {}; // List of user presets
+		this.autorunPresets = []; // Presets that run automaticly with initialization
 	}
 	.inherit(Creed)
 	.proto({
@@ -59,6 +63,25 @@
 
 			this.presets[name] = new ComponentPreset(this, name, workshop);
 			return this.presets[name];
+		},
+		/*
+		Clone component with custome modifications
+		*/
+		clone: function(name, workshop) {
+			
+			var newComponentOptions;
+			if ("string"===typeof this.componentOptions) newComponentOptions = name;
+			else {
+				newComponentOptions = extend(true, {}, this.componentOptions);
+				newComponentOptions.name = name;
+			}
+			var component = Synthetic.createComponent(newComponentOptions, this.workshop);
+			
+				if ("function"===typeof workshop) {
+					component.createPreset(name, workshop);
+					component.autorunPresets.push(name);
+				}
+			return component;
 		},
 		/*
 		Execute workshop with prest

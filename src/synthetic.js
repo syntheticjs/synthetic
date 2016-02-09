@@ -239,6 +239,8 @@ Synthetic.createComponent = function(componentOptions, workshop) {
     Create component
     */
     var componentFactory = new ComponentPreFactory({
+        componentOptions,
+        workshop: workshop,
         name: name, // Component name
         engine: engine // Component engine
     });

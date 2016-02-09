@@ -76,6 +76,7 @@ module.exports = function(component, name, workshop) {
 	},
 	// run preset creator workshop
 	$run: function(workshop) {
+		
 		var self = this, prototype = smartCallback.call({
 			// It self
 			$component: this.component,

@@ -14,7 +14,7 @@
 		});
 
 		Synthetic.getComponent('hello-world')
-		.createPreset('hi', function($template, $init, $setup) {
+		.clone('hi-world', function($template, $init, $setup) {
 			$setup({
 				abraca: 'dabra'
 			});
@@ -32,12 +32,14 @@
 				});
 			});
 		});
+
+
 	</script>
 </head>
 <body>
-	<hello-world preset="hi">
+	<hi-world>
 		Synthetic is not working
-	</hello-world>
+	</hi-world>
 	<hr />
 	<h4>Runtime log:</h4>
 	<ol>

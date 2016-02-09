@@ -390,12 +390,15 @@
         /*
         Пришло время работать с preset
         */
+        
         var presets = ['@'],
         userPreset = element.getAttribute('preset');
 
         if (userPreset!==null&&userPreset.charAt(0)!=='{') {
             presets.push(userPreset);
         }
+
+        presets = presets.concat(component.autorunPresets);
 
         /*
         Отмечаем выделенные preset как отработанные
