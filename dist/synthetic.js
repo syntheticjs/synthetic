@@ -3164,36 +3164,62 @@ return /******/ (function(modules) { // webpackBootstrap
 	    *  Angular bootstraping * =================| 
 	    * * * * * * * * * * * * *
 	    */
-	    if ("object"!==typeof angular.element(document.body).injector()) {
-	        /*
-	        Средство решающее проблемы бутстрапинга на firefox и safari
-	        Производить инициализациб
-	        */
-	        angular.element(document.body).ready(function() {
-	            /*
-	            Создаем отчетные данные по использованию jQuery в angular
-	            */
-	            Synthetic.$angularjQueryPowered = "function" === typeof angular.element.noConflict;
-	            /*
-	            Инициализация контроллера
-	            */
-	            var ngCtrl = Synthetic.$$angularApp.controller("syntheticController", function($element, $scope) {
-	                
-	            });
-	            Synthetic.$$angularCtrl = ngCtrl;
-
-	            document.body.setAttribute("ng-jq", "");
-	            document.body.setAttribute("ng-controller", "syntheticController");
+	    
+	        ;(function (win, fn) {
+	            var done = false, top = true,
+	      
+	            doc = win.document, root = doc.documentElement,
+	          
+	            add = doc.addEventListener ? 'addEventListener' : 'attachEvent',
+	            rem = doc.addEventListener ? 'removeEventListener' : 'detachEvent',
+	            pre = doc.addEventListener ? '' : 'on',
+	          
+	            init = function(e) {
+	                  if (e.type == 'readystatechange' && doc.readyState != 'complete') return;
+	                  (e.type == 'load' ? win : doc)[rem](pre + e.type, init, false);
+	                  if (!done && (done = true)) fn.call(win, e.type || e);
+	            },
+	          
+	            poll = function() {
+	                  try { root.doScroll('left'); } catch(e) { setTimeout(poll, 50); return; }
+	                  init('poll');
+	            };
+	          
+	            if (doc.readyState == 'complete') fn.call(win, 'lazy');
+	            else {
+	                  if (doc.createEventObject && root.doScroll) {
+	                      try { top = !win.frameElement; } catch(e) { }
+	                      if (top) poll();
+	                  }
+	                  doc[add](pre + 'DOMContentLoaded', init, false);
+	                  doc[add](pre + 'readystatechange', init, false);
+	                  win[add](pre + 'load', init, false);
+	            } 
+	              
+	        })(window, function() {
+	            if ("object"!==typeof angular.element(document.body).injector()) {
+	                /*
+	                Создаем отчетные данные по использованию jQuery в angular
+	                */
+	                Synthetic.$angularjQueryPowered = "function" === typeof angular.element.noConflict;
+	                /*
+	                Инициализация контроллера
+	                */
+	                var ngCtrl = Synthetic.$$angularApp.controller("syntheticController", function($element, $scope) {
 	                    
-	            angular.bootstrap(document.body, [ "syntheticApp" ]);
-	            Synthetic.$$angularBootstraped = true;
-	            console.log('Synthetic: angularBootstraped;');
-	            Synthetic.trigger("angularBootstraped");
-	               
+	                });
+	                Synthetic.$$angularCtrl = ngCtrl;
 
-	            
+	                document.body.setAttribute("ng-jq", "");
+	                document.body.setAttribute("ng-controller", "syntheticController");
+	                        
+	                angular.bootstrap(document.body, [ "syntheticApp" ]);
+	                Synthetic.$$angularBootstraped = true;
+	                console.log('Synthetic: angularBootstraped;');
+	                Synthetic.trigger("angularBootstraped");
+	            }
 	        }.bind(this));
-	    }
+	    
 	};
 
 /***/ },
