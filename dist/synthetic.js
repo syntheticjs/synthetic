@@ -74,8 +74,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	var initAngular = __webpack_require__(18);
 	var scopeGenerator = __webpack_require__(19);
 	var WebElementFactory = __webpack_require__(21);
-	var Creed = __webpack_require__(7).Creed;
-	var Pending = __webpack_require__(7).Pending;
+	var Creed = __webpack_require__(8).Creed;
+	var Pending = __webpack_require__(8).Pending;
 	__webpack_require__(17);
 	__webpack_require__(32);
 
@@ -306,6 +306,8 @@ return /******/ (function(modules) { // webpackBootstrap
 	    Create component
 	    */
 	    var componentFactory = new ComponentPreFactory({
+	        componentOptions,
+	        workshop: workshop,
 	        name: name, // Component name
 	        engine: engine // Component engine
 	    });
@@ -1073,15 +1075,19 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 		var mixin = __webpack_require__(2);
-		var Creed = __webpack_require__(7).Creed;
+		var extend = __webpack_require__(7);
+		var Creed = __webpack_require__(8).Creed;
 		var smartCallback = __webpack_require__(4);
-		var ComponentPreset = __webpack_require__(15);
+		var ComponentPreset = __webpack_require__(16);
 
 		var preFactory = function(options) {
 			this.name = options.name;
 			this.engine = options.engine;
+			this.componentOptions = options.componentOptions;
+			this.workshop = options.workshop;
 			this.config = {}; // Configuration
 			this.presets = {}; // List of user presets
+			this.autorunPresets = []; // Presets that run automaticly with initialization
 		}
 		.inherit(Creed)
 		.proto({
@@ -1132,6 +1138,25 @@ return /******/ (function(modules) { // webpackBootstrap
 				return this.presets[name];
 			},
 			/*
+			Clone component with custome modifications
+			*/
+			clone: function(name, workshop) {
+				
+				var newComponentOptions;
+				if ("string"===typeof this.componentOptions) newComponentOptions = name;
+				else {
+					newComponentOptions = extend(true, {}, this.componentOptions);
+					newComponentOptions.name = name;
+				}
+				var component = Synthetic.createComponent(newComponentOptions, this.workshop);
+				
+					if ("function"===typeof workshop) {
+						component.createPreset(name, workshop);
+						component.autorunPresets.push(name);
+					}
+				return component;
+			},
+			/*
 			Execute workshop with prest
 			*/
 			$usePreset: function(name, workshop, context) {
@@ -1148,12 +1173,113 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ },
 /* 7 */
+/***/ function(module, exports) {
+
+	/* Протестировано */
+
+		/* Extend function (modified with pseudo Reference) */
+		var hasOwn = Object.prototype.hasOwnProperty;
+		var toStr = Object.prototype.toString;
+
+		var isArray = function isArray(arr) {
+			if (typeof Array.isArray === 'function') {
+				return Array.isArray(arr);
+			}
+
+			return toStr.call(arr) === '[object Array]';
+		};
+
+		var isPlainObject = function isPlainObject(obj) {
+			'use strict';
+
+			if (!obj || toStr.call(obj) !== '[object Object]') {
+				return false;
+			}
+
+			var has_own_constructor = hasOwn.call(obj, 'constructor');
+			var has_is_property_of_method = obj.constructor && obj.constructor.prototype && hasOwn.call(obj.constructor.prototype, 'isPrototypeOf');
+			// Not own constructor property must be Object
+			if (obj.constructor && !has_own_constructor && !has_is_property_of_method) {
+				return false;
+			}
+
+			// Own properties are enumerated firstly, so to speed up,
+			// if last one is own, then all properties are own.
+			var key;
+			for (key in obj) {/**/}
+
+			return typeof key === 'undefined' || hasOwn.call(obj, key);
+		};
+
+		var extend = function() {
+			'use strict';
+
+			var options, name, src, copy, copyIsArray, clone,
+				target = arguments[0],
+				i = 1,
+				length = arguments.length,
+				deep = false;
+
+			// Handle a deep copy situation
+			if (typeof target === 'boolean') {
+				deep = target;
+				target = arguments[1] || {};
+				// skip the boolean and the target
+				i = 2;
+			} else if ((typeof target !== 'object' && typeof target !== 'function') || target == null) {
+				target = {};
+			}
+
+			for (; i < length; ++i) {
+				options = arguments[i];
+				// Only deal with non-null/undefined values
+				if (options != null) {
+					// Extend the base object
+					for (name in options) {
+						src = target[name];
+						copy = options[name];
+
+
+
+						// Prevent never-ending loop
+						if (target !== copy) {
+							// Recurse if we're merging plain objects or arrays
+							if (deep && copy && (isPlainObject(copy) || (copyIsArray = isArray(copy)))) {
+								if (copyIsArray) {
+									copyIsArray = false;
+									clone = src && isArray(src) ? src : [];
+								} else {
+									clone = src && isPlainObject(src) ? src : {};
+								}
+
+								if (copy.constructor.name!=='Ref')
+								// Never move original objects, clone them
+								target[name] = extend(deep, clone, copy);
+
+							// Don't bring in undefined values
+							} else if (typeof copy !== 'undefined') {
+								target[name] = copy;
+							}
+						}
+					}
+				}
+			}
+
+			// Return the modified object
+			return target;
+		};
+
+		module.exports = extend;
+
+
+/***/ },
+/* 8 */
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(global) {
-	var Promise = __webpack_require__(8).Promise;
-	var inject = __webpack_require__(13).inject;
-	var bit = __webpack_require__(14);
+	var Promise = __webpack_require__(9).Promise;
+	var inject = __webpack_require__(14).inject;
+	var bit = __webpack_require__(15);
 	var Polypromise = function() {
 
 	}
@@ -1441,7 +1567,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
 
 /***/ },
-/* 8 */
+/* 9 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var require;var __WEBPACK_AMD_DEFINE_RESULT__;/* WEBPACK VAR INJECTION */(function(process, global, module) {/*!
@@ -1575,7 +1701,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    function lib$es6$promise$asap$$attemptVertx() {
 	      try {
 	        var r = require;
-	        var vertx = __webpack_require__(11);
+	        var vertx = __webpack_require__(12);
 	        lib$es6$promise$asap$$vertxNext = vertx.runOnLoop || vertx.runOnContext;
 	        return lib$es6$promise$asap$$useVertxTimer();
 	      } catch(e) {
@@ -2400,7 +2526,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	    };
 
 	    /* global define:true module:true window: true */
-	    if ("function" === 'function' && __webpack_require__(12)['amd']) {
+	    if ("function" === 'function' && __webpack_require__(13)['amd']) {
 	      !(__WEBPACK_AMD_DEFINE_RESULT__ = function() { return lib$es6$promise$umd$$ES6Promise; }.call(exports, __webpack_require__, exports, module), __WEBPACK_AMD_DEFINE_RESULT__ !== undefined && (module.exports = __WEBPACK_AMD_DEFINE_RESULT__));
 	    } else if (typeof module !== 'undefined' && module['exports']) {
 	      module['exports'] = lib$es6$promise$umd$$ES6Promise;
@@ -2412,10 +2538,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	}).call(this);
 
 
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(9), (function() { return this; }()), __webpack_require__(10)(module)))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(10), (function() { return this; }()), __webpack_require__(11)(module)))
 
 /***/ },
-/* 9 */
+/* 10 */
 /***/ function(module, exports) {
 
 	// shim for using process in browser
@@ -2512,7 +2638,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 10 */
+/* 11 */
 /***/ function(module, exports) {
 
 	module.exports = function(module) {
@@ -2528,20 +2654,20 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 11 */
+/* 12 */
 /***/ function(module, exports) {
 
 	/* (ignored) */
 
 /***/ },
-/* 12 */
+/* 13 */
 /***/ function(module, exports) {
 
 	module.exports = function() { throw new Error("define cannot be used indirect"); };
 
 
 /***/ },
-/* 13 */
+/* 14 */
 /***/ function(module, exports) {
 
 	var scopesregex = /({[^{}}]*[\n\r]*})/g,
@@ -2586,7 +2712,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 14 */
+/* 15 */
 /***/ function(module, exports) {
 
 	var bit = function(bitmask, _) {
@@ -2753,12 +2879,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = bit;
 
 /***/ },
-/* 15 */
+/* 16 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var Creed = __webpack_require__(7).Creed;
+	var Creed = __webpack_require__(8).Creed;
 	var smartCallback = __webpack_require__(4);
-	var extend = __webpack_require__(16);
+	var extend = __webpack_require__(7);
 	__webpack_require__(17);
 
 	module.exports = function(component, name, workshop) {
@@ -2834,6 +2960,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		},
 		// run preset creator workshop
 		$run: function(workshop) {
+			
 			var self = this, prototype = smartCallback.call({
 				// It self
 				$component: this.component,
@@ -2867,107 +2994,6 @@ return /******/ (function(modules) { // webpackBootstrap
 			return this;
 		}
 	});
-
-/***/ },
-/* 16 */
-/***/ function(module, exports) {
-
-	/* Протестировано */
-
-		/* Extend function (modified with pseudo Reference) */
-		var hasOwn = Object.prototype.hasOwnProperty;
-		var toStr = Object.prototype.toString;
-
-		var isArray = function isArray(arr) {
-			if (typeof Array.isArray === 'function') {
-				return Array.isArray(arr);
-			}
-
-			return toStr.call(arr) === '[object Array]';
-		};
-
-		var isPlainObject = function isPlainObject(obj) {
-			'use strict';
-
-			if (!obj || toStr.call(obj) !== '[object Object]') {
-				return false;
-			}
-
-			var has_own_constructor = hasOwn.call(obj, 'constructor');
-			var has_is_property_of_method = obj.constructor && obj.constructor.prototype && hasOwn.call(obj.constructor.prototype, 'isPrototypeOf');
-			// Not own constructor property must be Object
-			if (obj.constructor && !has_own_constructor && !has_is_property_of_method) {
-				return false;
-			}
-
-			// Own properties are enumerated firstly, so to speed up,
-			// if last one is own, then all properties are own.
-			var key;
-			for (key in obj) {/**/}
-
-			return typeof key === 'undefined' || hasOwn.call(obj, key);
-		};
-
-		var extend = function() {
-			'use strict';
-
-			var options, name, src, copy, copyIsArray, clone,
-				target = arguments[0],
-				i = 1,
-				length = arguments.length,
-				deep = false;
-
-			// Handle a deep copy situation
-			if (typeof target === 'boolean') {
-				deep = target;
-				target = arguments[1] || {};
-				// skip the boolean and the target
-				i = 2;
-			} else if ((typeof target !== 'object' && typeof target !== 'function') || target == null) {
-				target = {};
-			}
-
-			for (; i < length; ++i) {
-				options = arguments[i];
-				// Only deal with non-null/undefined values
-				if (options != null) {
-					// Extend the base object
-					for (name in options) {
-						src = target[name];
-						copy = options[name];
-
-
-
-						// Prevent never-ending loop
-						if (target !== copy) {
-							// Recurse if we're merging plain objects or arrays
-							if (deep && copy && (isPlainObject(copy) || (copyIsArray = isArray(copy)))) {
-								if (copyIsArray) {
-									copyIsArray = false;
-									clone = src && isArray(src) ? src : [];
-								} else {
-									clone = src && isPlainObject(src) ? src : {};
-								}
-
-								if (copy.constructor.name!=='Ref')
-								// Never move original objects, clone them
-								target[name] = extend(deep, clone, copy);
-
-							// Don't bring in undefined values
-							} else if (typeof copy !== 'undefined') {
-								target[name] = copy;
-							}
-						}
-					}
-				}
-			}
-
-			// Return the modified object
-			return target;
-		};
-
-		module.exports = extend;
-
 
 /***/ },
 /* 17 */
@@ -3310,7 +3336,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	
 	    var WebElementPrototype = __webpack_require__(22);
 	    var mixin = __webpack_require__(2);
-	    var extend = __webpack_require__(16);
+	    var extend = __webpack_require__(7);
 	    var Generator = __webpack_require__(30);
 	    var camelize = __webpack_require__(5);
 	    var getNonScopeValue = __webpack_require__(24);
@@ -3699,12 +3725,15 @@ return /******/ (function(modules) { // webpackBootstrap
 	        /*
 	        Пришло время работать с preset
 	        */
+	        
 	        var presets = ['@'],
 	        userPreset = element.getAttribute('preset');
 
 	        if (userPreset!==null&&userPreset.charAt(0)!=='{') {
 	            presets.push(userPreset);
 	        }
+
+	        presets = presets.concat(component.autorunPresets);
 
 	        /*
 	        Отмечаем выделенные preset как отработанные
@@ -3950,13 +3979,21 @@ return /******/ (function(modules) { // webpackBootstrap
 							last: Synthetic.config.undefinedAttributeDefaultValue,
 							diff: Synthetic.config.undefinedAttributeDefaultValue
 						};
-						callback.watcher.destroy = self.$scope.$watch(expr, function(value) {
+						var releaseCallback;
+						releaseCallback = function(value) {
 							
-							callback.watcher.diff = !!(bitoptions & POLYSCOPE_DITAILS) ? self.$$scopeDeepCompare(callback.last, newValue) : value;
+							if (value==callback.watcher.last) return false;
+							callback.watcher.diff = !!(bitoptions & POLYSCOPE_DITAILS) ? self.$$scopeDeepCompare(callback.last, value) : value;
 							var last = callback.watcher.last;
 							callback.watcher.last = value;
 							callback.apply(self, !!(bitoptions||0 & POLYSCOPE_DITAILS) ?  [value, callback.watcher.diff, last] : [value]);
-						}, !!(bitoptions||0 & POLYSCOPE_DITAILS) && !!(bitoptions||0 & POLYSCOPE_COMPARE));
+						};
+
+						// bind watcher
+						callback.watcher.destroy = self.$scope.$watch(expr, releaseCallback, !!(bitoptions||0 & POLYSCOPE_DITAILS) && !!(bitoptions||0 & POLYSCOPE_COMPARE));
+
+						// release watcher immitetly
+						releaseCallback(self.$scope.$eval(expr));
 
 						return callback.watcher;
 					}
@@ -4640,16 +4677,16 @@ return /******/ (function(modules) { // webpackBootstrap
 /***/ function(module, exports, __webpack_require__) {
 
 	__webpack_require__(17);
-	var bit = __webpack_require__(14);
+	var bit = __webpack_require__(15);
 	var charge = __webpack_require__(28);
 	var inherit = __webpack_require__(1);
-	var Promises = __webpack_require__(7).Promises,
-	    extend = __webpack_require__(16),
+	var Promises = __webpack_require__(8).Promises,
+	    extend = __webpack_require__(7),
 	    clone = function(o) {
 	        return extend(true, {}, o);
 	    },
 	    compareObjects = __webpack_require__(29),
-	    inject = __webpack_require__(13).inject,
+	    inject = __webpack_require__(14).inject,
 	    dataSnap = function(data) {
 	        var snap;
 	        if ("object"===typeof data && null!==data) {
@@ -5099,11 +5136,14 @@ return /******/ (function(modules) { // webpackBootstrap
 	            watcher = overrideMethod.call(scope, expr, function() {
 	                importArgs = Array.prototype.slice.apply(arguments);
 	                if (evolved===false) evolved = true;
-	                else evolved();
+	                else if ("function"===typeof evolved) evolved();
 	            }, bitconfig);
 	            if (evolved===true) {
 	                 if (!watch) watcher.destroy();
 	                 callback.apply(self, importArgs);
+	                 evolved=function() {
+	                    callback.apply(self, importArgs);
+	                 }
 	            } else {
 	                evolved=function() {
 	                    if (!watch) watcher.destroy();
@@ -5307,7 +5347,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 28 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var extend = __webpack_require__(16);
+	var extend = __webpack_require__(7);
 	var mixin = __webpack_require__(2);
 
 	/* Расширяет объект классом */
