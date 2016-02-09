@@ -347,6 +347,7 @@ Synthetic.createComponent = function(componentOptions, workshop) {
         prototype: Object.create(prototype, {
             createdCallback: {
                 value: function() {
+                    this.classList.add('nt-recognized');
                     componentCreater.call(this, componentFactory, this.innerHTML);
                 }
             },
@@ -396,7 +397,7 @@ Synthetic.createComponent = function(componentOptions, workshop) {
                                     var $self = this.synthetic;
                                     // Присваиваем значение аттрибутов сейчас, но apply вызываем
                                     // позже. Это снизит нагрузку
-                                    $self.$digest(function() {
+                                    $self.$eval(function() {
                                         
                                         $self.$scope.attributes[camelized] = value;
                                         
