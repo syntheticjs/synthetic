@@ -4560,8 +4560,8 @@ return /******/ (function(modules) { // webpackBootstrap
 				}
 				return this;
 			},
-			$setup: function($scope, data) {
-				mixin($scope.$config, data);
+			$setup: function(data) {
+				mixin(this.$scope.$config, data);
 				this.$digest();
 			}
 		});
