@@ -28,7 +28,8 @@
     "polyinherit": "github:polyvitamins/polyinherit",
     "polypromise": "github:polyvitamins/polypromise",
     "scope": "github:polyvitamins/scope#dev",
-    "webpack": "^1.12.13"
+    "webpack": "^1.12.13",
+    "injection": "github:polyvitamins/injection"
   },
   "devDependencies": {
     "css-loader": "^0.23.1",

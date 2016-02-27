@@ -1,6 +1,6 @@
 
 	var getObjectByXPath = require("./getObjectByXPath.js");
-	var smartCallback = require("./smartCallback.js");
+	var inject = require("injection").inject;
 	var classEvents = require("./classEvents.js");
 	var getNonScopeValue = require("./getNonScopeValue.js");
 	var Box = require("./box.js");
@@ -479,13 +479,13 @@
 		$inject: function(callback, $injectors) {
 			
 			if (Synthetic.$$angularApp&&this.__config__.$$angularScope&&this.__config__.$$angularInitialedStage>1) {
-				var self = this, injected = smartCallback.call($injectors ? ([]).concat(self.$injectors, $injectors) : self.$injectors, callback, self);
+				var self = this, injected = inject(callback, $injectors ? ([]).concat(self.$injectors, $injectors) : self.$injectors, self);
 				return function() {
 					var nargs = Array.prototype.slice.apply(arguments),context=this;
 					return injected.apply(context, nargs);
 				}				
 			} else {
-				return smartCallback.call("object"===typeof $injectors ? ([]).concat(this.$injectors, $injectors) : this.$injectors, callback, this);
+				return inject(callback, "object"===typeof $injectors ? ([]).concat(this.$injectors, $injectors) : this.$injectors, this);
 			}
 			
 		},

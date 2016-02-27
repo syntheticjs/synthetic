@@ -415,7 +415,12 @@ return /******/ (function(modules) { // webpackBootstrap
 	            createdCallback: {
 	                value: function() {
 	                    if (this.getAttribute('sid')!==null) {
-	                        // This is a clone
+	                        /*
+	                        Ignore clones.
+
+	                        The reason is jQuery. It has a habit of cloning elements when handling errors. So if error present in component
+	                        and component is cloning it to describe error, then an error throws again in circular loop.
+	                        */
 	                        this.synthetic = false;
 	                    }
 	                    this.classList.add('nt-recognized');
@@ -3875,7 +3880,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	
 		var getObjectByXPath = __webpack_require__(23);
-		var smartCallback = __webpack_require__(4);
+		var inject = __webpack_require__(14).inject;
 		var classEvents = __webpack_require__(3);
 		var getNonScopeValue = __webpack_require__(24);
 		var Box = __webpack_require__(25);
@@ -4354,13 +4359,13 @@ return /******/ (function(modules) { // webpackBootstrap
 			$inject: function(callback, $injectors) {
 				
 				if (Synthetic.$$angularApp&&this.__config__.$$angularScope&&this.__config__.$$angularInitialedStage>1) {
-					var self = this, injected = smartCallback.call($injectors ? ([]).concat(self.$injectors, $injectors) : self.$injectors, callback, self);
+					var self = this, injected = inject(callback, $injectors ? ([]).concat(self.$injectors, $injectors) : self.$injectors, self);
 					return function() {
 						var nargs = Array.prototype.slice.apply(arguments),context=this;
 						return injected.apply(context, nargs);
 					}				
 				} else {
-					return smartCallback.call("object"===typeof $injectors ? ([]).concat(this.$injectors, $injectors) : this.$injectors, callback, this);
+					return inject(callback, "object"===typeof $injectors ? ([]).concat(this.$injectors, $injectors) : this.$injectors, this);
 				}
 				
 			},

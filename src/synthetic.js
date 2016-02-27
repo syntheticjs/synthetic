@@ -348,7 +348,12 @@ Synthetic.createComponent = function(componentOptions, workshop) {
             createdCallback: {
                 value: function() {
                     if (this.getAttribute('sid')!==null) {
-                        // This is a clone
+                        /*
+                        Ignore clones.
+
+                        The reason is jQuery. It has a habit of cloning elements when handling errors. So if error present in component
+                        and component is cloning it to describe error, then an error throws again in circular loop.
+                        */
                         this.synthetic = false;
                     }
                     this.classList.add('nt-recognized');
