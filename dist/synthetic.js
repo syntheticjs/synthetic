@@ -414,13 +414,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	        prototype: Object.create(prototype, {
 	            createdCallback: {
 	                value: function() {
+	                    if (this.getAttribute('sid')!==null) {
+	                        // This is a clone
+	                        this.synthetic = false;
+	                    }
 	                    this.classList.add('nt-recognized');
 	                    componentCreater.call(this, componentFactory, this.innerHTML);
 	                }
 	            },
 	            attachedCallback: {
 	                value: function() {
-	                    
+	                    if (this.synthetic===false) return; // Ignore forbidden component
 	                    if (this.synthetic.__config__.allWaitingForResolve==='attached')
 	                        this.synthetic.__config__.allWaitingForResolve = false;
 	                    componentAttacher.call(this);                           
@@ -428,6 +432,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	            },
 	            detachedCallback: {
 	                value: function() {
+	                    if (this.synthetic===false) return; // Ignore forbidden component
 	                    if (this.synthetic.$destroyed) return false;
 	                    this.synthetic.__config__.allWaitingForResolve = 'attached';
 	                    this.synthetic.__config__.attachedEventFires = false;
@@ -440,7 +445,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	                writable: true,
 	                enumerable: true,
 	                value: function(name, previousValue, value) {
-
+	                    if (this.synthetic===false) return; // Ignore forbidden component
 	                    var camelized = camelize(name);
 	                    /*
 	                    Для разгрузки производительности мы просматриваем лишь те аттрибуты, за которыми 
