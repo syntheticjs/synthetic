@@ -84,6 +84,15 @@
 								callback.apply(self, !!((bitoptions||0) & POLYSCOPE_DITAILS) ?  [value, value, Synthetic.config.undefinedAttributeDefaultValue] : [value]);
 							}, true); 
 						}
+					} else {
+						var dashed = dasherize(attrn), 
+						value = self.$element.getAttribute(dashed); 
+						if (null===value) value = Synthetic.config.undefinedAttributeDefaultValue;
+						/*
+						Если аттрибут уже отслеживался достаточно просто вернуть его значение по схеме
+						немедленной реакции
+						*/
+						callback.apply(self, !!((bitoptions||0) & POLYSCOPE_DITAILS) ?  [value, value, Synthetic.config.undefinedAttributeDefaultValue] : [value]);
 					}
 					var attrOnChangeCallback;
 					attrOnChangeCallback = function(old, action, value) {

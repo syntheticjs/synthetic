@@ -1,6 +1,4 @@
 
-    var smartCallback = require("./smartCallback.js");
-
 	var Events = function() {
 		 Object.defineProperties(this, {
             eventListners: {

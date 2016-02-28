@@ -68,16 +68,16 @@ return /******/ (function(modules) { // webpackBootstrap
 	var inherit = __webpack_require__(1);
 	var mixin = __webpack_require__(2);
 	var eventsClass = __webpack_require__(3);
-	var camelize = __webpack_require__(5);
-	var smartCallback = __webpack_require__(4);
+	var camelize = __webpack_require__(4);
+	var inject = __webpack_require__(5).inject;
 	var ComponentPreFactory = __webpack_require__(6);
-	var initAngular = __webpack_require__(18);
-	var scopeGenerator = __webpack_require__(19);
-	var WebElementFactory = __webpack_require__(21);
+	var initAngular = __webpack_require__(17);
+	var scopeGenerator = __webpack_require__(18);
+	var WebElementFactory = __webpack_require__(20);
 	var Creed = __webpack_require__(8).Creed;
 	var Pending = __webpack_require__(8).Pending;
-	__webpack_require__(17);
-	__webpack_require__(32);
+	__webpack_require__(16);
+	__webpack_require__(31);
 
 	function getRandomColor() {
 	    var letters = '0123456789ABCDEF'.split('');
@@ -703,11 +703,9 @@ return /******/ (function(modules) { // webpackBootstrap
 
 /***/ },
 /* 3 */
-/***/ function(module, exports, __webpack_require__) {
+/***/ function(module, exports) {
 
 	
-	    var smartCallback = __webpack_require__(4);
-
 		var Events = function() {
 			 Object.defineProperties(this, {
 	            eventListners: {
@@ -1033,49 +1031,59 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 4 */
 /***/ function(module, exports) {
 
-	
-		var funcarguments = new RegExp(/[\d\t]*function[ ]?\(([^\)]*)\)/i), 
-	    scopesregex = /({[^{}}]*[\n\r]*})/g, 
-	    funcarguments = new RegExp(/[\d\t]*function[ ]?\(([^\)]*)\)/i), 
-	    getFunctionArguments = function(code) {
-	        if (funcarguments.test(code)) {
-	            var match = funcarguments.exec(code);
-	            return match[1].replace(/[\s\n\r\t]*/g,'').split(',');
-	        }
-	        return [];
-	    };
-	    module.exports = function(callback, context) {
-	        var prefixedArguments = [], 
-	        requiredArguments = getFunctionArguments(callback.toString());
-
-	        for (var i = 0; i < requiredArguments.length; ++i) {
-	            if (this instanceof Array) {
-	                for (var j = 0; j < this.length; ++j) {
-	                    if (this[j].hasOwnProperty(requiredArguments[i]) 
-	                        && ("object" === typeof this[j][requiredArguments[i]] || "function" === typeof this[j][requiredArguments[i]])) {
-	                        prefixedArguments[i] = this[j][requiredArguments[i]];
-	                    }
-	                }
-	            } else if (this.hasOwnProperty(requiredArguments[i]) && ("object" === typeof this[requiredArguments[i]] || "function" === typeof this[requiredArguments[i]])) {
-	                prefixedArguments[i] = this[requiredArguments[i]];
-	            }
-	        }
-	        var injected = function() {
-
-	            return callback.apply(context || this, prefixedArguments.concat(Array.prototype.slice.call(arguments)));
-	        };
-	        injected.$$injected = true;
-	        return injected;
-	    };
+	module.exports = function(txt) {
+		return txt.replace(/-([\da-z])/gi, function( all, letter ) {
+			return letter.toUpperCase();
+		});
+	};
 
 /***/ },
 /* 5 */
 /***/ function(module, exports) {
 
-	module.exports = function(txt) {
-		return txt.replace(/-([\da-z])/gi, function( all, letter ) {
-			return letter.toUpperCase();
-		});
+	var scopesregex = /({[^{}}]*[\n\r]*})/g,
+	funcarguments = new RegExp(/[\d\t]*function[ ]?\(([^\)]*)\)/i),
+	getFunctionArguments = function(code) {
+		if (funcarguments.test(code)) {
+			var match = funcarguments.exec(code);
+			return match[1].replace(/[\s\n\r\t]*/g,'').split(',');
+		}
+		return [];
+	};
+
+	var inject = function(callback, args, context) {
+		var locals = [];
+		if (callback instanceof Array) {
+			requiredArguments = callback.slice(0, callback.length-1);
+			callback = callback[callback.length-1];
+		} else {
+			requiredArguments = getFunctionArguments(callback.toString());
+		}
+
+		for (var i = 0;i<requiredArguments.length;++i) {
+			if (args instanceof Array) {
+				for (var j = 0;j<args.length;++j) {
+					var inspect = ("function"===typeof args[j]) ? args[j].apply(context||this) : args[j];
+					if (inspect.hasOwnProperty(requiredArguments[i])) {
+						locals[i] = inspect[requiredArguments[i]];
+					}
+				}
+			}
+			else if (args.hasOwnProperty(requiredArguments[i])) {
+				locals[i] = args[requiredArguments[i]];
+			}
+		}
+		
+		var injected;
+		injected = function() {
+			return callback.apply(context||this, locals.concat(Array.prototype.slice.call(arguments)));
+		}
+		injected.$$injected = true;
+		return injected;
+	};
+
+	module.exports = {
+		inject: inject
 	};
 
 /***/ },
@@ -1088,8 +1096,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		var mixin = __webpack_require__(2);
 		var extend = __webpack_require__(7);
 		var Creed = __webpack_require__(8).Creed;
-		var smartCallback = __webpack_require__(4);
-		var ComponentPreset = __webpack_require__(16);
+		var ComponentPreset = __webpack_require__(15);
 
 		var preFactory = function(options) {
 			this.name = options.name;
@@ -1289,8 +1296,8 @@ return /******/ (function(modules) { // webpackBootstrap
 
 	/* WEBPACK VAR INJECTION */(function(global) {
 	var Promise = __webpack_require__(9).Promise;
-	var inject = __webpack_require__(14).inject;
-	var bit = __webpack_require__(15);
+	var inject = __webpack_require__(5).inject;
+	var bit = __webpack_require__(14);
 	var Polypromise = function() {
 
 	}
@@ -2668,55 +2675,6 @@ return /******/ (function(modules) { // webpackBootstrap
 /* 14 */
 /***/ function(module, exports) {
 
-	var scopesregex = /({[^{}}]*[\n\r]*})/g,
-	funcarguments = new RegExp(/[\d\t]*function[ ]?\(([^\)]*)\)/i),
-	getFunctionArguments = function(code) {
-		if (funcarguments.test(code)) {
-			var match = funcarguments.exec(code);
-			return match[1].replace(/[\s\n\r\t]*/g,'').split(',');
-		}
-		return [];
-	};
-
-	var inject = function(callback, args, context) {
-		var locals = [];
-		if (callback instanceof Array) {
-			requiredArguments = callback.slice(0, callback.length-1);
-			callback = callback[callback.length-1];
-		} else {
-			requiredArguments = getFunctionArguments(callback.toString());
-		}
-
-		for (var i = 0;i<requiredArguments.length;++i) {
-			if (args instanceof Array) {
-				for (var j = 0;j<args.length;++j) {
-					var inspect = ("function"===typeof args[j]) ? args[j].apply(context||this) : args[j];
-					if (inspect.hasOwnProperty(requiredArguments[i])) {
-						locals[i] = inspect[requiredArguments[i]];
-					}
-				}
-			}
-			else if (args.hasOwnProperty(requiredArguments[i])) {
-				locals[i] = args[requiredArguments[i]];
-			}
-		}
-		
-		var injected;
-		injected = function() {
-			return callback.apply(context||this, locals.concat(Array.prototype.slice.call(arguments)));
-		}
-		injected.$$injected = true;
-		return injected;
-	};
-
-	module.exports = {
-		inject: inject
-	};
-
-/***/ },
-/* 15 */
-/***/ function(module, exports) {
-
 	var bit = function(bitmask, _) {
 		if (this === (function () { return this; })()) {
 			if ("function"===typeof bitmask) {
@@ -2881,13 +2839,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	module.exports = bit;
 
 /***/ },
-/* 16 */
+/* 15 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var Creed = __webpack_require__(8).Creed;
-	var smartCallback = __webpack_require__(4);
 	var extend = __webpack_require__(7);
-	__webpack_require__(17);
+	var inject = __webpack_require__(5).inject;
+	__webpack_require__(16);
 
 	module.exports = function(component, name, workshop) {
 		this.component = component;
@@ -2963,7 +2921,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		// run preset creator workshop
 		$run: function(workshop) {
 			
-			var self = this, prototype = smartCallback.call({
+			var self = this, prototype = inject(workshop, {
 				// It self
 				$component: this.component,
 				$conceivedCallers: function() { self.$conceivedCallers.apply(self, arguments); },
@@ -2980,7 +2938,7 @@ return /******/ (function(modules) { // webpackBootstrap
 				$setup: function() { self.$setup.apply(self, arguments); },
 				$template: function() { self.$template.apply(self, arguments); },
 				$observeAttrs: function() { self.$observeAttrs.apply(self, arguments); }
-			}, workshop, this)();
+			}, this)();
 
 			if ("object"===typeof prototype) {
 		        extend(this.$import.prototype, prototype);
@@ -2990,7 +2948,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		},
 		// use preset reader workshop
 		$use: function(workshop, context, getinjector) {
-			var injector = smartCallback.call(this.$import, workshop, context||this);
+			var injector = inject(workshop, this.$import, context||this);
 			if (getinjector) return injector;
 			injector();
 			return this;
@@ -2998,7 +2956,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 17 */
+/* 16 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var mixin = __webpack_require__(2);
@@ -3035,7 +2993,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 18 */
+/* 17 */
 /***/ function(module, exports) {
 
 	module.exports = function() {
@@ -3224,13 +3182,13 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 19 */
+/* 18 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
 	    var mixin = __webpack_require__(2);
-	    var camelize = __webpack_require__(5);
-	    var scopeUtilits = __webpack_require__(20);
+	    var camelize = __webpack_require__(4);
+	    var scopeUtilits = __webpack_require__(19);
 
 	    module.exports = function($self, $$scope, $attrs) {
 	        /*
@@ -3328,10 +3286,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	    };
 
 /***/ },
-/* 20 */
+/* 19 */
 /***/ function(module, exports, __webpack_require__) {
 
-	__webpack_require__(17);
+	__webpack_require__(16);
 	module.exports = function($) {
 		this.$ = $; // Link to synthetic controller
 	}.proto({
@@ -3358,17 +3316,17 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 21 */
+/* 20 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-	    var WebElementPrototype = __webpack_require__(22);
+	    var WebElementPrototype = __webpack_require__(21);
 	    var mixin = __webpack_require__(2);
 	    var extend = __webpack_require__(7);
-	    var Generator = __webpack_require__(30);
-	    var camelize = __webpack_require__(5);
-	    var getNonScopeValue = __webpack_require__(24);
-	    __webpack_require__(17);
+	    var Generator = __webpack_require__(29);
+	    var camelize = __webpack_require__(4);
+	    var getNonScopeValue = __webpack_require__(23);
+	    __webpack_require__(16);
 
 	    var presetImport = {};
 
@@ -3875,20 +3833,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	    }.inherit(WebElementPrototype);
 
 /***/ },
-/* 22 */
+/* 21 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
-		var getObjectByXPath = __webpack_require__(23);
-		var inject = __webpack_require__(14).inject;
+		var getObjectByXPath = __webpack_require__(22);
+		var inject = __webpack_require__(5).inject;
 		var classEvents = __webpack_require__(3);
-		var getNonScopeValue = __webpack_require__(24);
-		var Box = __webpack_require__(25);
-		var camelize = __webpack_require__(5);
-		var dasherize = __webpack_require__(26);
-		var Scope = __webpack_require__(27);
+		var getNonScopeValue = __webpack_require__(23);
+		var Box = __webpack_require__(24);
+		var camelize = __webpack_require__(4);
+		var dasherize = __webpack_require__(25);
+		var Scope = __webpack_require__(26);
 		var mixin = __webpack_require__(2);
-		__webpack_require__(17);
+		__webpack_require__(16);
 
 		/*
 		Модифицируем стандартный classEvents
@@ -3964,6 +3922,15 @@ return /******/ (function(modules) { // webpackBootstrap
 									callback.apply(self, !!((bitoptions||0) & POLYSCOPE_DITAILS) ?  [value, value, Synthetic.config.undefinedAttributeDefaultValue] : [value]);
 								}, true); 
 							}
+						} else {
+							var dashed = dasherize(attrn), 
+							value = self.$element.getAttribute(dashed); 
+							if (null===value) value = Synthetic.config.undefinedAttributeDefaultValue;
+							/*
+							Если аттрибут уже отслеживался достаточно просто вернуть его значение по схеме
+							немедленной реакции
+							*/
+							callback.apply(self, !!((bitoptions||0) & POLYSCOPE_DITAILS) ?  [value, value, Synthetic.config.undefinedAttributeDefaultValue] : [value]);
 						}
 						var attrOnChangeCallback;
 						attrOnChangeCallback = function(old, action, value) {
@@ -4595,7 +4562,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		});
 
 /***/ },
-/* 23 */
+/* 22 */
 /***/ function(module, exports) {
 
 	module.exports = function(start, xpath) {
@@ -4610,7 +4577,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 24 */
+/* 23 */
 /***/ function(module, exports) {
 
 	module.exports = function(newValue) {
@@ -4620,7 +4587,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 25 */
+/* 24 */
 /***/ function(module, exports, __webpack_require__) {
 
 	__webpack_require__(1);
@@ -4704,7 +4671,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		});
 
 /***/ },
-/* 26 */
+/* 25 */
 /***/ function(module, exports) {
 
 	module.exports = function(text) {
@@ -4712,20 +4679,20 @@ return /******/ (function(modules) { // webpackBootstrap
 	};
 
 /***/ },
-/* 27 */
+/* 26 */
 /***/ function(module, exports, __webpack_require__) {
 
-	__webpack_require__(17);
-	var bit = __webpack_require__(15);
-	var charge = __webpack_require__(28);
+	__webpack_require__(16);
+	var bit = __webpack_require__(14);
+	var charge = __webpack_require__(27);
 	var inherit = __webpack_require__(1);
 	var Promises = __webpack_require__(8).Promises,
 	    extend = __webpack_require__(7),
 	    clone = function(o) {
 	        return extend(true, {}, o);
 	    },
-	    compareObjects = __webpack_require__(29),
-	    inject = __webpack_require__(14).inject,
+	    compareObjects = __webpack_require__(28),
+	    inject = __webpack_require__(5).inject,
 	    dataSnap = function(data) {
 	        var snap;
 	        if ("object"===typeof data && null!==data) {
@@ -5409,7 +5376,7 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 28 */
+/* 27 */
 /***/ function(module, exports, __webpack_require__) {
 
 	var extend = __webpack_require__(7);
@@ -5458,7 +5425,7 @@ return /******/ (function(modules) { // webpackBootstrap
 		}
 
 /***/ },
-/* 29 */
+/* 28 */
 /***/ function(module, exports) {
 
 	
@@ -5492,12 +5459,12 @@ return /******/ (function(modules) { // webpackBootstrap
 
 
 /***/ },
-/* 30 */
+/* 29 */
 /***/ function(module, exports, __webpack_require__) {
 
 	
 	    var classEvents = __webpack_require__(3);
-	    var synthetModule = __webpack_require__(31);
+	    var synthetModule = __webpack_require__(30);
 
 
 	    module.exports = function(synthet) {
@@ -5674,10 +5641,10 @@ return /******/ (function(modules) { // webpackBootstrap
 	        });
 
 /***/ },
-/* 31 */
+/* 30 */
 /***/ function(module, exports, __webpack_require__) {
 
-	__webpack_require__(17);
+	__webpack_require__(16);
 	module.exports = function() {
 	    //console.debug('DEBUG ME: because im starting after module initialization. This is very baaad.');
 	}.proto({
@@ -5713,7 +5680,7 @@ return /******/ (function(modules) { // webpackBootstrap
 	});
 
 /***/ },
-/* 32 */
+/* 31 */
 /***/ function(module, exports) {
 
 	/*! (C) WebReflection Mit Style License */

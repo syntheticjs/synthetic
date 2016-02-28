@@ -4,7 +4,6 @@
 	var mixin = require("mixin");
 	var extend = require("extend");
 	var Creed = require("polypromise").Creed;
-	var smartCallback = require("./smartCallback.js");
 	var ComponentPreset = require("./ComponentPreset.js");
 
 	var preFactory = function(options) {

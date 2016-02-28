@@ -1,6 +1,6 @@
 var Creed = require("polypromise").Creed;
-var smartCallback = require("./smartCallback.js");
 var extend = require('extend');
+var inject = require('injection').inject;
 require('polyinherit');
 
 module.exports = function(component, name, workshop) {
@@ -77,7 +77,7 @@ module.exports = function(component, name, workshop) {
 	// run preset creator workshop
 	$run: function(workshop) {
 		
-		var self = this, prototype = smartCallback.call({
+		var self = this, prototype = inject(workshop, {
 			// It self
 			$component: this.component,
 			$conceivedCallers: function() { self.$conceivedCallers.apply(self, arguments); },
@@ -94,7 +94,7 @@ module.exports = function(component, name, workshop) {
 			$setup: function() { self.$setup.apply(self, arguments); },
 			$template: function() { self.$template.apply(self, arguments); },
 			$observeAttrs: function() { self.$observeAttrs.apply(self, arguments); }
-		}, workshop, this)();
+		}, this)();
 
 		if ("object"===typeof prototype) {
 	        extend(this.$import.prototype, prototype);
@@ -104,7 +104,7 @@ module.exports = function(component, name, workshop) {
 	},
 	// use preset reader workshop
 	$use: function(workshop, context, getinjector) {
-		var injector = smartCallback.call(this.$import, workshop, context||this);
+		var injector = inject(workshop, this.$import, context||this);
 		if (getinjector) return injector;
 		injector();
 		return this;
