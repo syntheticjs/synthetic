@@ -1,6 +1,6 @@
 <?php
 
-namespace App;
+namespace Synthetic;
 
 use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Model;

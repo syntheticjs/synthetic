@@ -1,9 +1,8 @@
 <?php
 
-namespace App;
+namespace Synthetic;
 
 use Exception;
-use Illuminate\Support\Facades\Log;
 
 class Checksum {
     static function verify($snapshot) {

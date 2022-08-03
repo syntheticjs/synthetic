@@ -1,10 +1,25 @@
 import { reactive as r, effect as e, toRaw as tr } from '@vue/reactivity'
 
 let reactive = r
-let effect = e
+// let effect = e
 let toRaw = tr
 
 let store = new Map
+
+window.synthesize = synthesize
+
+document.addEventListener('alpine:init', () => {
+    reactive = window.Alpine.reactive
+    toRaw = window.Alpine.raw
+})
+
+function getCsrfToken() {
+    if (document.querySelector('meta[name="csrf"]')) {
+        return document.querySelector('meta[name="csrf"]').content
+    }
+
+    return window.__csrf
+}
 
 export function overrideReactivity(r, e, tr) {
     reactive = r
@@ -14,12 +29,13 @@ export function overrideReactivity(r, e, tr) {
     return synthesize
 }
 
-export function synthesize([snapshot, methods]) {
+export function synthesize({ snapshot, effects }) {
     snapshot = toRaw(snapshot)
+    effects = toRaw(effects)
     let symbol = Symbol()
 
     let target = {
-        methods,
+        effects,
         snapshot,
         loading: reactive({ state: false }),
         dirty: reactive({ state: false }),
@@ -67,6 +83,17 @@ function extractDataAndDecorate(payload, symbol) {
                 if ([
                     '__v_isRef', '__v_isReadonly', '__v_raw', '__v_skip', 'toJSON', 'then', '_x_interceptor', 'init',
                 ].includes(property)) return
+
+                let effects = store.get(symbol).effects[path]
+                let methods = effects['methods'] || []
+
+                for (let i = 0; i < methods.length; i++) {
+                    if (methods[i][0] === property) {
+                        let func = new Function([], 'return '+methods[i][1])
+                        let boundFunc = func.bind(dataGet(store.get(symbol).reactive, path))
+                        return boundFunc()
+                    }
+                }
 
                 // This is a magic getter. If there is no property,
                 // then this trap will get called. In these cases
@@ -210,14 +237,18 @@ async function sendMethodCall() {
 
         target.loading.state = true
 
-        receivers.push((snapshot, methods, returns, errors) => {
-            mergeNewSnapshot(symbol, methods, snapshot)
+        receivers.push((snapshot, effects) => {
+            mergeNewSnapshot(symbol, snapshot, effects)
 
-            for (let i = 0; i < returns.length; i++) {
-                request.calls[i].handleReturn(returns[i])
+            for (let i = 0; i < effects.returns.length; i++) {
+                request.calls[i].handleReturn(effects.returns[i])
             }
 
-            target.errors.state = errors
+            if (effects['']['html']) {
+                Alpine.morph(document.getElementById(effects['']['id']), effects['']['html'])
+            }
+
+            target.errors.state = effects.errors
             target.loading.state = false
         })
     })
@@ -227,7 +258,7 @@ async function sendMethodCall() {
     let request = await fetch('/synthetic/update', {
         method: 'POST',
         body: JSON.stringify({
-            _token: document.querySelector('meta[name="csrf"]').content,
+            _token: getCsrfToken(),
             targets: payload,
         }),
         headers: {'Content-type': 'application/json'},
@@ -237,9 +268,9 @@ async function sendMethodCall() {
         let response = await request.json()
 
         for (let i = 0; i < response.length; i++) {
-            let { snapshot, methods, returns, errors } = response[i];
+            let { snapshot, effects } = response[i];
 
-            receivers[i](snapshot, methods, returns, errors)
+            receivers[i](snapshot, effects)
         }
     } else {
         let html = await request.text()
@@ -286,11 +317,11 @@ function isArray(subject) { return Array.isArray(subject) }
 function isFunction(subject) { return typeof subject === 'function' }
 function deepClone(obj) { return JSON.parse(JSON.stringify(obj)) }
 
-function mergeNewSnapshot(symbol, methods, snapshot) {
+function mergeNewSnapshot(symbol, snapshot, effects) {
     let target = store.get(symbol)
 
     target.snapshot = snapshot
-    target.methods = methods
+    target.effects = effects
     target.canonical = extractData(deepClone(snapshot.data), symbol)
 
     let newData = extractData(deepClone(snapshot.data), symbol)
@@ -412,3 +443,4 @@ function hideHtmlModal(modal) {
     modal.outerHTML = ''
     document.body.style.overflow = 'visible'
 }
+

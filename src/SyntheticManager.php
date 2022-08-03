@@ -1,6 +1,6 @@
 <?php
 
-namespace App;
+namespace Synthetic;
 
 use Synthetic\LifecycleHooks;
 use Synthetic\Synthesizers\ArraySynth;
@@ -13,7 +13,7 @@ use Illuminate\Validation\ValidationException;
 
 class SyntheticManager
 {
-    use SyntheticValidation;
+    use SyntheticValidation, SyntheticTesting;
 
     protected $synthesizers = [
         // AnonymousSynth::class,
@@ -24,6 +24,11 @@ class SyntheticManager
         ObjectSynth::class,
         ArraySynth::class,
     ];
+
+    public function registerSynth($synthClass)
+    {
+        array_unshift($this->synthesizers, $synthClass);
+    }
 
     protected $metasByPath = [];
 
@@ -42,20 +47,23 @@ class SyntheticManager
             $errors = $e->validator->getMessageBag()->toArray();
         }
 
-        [$snapshot, $methods] = $this->toSnapshot($root);
+        $payload = $this->toSnapshot($root);
 
         return [
-            'snapshot' => $snapshot,
-            'methods' => $methods,
-            'returns' => $returns ?? [],
-            'errors' => $errors ?? [],
+            'target' => $root,
+            'snapshot' => $payload['snapshot'],
+            'effects' => [
+                ...$payload['effects'],
+                'returns' => $returns,
+                'errors' => $errors ?? [],
+            ],
         ];
     }
 
     function toSnapshot($root) {
-        $methods = [];
+        $effects = [];
 
-        $data = $this->dehydrate($root, $methods);
+        $data = $this->dehydrate($root, $effects);
 
         $this->metasByPath = [];
 
@@ -63,7 +71,7 @@ class SyntheticManager
 
         $snapshot['checksum'] = Checksum::generate($snapshot);
 
-        return [$snapshot, $methods];
+        return ['snapshot' => $snapshot, 'effects' => $effects];
     }
 
     function fromSnapshot($snapshot, $diff) {
@@ -76,17 +84,25 @@ class SyntheticManager
         return $root;
     }
 
-    function dehydrate($target, &$methods = [], $path = '') {
+    function dehydrate($target, &$effects = [], $path = '') {
         $synth = $this->synth($target);
 
         if ($synth) {
             $methods[$path] = $synth->callables($target);
-            [$value, $meta] = $synth->dehydrate($target);
+            $result = $synth->dehydrate($target);
+            $value = $result[0];
+            $meta = $result[1];
+            $iEffects = $result[2] ?? [];
+
+            if (count($iEffects) > 0) {
+                $effects[$path] = $iEffects;
+            }
+
             $meta['s'] = $synth::getKey();
 
             if (is_array($value)) {
                 foreach ($value as $key => $child) {
-                    $value[$key] = $this->dehydrate($child, $methods, $path === '' ? $key : $path.'.'.$key);
+                    $value[$key] = $this->dehydrate($child, $effects, $path === '' ? $key : $path.'.'.$key);
                 }
             }
 
@@ -94,7 +110,7 @@ class SyntheticManager
         } else {
             if (is_array($target)) {
                 foreach ($target as $key => $child) {
-                    $target[$key] = $this->dehydrate($child, $methods, $path === '' ? $key : $path.'.'.$key);
+                    $target[$key] = $this->dehydrate($child, $effects, $path === '' ? $key : $path.'.'.$key);
                 }
             }
         }
@@ -173,8 +189,8 @@ class SyntheticManager
             return $thing;
         }
 
-        $parentKey = str($key)->before('.')->toString();
-        $childKey = str($key)->after('.')->toString();
+        $parentKey = str($key)->before('.')->__toString();
+        $childKey = str($key)->after('.')->__toString();
 
         $parent =& $this->synth($target)->get($target, $parentKey);
 
@@ -208,8 +224,8 @@ class SyntheticManager
             return ['', $path];
         }
 
-        $parentKey = str($path)->beforeLast('.')->toString();
-        $childKey = str($path)->afterLast('.')->toString();
+        $parentKey = str($path)->beforeLast('.')->__toString();
+        $childKey = str($path)->afterLast('.')->__toString();
 
         return [$parentKey, $childKey];
     }
