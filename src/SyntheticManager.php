@@ -2,6 +2,7 @@
 
 namespace Synthetic;
 
+use Closure;
 use Synthetic\LifecycleHooks;
 use Synthetic\Synthesizers\ArraySynth;
 use Synthetic\Synthesizers\ModelSynth;
@@ -32,6 +33,11 @@ class SyntheticManager
 
     protected $metasByPath = [];
 
+    function new($name)
+    {
+        return synthesize(new $name);
+    }
+
     function synthesize($target)
     {
         return $this->toSnapshot($target);
@@ -39,30 +45,22 @@ class SyntheticManager
 
     function update($snapshot, $diff, $calls)
     {
-        try {
-            $root = $this->fromSnapshot($snapshot, $diff);
+        $effects = [];
 
-            $returns = $this->makeCalls($root, $calls);
-        } catch (ValidationException $e) {
-            $errors = $e->validator->getMessageBag()->toArray();
-        }
+        $root = $this->fromSnapshot($snapshot, $diff);
 
-        $payload = $this->toSnapshot($root);
+        $this->makeCalls($root, $calls, $effects);
+
+        $payload = $this->toSnapshot($root, $effects);
 
         return [
             'target' => $root,
             'snapshot' => $payload['snapshot'],
-            'effects' => [
-                ...$payload['effects'],
-                'returns' => $returns,
-                'errors' => $errors ?? [],
-            ],
+            'effects' => $effects,
         ];
     }
 
-    function toSnapshot($root) {
-        $effects = [];
-
+    function toSnapshot($root, &$effects = []) {
         $data = $this->dehydrate($root, $effects);
 
         $this->metasByPath = [];
@@ -84,19 +82,23 @@ class SyntheticManager
         return $root;
     }
 
-    function dehydrate($target, &$effects = [], $path = '') {
+    function dehydrate($target, &$effects, $path = '') {
         $synth = $this->synth($target);
 
         if ($synth) {
             $methods[$path] = $synth->callables($target);
-            $result = $synth->dehydrate($target);
-            $value = $result[0];
-            $meta = $result[1];
-            $iEffects = $result[2] ?? [];
 
-            if (count($iEffects) > 0) {
-                $effects[$path] = $iEffects;
-            }
+            $addEffect = function ($key, $value) use (&$effects, $path) {
+                if (! isset($effects[$path])) $effects[$path] = [];
+                $effects[$path][$key] = $value;
+            };
+
+            $meta = [];
+            $addMeta = function ($key, $value) use (&$meta) {
+                $meta[$key] = $value;
+            };
+
+            $value = $synth->dehydrate($target, $addMeta, $addEffect);
 
             $meta['s'] = $synth::getKey();
 
@@ -165,7 +167,7 @@ class SyntheticManager
         }
     }
 
-    protected function makeCalls($root, $calls) {
+    protected function makeCalls($root, $calls, &$effects) {
         $returns = [];
 
         foreach ($calls as $call) {
@@ -174,7 +176,16 @@ class SyntheticManager
             $path = $call['path'];
 
             $target = $this->dataGet($root, $path);
-            $returns[] = $this->synth($target)->call($target, $method, $params);
+
+            $addEffect = function ($key, $value) use (&$effects, $path) {
+                if (! isset($effects[$path])) $effects[$path] = [];
+
+                $effects[$path][$key] = $value;
+            };
+
+            $return = $this->synth($target)->call($target, $method, $params, $addEffect);
+
+            $return !== null && $addEffect('return', $return);
         }
 
         return $returns;
@@ -228,5 +239,33 @@ class SyntheticManager
         $childKey = str($path)->afterLast('.')->__toString();
 
         return [$parentKey, $childKey];
+    }
+
+    protected $listeners = [];
+
+    function trigger($name, ...$params) {
+        $finishers = [];
+
+        foreach ($this->listeners[$name] ?? [] as $callback) {
+            $result = $callback(...$params);
+
+            if ($result instanceof Closure) {
+                $finishers[] = $result;
+            }
+        }
+
+        return function (&$forward) use (&$finishers) {
+            $latest = $forward;
+            foreach ($finishers as $finisher) {
+                $latest = $finisher($latest);
+            }
+            return $latest;
+        };
+    }
+
+    function on($name, $callback) {
+        if (! isset($this->listeners[$name])) $this->listeners[$name] = [];
+
+        $this->listeners[$name][] = $callback;
     }
 }

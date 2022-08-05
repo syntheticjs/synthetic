@@ -14,7 +14,9 @@ class ObjectSynth extends Synth {
         return is_object($target);
     }
 
-    function dehydrate($target) {
+    function dehydrate($target, $addMeta, $addEffect) {
+        $finish = app('synthetic')->trigger('dehydrate', $target, $addMeta, $addEffect);
+
         $this->ensureSynthetic($target);
 
         $properties = [];
@@ -22,8 +24,6 @@ class ObjectSynth extends Synth {
         $reflectedProperties = (new ReflectionClass($target))->getProperties(ReflectionProperty::IS_PUBLIC);
 
         [$computedProperties, $deps] = $this->getComputedProperties($target);
-
-        $jsMethods = $this->getJsMethods($target);
 
         foreach ($computedProperties as $key => $value) {
             $properties[$key] = $value;
@@ -33,12 +33,10 @@ class ObjectSynth extends Synth {
             $properties[$property->getName()] = $property->getValue($target);
         }
 
-        return [$properties, [
-            'class' => get_class($target),
-            'computed' => $deps,
-        ], [
-            'methods' => $jsMethods,
-        ]];
+        $addMeta('class', get_class($target));
+        $addMeta('computed', $deps);
+
+        return $finish($properties);
     }
 
     function hydrate($value, $meta) {
@@ -75,8 +73,12 @@ class ObjectSynth extends Synth {
         return $this->getPublicMethodNamesDefinedBySubClass($target);
     }
 
-    function call($target, $method, $params) {
-        return $target->{$method}(...$params);
+    function call($target, $method, $params, $addEffect) {
+        $finish = app('synthetic')->trigger('call', $target, $method, $params, $addEffect);
+
+        $result = $target->{$method}(...$params);
+
+        return $finish($result);
     }
 
     function ensureSynthetic($target) {
@@ -242,23 +244,5 @@ class ObjectSynth extends Synth {
         foreach ($trap->__deps as $dep) $deps[] = $dep;
 
         return $result;
-    }
-
-    public function getJsMethods($target)
-    {
-        $methods = (new ReflectionClass($target))->getMethods(ReflectionMethod::IS_PUBLIC);
-
-        return collect($methods)
-            ->map(function ($method) use ($target) {
-                if ($method->getDocComment() && str($method->getDocComment())->contains('@js')) {
-                    $func = $target->{$method->getName()}();
-
-                    return [$method->getName(), $func];
-                }
-
-                return false;
-            })
-            ->filter()
-            ->toArray();
     }
 }

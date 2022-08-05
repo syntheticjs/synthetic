@@ -1,103 +1,103 @@
-import { reactive as r, effect as e, toRaw as tr } from '@vue/reactivity'
+import { reactive as r, effect as e, toRaw as tr, stop as s } from '@vue/reactivity'
+import { each, deeplyEqual, isObjecty, deepClone, diff } from './utils'
+import { showHtmlModal } from './modal'
+import { trigger } from './events'
 
-let reactive = r
-// let effect = e
-let toRaw = tr
+/**
+ * The Alpine build will need to use it's own reactivity hooks,
+ * so we'll declare these as variables rather than direct imports.
+ */
+export let reactive = r
+export let release = s
+export let effect = e
+export let raw = tr
 
+/**
+ * Fire up all the plugin-like features...
+ */
+import './features'
+
+/**
+ * We'll store all our "synthetic" instances in a single lookup so that
+ * we can pass around an identifier, rather than the actual instance.
+ */
 let store = new Map
 
+/**
+ * This is the single entrypoint into "synthetic". Users can pass
+ * either a full snapshot, rendered on the backend, or they can
+ * pass a string identifier and request a snapshot via fetch.
+ */
 window.synthesize = synthesize
 
-document.addEventListener('alpine:init', () => {
-    reactive = window.Alpine.reactive
-    toRaw = window.Alpine.raw
-})
+export function synthesize(provided) {
+    if (typeof provided === 'string') return newUp(provided)
 
-function getCsrfToken() {
-    if (document.querySelector('meta[name="csrf"]')) {
-        return document.querySelector('meta[name="csrf"]').content
-    }
-
-    return window.__csrf
-}
-
-export function overrideReactivity(r, e, tr) {
-    reactive = r
-    effect = e
-    toRaw = tr
-
-    return synthesize
-}
-
-export function synthesize({ snapshot, effects }) {
-    snapshot = toRaw(snapshot)
-    effects = toRaw(effects)
-    let symbol = Symbol()
-
+    // This "target" will be the object representing all the state for this synthetic.
+    // Anytime you need to interect with this synthetic, you will need this object.
     let target = {
-        effects,
-        snapshot,
-        loading: reactive({ state: false }),
-        dirty: reactive({ state: false }),
-        errors: reactive({ state: {} }),
+        effects: raw(provided.effects),
+        snapshot: raw(provided.snapshot),
     }
 
+    // These will be used as an identifier in a lookup for this synthetic.
+    let symbol = Symbol()
     store.set(symbol, target)
 
-    let canonical = extractData(deepClone(snapshot.data), symbol)
-    let ephemeral = extractDataAndDecorate(deepClone(snapshot.data), symbol)
+    // "canonical" data represents the last known server state.
+    let canonical = extractData(deepClone(target.snapshot.data), symbol)
+    // "ephemeral" represents the most current state. (This can be freely manipulated by end users)
+    let ephemeral = extractDataAndDecorate(deepClone(target.snapshot.data), symbol)
 
     target.canonical = canonical
     target.ephemeral = ephemeral
+    // "reactive" is just ephemeral, except when you mutate it, front-ends like Vue react.
     target.reactive = reactive(ephemeral)
+
+    trigger('new', target)
+
+    // Effects will be processed after every request, but we'll also handle them on initialization.
+    processEffects(target)
 
     return target.reactive
 }
 
+/**
+ * This is kind of like "lazy loading" a synthetic.
+ * For environments like pure-SPAs where you can't generate
+ * an initial synthetic snapshot on the server this is necessary.
+ */
+async function newUp(name) {
+    return synthesize(await requestNew(name))
+}
+
+/**
+ * This is where we add special behavior (deeply) to the synthetic objects
+ * that users interact with. Things like "post.$errors" & "form.$loading"
+ */
 function extractDataAndDecorate(payload, symbol) {
     return extractData(payload, symbol, (value, meta, symbol, path) => {
-        let thing = decorate(value, {
-            get $loading() {
-                return store.get(symbol).loading.state
-            },
+        let target = store.get(symbol)
 
-            get $dirty() {
-                return ! deeplyEqual(
-                    dataGet(store.get(symbol).reactive, path),
-                    dataGet(store.get(symbol).canonical, path)
-                )
-            },
+        let finish = trigger('decorate', target, path)
 
-            get $errors() {
-                let errors = {}
-
-                Object.entries(store.get(symbol).errors.state).forEach(([key, value]) => {
-                    errors[key] = value[0]
-                })
-
-                return errors
+        return decorate(value, finish({
+            async $commit() {
+                return await requestCommit(symbol)
             },
 
             __get(property) {
+                // This is a "magic" getter (like in PHP). It acts as a trap for any property
+                // or method that is being accessed, but doesn't exist. We're using it here
+                // to call server methods without the knowledge of their names beforehand.
+
+                // First we'll ignore any properties that will be accessed but we don't care about.
                 if (typeof property === 'symbol') return
                 if ([
                     '__v_isRef', '__v_isReadonly', '__v_raw', '__v_skip', 'toJSON', 'then', '_x_interceptor', 'init',
                 ].includes(property)) return
 
-                let effects = store.get(symbol).effects[path]
-                let methods = effects['methods'] || []
-
-                for (let i = 0; i < methods.length; i++) {
-                    if (methods[i][0] === property) {
-                        let func = new Function([], 'return '+methods[i][1])
-                        let boundFunc = func.bind(dataGet(store.get(symbol).reactive, path))
-                        return boundFunc()
-                    }
-                }
-
-                // This is a magic getter. If there is no property,
-                // then this trap will get called. In these cases
-                // we will assume the user wants to call a method
+                // We will assume the user wants to call a method
                 // on the component who's name we don't know.
                 let method = property
 
@@ -105,12 +105,15 @@ function extractDataAndDecorate(payload, symbol) {
                     return await callMethod(symbol, path, method, params)
                 }
             }
-        })
-
-        return thing
+        }))
     })
 }
 
+/**
+ * The data that's passed between the browser and server is in the form of
+ * nested tuples consisting of the schema: [rawValue, metadata]. In this
+ * method we're extracting the plain JS object of only the raw values.
+ */
 function extractData(payload, symbol, decorate = i => i, path = '') {
     let value = isSynthetic(payload) ? payload[0] : payload
     let meta = isSynthetic(payload) ? payload[1] : undefined
@@ -126,50 +129,15 @@ function extractData(payload, symbol, decorate = i => i, path = '') {
         : value
 }
 
-function decorateWithoutProxy(object, symbol, path) {
-    let target = store.get(symbol)
-
-    let methods = target.methods[path] || []
-    let methodDescriptors = {}
-    methods.forEach(method => {
-        methodDescriptors[method] = { get() {
-            return async (...params) => {
-                return await callMethod(symbol, path, method, params)
-            }
-        }}
-    })
-
-    Object.defineProperties(object, {
-        $loading: { get() {
-            return target.loading.state
-        }},
-        $dirty: { get() {
-            return (property) => {
-                if (! property) {
-                    return ! compare(dataGet(target.reactive, path), dataGet(target.canonical, path))
-                }
-
-                return ! compare(dataGet(target.reactive, path)[property], dataGet(target.canonical, path)[property])
-            }
-        }},
-        $errors: { get() {
-            let errors = {}
-
-            Object.entries(target.errors.state).forEach(([key, value]) => {
-                errors[key] = value[0]
-            })
-
-            return errors
-        }},
-        ...methodDescriptors
-    })
-}
-
-function isSynthetic(payload) {
-    return Array.isArray(payload)
-        && payload.length === 2
-        && typeof payload[1] === 'object'
-        && Object.keys(payload[1]).includes('s')
+/**
+ * Determine if the variable passed in is a node in a nested metadata
+ * tuple tree. (Meaning it takes the form of: [rawData, metadata])
+ */
+function isSynthetic(subject) {
+    return Array.isArray(subject)
+        && subject.length === 2
+        && typeof subject[1] === 'object'
+        && Object.keys(subject[1]).includes('s')
 }
 
 async function callMethod(symbol, path, method, params) {
@@ -181,11 +149,7 @@ async function callMethod(symbol, path, method, params) {
 let requestTargetQueue = new Map
 
 function requestMethodCall(symbol, path, method, params) {
-    if (! requestTargetQueue.has(symbol)) {
-        requestTargetQueue.set(symbol, { calls: [], receivers: [] })
-    }
-
-    triggerSend()
+    requestCommit(symbol)
 
     return new Promise((resolve, reject) => {
         let queue = requestTargetQueue.get(symbol)
@@ -197,15 +161,37 @@ function requestMethodCall(symbol, path, method, params) {
             handleReturn(value) {
                 resolve(value)
             },
-            handleError(value) {
-                reject(value)
-            },
         })
+    })
+}
+
+/**
+ * The term "commit" here refers to anytime we're making a network
+ * request, updating the server, and generating a new snapshot.
+ * We're "requesting" a new commit rather than executing it
+ * immediately, because we might want to batch multiple
+ * simultaneus commits from other synthetic targets.
+ */
+function requestCommit(symbol) {
+    if (! requestTargetQueue.has(symbol)) {
+        requestTargetQueue.set(symbol, { calls: [], receivers: [] })
+    }
+
+    triggerSend()
+
+    return new Promise((resolve, reject) => {
+        let queue = requestTargetQueue.get(symbol)
+
+        queue.handleResponse = () => resolve()
     })
 }
 
 let requestBufferTimeout
 
+/**
+ * This is sort of "debounce" so that multiple
+ * network requests can be bundled together.
+ */
 function triggerSend() {
     if (requestBufferTimeout) return
 
@@ -216,6 +202,11 @@ function triggerSend() {
     }, 5)
 }
 
+/**
+ * This method prepares the network request payload and makes
+ * the actual request to the server to update the target,
+ * store a new snapshot, and handle any side effects.
+ */
 async function sendMethodCall() {
     let payload = []
     let receivers = []
@@ -225,7 +216,7 @@ async function sendMethodCall() {
 
         let propertiesDiff = diff(target.canonical, target.ephemeral)
 
-        payload.push({
+        let targetPaylaod = {
             snapshot: target.snapshot,
             diff: propertiesDiff,
             calls: request.calls.map(i => ({
@@ -233,23 +224,35 @@ async function sendMethodCall() {
                 method: i.method,
                 params: i.params,
             }))
-        })
+        }
 
-        target.loading.state = true
+        payload.push(targetPaylaod)
+
+        let finish = trigger('request', target, targetPaylaod)
 
         receivers.push((snapshot, effects) => {
             mergeNewSnapshot(symbol, snapshot, effects)
 
-            for (let i = 0; i < effects.returns.length; i++) {
-                request.calls[i].handleReturn(effects.returns[i])
+            processEffects(target)
+
+            for (let i = 0; i < request.calls.length; i++) {
+                let { path, handleReturn } = request.calls[i];
+
+                let iEffects = effects.find((i, iPath) => iPath === path)
+
+                if (iEffects && iEffects['return']) {
+                    handleReturn(iEffects['return'])
+                } else {
+                    // Should I return "null" here because PHP has notion of undefined?
+                    // And this way if someone deliberately returns "null" it would
+                    // be accurate.
+                    handleReturn(undefined)
+                }
             }
 
-            if (effects['']['html']) {
-                Alpine.morph(document.getElementById(effects['']['id']), effects['']['html'])
-            }
+            finish()
 
-            target.errors.state = effects.errors
-            target.loading.state = false
+            request.handleResponse()
         })
     })
 
@@ -279,44 +282,42 @@ async function sendMethodCall() {
     }
 }
 
-function diff(left, right, diffs = {}, path = '') {
-    // Are they the same.
-    if (left === right) return diffs
-
-    // Are they COMPLETELY different?
-    if (typeof left !== typeof right || (isObject(left) && isArray(right)) || (isArray(left) && isObject(right))) {
-        diffs[path] = right;
-        return diffs
-    }
-
-    // Is the right or left side leafy?
-    if (isLeafy(left) || isLeafy(right)) {
-        diffs[path] = right
-        return diffs
-    }
-
-    let leftKeys = Object.keys(left)
-
-    Object.entries(right).forEach(([key, value]) => {
-        diffs = {...diffs, ...diff(left[key], right[key], diffs, path === '' ? key : `${path}.${key}`)}
-        leftKeys = leftKeys.filter(i => i !== key)
+async function requestNew(name) {
+    let request = await fetch('/synthetic/new', {
+        method: 'POST',
+        body: JSON.stringify({
+            _token: getCsrfToken(),
+            name: name,
+        }),
+        headers: {'Content-type': 'application/json'},
     })
 
-    leftKeys.forEach(key => {
-        diffs[`${path}.${key}`] = '__rm__'
-    })
+    if (request.ok) {
+        return  await request.json()
+    } else {
+        let html = await request.text()
 
-    return diffs
+        showHtmlModal(html)
+    }
 }
 
-function isLeafy(subject) { return typeof subject !== 'object' || subject === null }
-function deeplyEqual(a, b) { return JSON.stringify(a) === JSON.stringify(b) }
-function isObjecty(subject) { return (typeof subject === 'object' && subject !== null) }
-function isObject(subject) { return (isObjecty(subject) && ! isArray(subject)) }
-function isArray(subject) { return Array.isArray(subject) }
-function isFunction(subject) { return typeof subject === 'function' }
-function deepClone(obj) { return JSON.parse(JSON.stringify(obj)) }
+/**
+ * Post requests in Laravel require a csrf token to be passed
+ * along with the payload. Here, we'll try and locate one.
+ */
+function getCsrfToken() {
+    if (document.querySelector('meta[name="csrf"]')) {
+        return document.querySelector('meta[name="csrf"]').content
+    }
 
+    return window.__csrf
+}
+
+/**
+ * Here we'll take the new state and side effects from the
+ * server and use them to update the existing data that
+ * users interact with, triggering reactive effects.
+ */
 function mergeNewSnapshot(symbol, snapshot, effects) {
     let target = store.get(symbol)
 
@@ -327,15 +328,17 @@ function mergeNewSnapshot(symbol, snapshot, effects) {
     let newData = extractData(deepClone(snapshot.data), symbol)
 
     Object.entries(target.ephemeral).forEach(([key, value]) => {
-        if (
-            JSON.stringify(target.ephemeral[key]) !== JSON.stringify(newData[key])
-        ) {
+        if (! deeplyEqual(target.ephemeral[key], newData[key])) {
             target.reactive[key] = newData[key]
         }
     })
 }
 
-export function decorate(object, decorator) {
+/**
+ * This method decorates the target's raw data with new behavior.
+ * We're using a proxy as a trap to intercept gets and sets.
+ */
+function decorate(object, decorator) {
     return new Proxy(object, {
         // These expose the decorator properties as enumerable and such
         // This is sometimes what you want and sometimes what you don't want
@@ -354,6 +357,7 @@ export function decorate(object, decorator) {
 
         get(target, property, receiver) {
             if (property === '__target') return target
+            if (property === '__decorator') return decorator
 
             let got = Reflect.get(decorator, property, receiver)
             if (got !== undefined) return got
@@ -381,66 +385,31 @@ export function decorate(object, decorator) {
     })
 }
 
-function dataGet(object, key) {
-    if (key === '') return object
+function processEffects(target) {
+    let effects = target.effects
 
-    return key.split('.').reduce((carry, i) => {
-        if (carry === undefined) return undefined
-
-        return carry[i]
-    }, object)
+    each(effects, (key, value) => trigger('effects', target, value, key))
 }
 
-// This code and concept is all Jonathan Reinink - thanks main!
-function showHtmlModal(html) {
-    let page = document.createElement('html')
-    page.innerHTML = html
-    page.querySelectorAll('a').forEach(a =>
-        a.setAttribute('target', '_top')
-    )
+// Leaving this here in case I determine that this is a better idea.
+// function decorateWithoutProxy(object, symbol, path) {
+//     let target = store.get(symbol)
 
-    let modal = document.getElementById('livewire-error')
+//     let methods = target.methods[path] || []
+//     let methodDescriptors = {}
+//     methods.forEach(method => {
+//         methodDescriptors[method] = { get() {
+//             return async (...params) => {
+//                 return await callMethod(symbol, path, method, params)
+//             }
+//         }}
+//     })
 
-    if (typeof modal != 'undefined' && modal != null) {
-        // Modal already exists.
-        modal.innerHTML = ''
-    } else {
-        modal = document.createElement('div')
-        modal.id = 'livewire-error'
-        modal.style.position = 'fixed'
-        modal.style.width = '100vw'
-        modal.style.height = '100vh'
-        modal.style.padding = '50px'
-        modal.style.backgroundColor = 'rgba(0, 0, 0, .6)'
-        modal.style.zIndex = 200000
-    }
+//     Object.defineProperties(object, {
+//         $commit: { value: () => {
+//             //
+//         }},
 
-    let iframe = document.createElement('iframe')
-    iframe.style.backgroundColor = '#17161A'
-    iframe.style.borderRadius = '5px'
-    iframe.style.width = '100%'
-    iframe.style.height = '100%'
-    modal.appendChild(iframe)
-
-    document.body.prepend(modal)
-    document.body.style.overflow = 'hidden'
-    iframe.contentWindow.document.open()
-    iframe.contentWindow.document.write(page.outerHTML)
-    iframe.contentWindow.document.close()
-
-    // Close on click.
-    modal.addEventListener('click', () => hideHtmlModal(modal))
-
-    // Close on escape key press.
-    modal.setAttribute('tabindex', 0)
-    modal.addEventListener('keydown', e => {
-        if (e.key === 'Escape') hideHtmlModal(modal)
-    })
-    modal.focus()
-}
-
-function hideHtmlModal(modal) {
-    modal.outerHTML = ''
-    document.body.style.overflow = 'visible'
-}
-
+//         ...methodDescriptors
+//     })
+// }

@@ -14,9 +14,9 @@ abstract class Synth {
 
     abstract static function match($target);
 
-    abstract function dehydrate($target);
+    // abstract function dehydrate($target);
 
-    abstract function hydrate($value, $meta);
+    // abstract function hydrate($value, $meta);
 
     function callables($target)
     {
@@ -24,6 +24,14 @@ abstract class Synth {
     }
 
     function __call($method, $params) {
+        if ($method === 'dehydrate') {
+            throw new \Exception('You must define a "dehydrate" method');
+        }
+
+        if ($method === 'hydrate') {
+            throw new \Exception('You must define a "hydrate" method');
+        }
+
         if ($method === 'get') {
             throw new \Exception('This synth doesn\'t support getting properties: '.get_class($this));
         }

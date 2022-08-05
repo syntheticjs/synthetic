@@ -23,6 +23,7 @@ class SyntheticServiceProvider extends ServiceProvider
         $this->routes();
         $this->directives();
         $this->injectJavaScript();
+        $this->registerFeatures();
         $this->skipRequestPayloadTamperingMiddleware();
     }
 
@@ -30,6 +31,12 @@ class SyntheticServiceProvider extends ServiceProvider
     {
         Route::get('/synthetic/synthetic.js', [JavaScriptAssets::class, 'source']);
         // Route::get('/synthetic/synthetic.js.map', [JavaScriptAssets::class, 'maps']);
+
+        Route::post('/synthetic/new', function () {
+            $name = request('name');
+
+            return app('synthetic')->new($name);
+        });
 
         Route::post('/synthetic/update', function () {
             $targets = request('targets');
@@ -41,7 +48,11 @@ class SyntheticServiceProvider extends ServiceProvider
                 $diff = $target['diff'];
                 $calls = $target['calls'];
 
-                $responses[] = app('synthetic')->update($snapshot, $diff, $calls);
+                $response = app('synthetic')->update($snapshot, $diff, $calls);
+
+                unset($response['target']);
+
+                $responses[] = $response;
             }
 
             return $responses;
@@ -90,5 +101,17 @@ class SyntheticServiceProvider extends ServiceProvider
         TrimStrings::skipWhen(function () {
             return request()->is('synthetic/update');
         });
+    }
+
+    function registerFeatures()
+    {
+        $features = [
+            \Synthetic\Features\SupportRedirects::class,
+            \Synthetic\Features\SupportJsMethods::class,
+        ];
+
+        foreach ($features as $feature) {
+            (new $feature)();
+        }
     }
 }
