@@ -83,7 +83,7 @@ function extractDataAndDecorate(payload, symbol) {
 
         return decorate(value, finish({
             $effect(callback) {
-                effect(callback())
+                effect(callback)
             },
 
             async $commit() {

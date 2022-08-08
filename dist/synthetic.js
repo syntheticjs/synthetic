@@ -1047,7 +1047,7 @@
       let finish = trigger2("decorate", target, path);
       return decorate(value, finish({
         $effect(callback) {
-          effect2(callback());
+          effect2(callback);
         },
         async $commit() {
           return await requestCommit(symbol2);
