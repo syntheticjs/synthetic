@@ -82,7 +82,7 @@ function extractDataAndDecorate(payload, symbol) {
         let finish = trigger('decorate', target, path)
 
         return decorate(value, finish({
-            async $effect(callback) {
+            $effect(callback) {
                 effect(callback())
             },
 

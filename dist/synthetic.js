@@ -1046,7 +1046,7 @@
       let target = store.get(symbol2);
       let finish = trigger2("decorate", target, path);
       return decorate(value, finish({
-        async $effect(callback) {
+        $effect(callback) {
           effect2(callback());
         },
         async $commit() {
