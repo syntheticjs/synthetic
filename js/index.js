@@ -1,5 +1,5 @@
-import { reactive as r, effect as e, toRaw as tr, stop as s } from '@vue/reactivity'
-import { each, deeplyEqual, isObjecty, deepClone, diff } from './utils'
+import { reactive as r, effect as e, toRaw as tr, stop as s, pauseTracking, enableTracking } from '@vue/reactivity'
+import { each, deeplyEqual, isObjecty, deepClone, diff, dataGet } from './utils'
 import { showHtmlModal } from './modal'
 import { trigger } from './events'
 
@@ -11,6 +11,13 @@ export let reactive = r
 export let release = s
 export let effect = e
 export let raw = tr
+
+document.addEventListener('alpine:init', () => {
+    reactive = Alpine.reactive
+    effect = Alpine.effect
+    release = Alpine.release
+    raw = Alpine.raw
+})
 
 /**
  * Fire up all the plugin-like features...
@@ -82,7 +89,29 @@ function extractDataAndDecorate(payload, symbol) {
         let finish = trigger('decorate', target, path)
 
         return decorate(value, finish({
-            $effect(callback) {
+            $watch(path, callback) {
+                let firstTime = true
+                let old = undefined
+
+                effect(() => {
+                    let value = dataGet(target.reactive, path)
+
+                    if (firstTime) {
+                        firstTime = false
+                        return
+                    }
+
+                    pauseTracking()
+
+                    callback(value, old)
+
+                    old = value
+
+                    enableTracking()
+                })
+            },
+
+            $watchEffect(callback) {
                 effect(callback)
             },
 
