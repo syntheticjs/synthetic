@@ -242,7 +242,11 @@ async function sendMethodCall() {
             for (let i = 0; i < request.calls.length; i++) {
                 let { path, handleReturn } = request.calls[i];
 
-                let iEffects = effects.find((i, iPath) => iPath === path)
+                let effectValues = Object.values(effects).find(([iPath, i]) => {
+                    return iPath === path
+                })
+
+                let iEffects = effectValues && effectValues[1]
 
                 if (iEffects && iEffects['return']) {
                     handleReturn(iEffects['return'])
