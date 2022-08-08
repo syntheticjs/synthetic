@@ -902,6 +902,10 @@
     });
   }
 
+  // js/features/prefetch.js
+  function prefetch_default() {
+  }
+
   // js/features/redirect.js
   function redirect_default() {
     on("effects", (target, effects) => {
@@ -1002,6 +1006,7 @@
 
   // js/features/index.js
   jsMethods_default();
+  prefetch_default();
   redirect_default();
   loading_default();
   polling_default();

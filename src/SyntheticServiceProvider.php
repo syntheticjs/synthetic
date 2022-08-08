@@ -65,9 +65,9 @@ class SyntheticServiceProvider extends ServiceProvider
 
     function directives()
     {
-        Blade::directive('synthesize', function ($expression) {
+        Blade::directive('synthetic', function ($expression) {
             return sprintf(
-                "synthesize(<?php echo \%s::from(app('synthetic')->synthesize(%s))->toHtml() ?>)",
+                "synthetic(<?php echo \%s::from(app('synthetic')->synthesize(%s))->toHtml() ?>)",
                 \Illuminate\Support\Js::class, $expression
             );
         });

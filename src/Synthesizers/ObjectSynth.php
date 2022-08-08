@@ -4,10 +4,8 @@ namespace Synthetic\Synthesizers;
 
 use ReflectionClass;
 use ReflectionMethod;
-use ReflectionObject;
 use ReflectionProperty;
 use Synthetic\Component;
-use Synthetic\Synthesizable;
 
 class ObjectSynth extends Synth {
     public static $key = 'obj';
