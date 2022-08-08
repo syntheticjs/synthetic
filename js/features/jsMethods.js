@@ -11,7 +11,7 @@ export default function () {
             let boundFunc = func.bind(dataGet(target.reactive, path))
             let run = boundFunc()
 
-            Object.defineProperty(decorator, name, { value: run })
+            Object.defineProperty(decorator, name, { value: run, enumerable: false })
         })
     })
 }

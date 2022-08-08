@@ -9,12 +9,24 @@ class SupportJsMethods
 {
     public function __invoke()
     {
-        app('synthetic')->on('dehydrate', function ($target, $addMeta, $addEffect) {
-            $methods = $this->getJsMethods($target);
+        app('synthetic')->on('call', function ($target, $method, $params, $addEffect) {
+            return function ($result) use ($method, $params, $addEffect) {
+                if (! $result instanceof RedirectResponse) return $result;
+
+                $addEffect('redirect', $result->getTargetUrl());
+
+                return $result;
+            };
+        });
+
+        app('synthetic')->on('dehydrate', function ($target, $addMeta, $addEffect, $initial) {
+            $methods = $this->getEagerMethods($target);
 
             if (! $methods) return;
 
-            $addEffect('js', $methods);
+            if ($initial) {
+                $addEffect('js', $methods);
+            }
 
             return function (&$properties) use ($methods) {
                 foreach ($methods as $name => $expression) {
@@ -26,24 +38,16 @@ class SupportJsMethods
         });
     }
 
-    function getJsMethods($target)
+    function getEagerMethods($target)
     {
         $methods = (new ReflectionClass($target))->getMethods(ReflectionMethod::IS_PUBLIC);
-        $properties = (new ReflectionClass($target))->getProperties(ReflectionMethod::IS_PUBLIC);
 
-        return collect($methods)->concat($properties)
-            ->map(function ($method) use ($target) {
-                if ($method->getDocComment() && str($method->getDocComment())->contains('@js')) {
-                    $func = $target->{$method->getName()}();
-
-                    return [$method->getName(), $func];
-                }
-
-                return false;
+        return collect($methods)
+            ->filter(function ($subject) {
+                return $subject->getDocComment() && str($subject->getDocComment())->contains('@eager');
             })
-            ->filter()
-            ->mapWithKeys(function ($method) {
-                return [$method[0] => $method[1]];
+            ->map(function ($subject) use ($target) {
+                return $subject->getName();
             })
             ->toArray();
     }

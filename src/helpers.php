@@ -3,7 +3,7 @@
 use Illuminate\Support\Str;
 
 if (! function_exists('synthetic')) {
-    function synthesize($subject) {
+    function synthetic($subject) {
         return app('synthetic')->synthesize($subject);
     }
 }

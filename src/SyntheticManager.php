@@ -4,24 +4,22 @@ namespace Synthetic;
 
 use Closure;
 use Synthetic\LifecycleHooks;
+use Synthetic\Synthesizers\AnonymousSynth;
 use Synthetic\Synthesizers\ArraySynth;
 use Synthetic\Synthesizers\ModelSynth;
 use Synthetic\Synthesizers\ObjectSynth;
 use Synthetic\Synthesizers\CollectionSynth;
 use Synthetic\Synthesizers\StringableSynth;
-use Synthetic\Synthesizers\ModelCollectionSynth;
-use Illuminate\Validation\ValidationException;
 
 class SyntheticManager
 {
     use SyntheticValidation, SyntheticTesting;
 
     protected $synthesizers = [
-        // AnonymousSynth::class,
-        // ModelCollectionSynth::class,
         CollectionSynth::class,
         ModelSynth::class,
         StringableSynth::class,
+        AnonymousSynth::class,
         ObjectSynth::class,
         ArraySynth::class,
     ];
@@ -35,12 +33,14 @@ class SyntheticManager
 
     function new($name)
     {
-        return synthesize(new $name);
+        return $this->synthesize(new $name);
     }
 
     function synthesize($target)
     {
-        return $this->toSnapshot($target);
+        $effects = [];
+
+        return $this->toSnapshot($target, $effects, $initial = true);
     }
 
     function update($snapshot, $diff, $calls)
@@ -60,8 +60,8 @@ class SyntheticManager
         ];
     }
 
-    function toSnapshot($root, &$effects = []) {
-        $data = $this->dehydrate($root, $effects);
+    function toSnapshot($root, &$effects = [], $initial = false) {
+        $data = $this->dehydrate($root, $effects, $initial);
 
         $this->metasByPath = [];
 
@@ -82,12 +82,10 @@ class SyntheticManager
         return $root;
     }
 
-    function dehydrate($target, &$effects, $path = '') {
+    function dehydrate($target, &$effects, $initial, $path = '') {
         $synth = $this->synth($target);
 
         if ($synth) {
-            $methods[$path] = $synth->callables($target);
-
             $addEffect = function ($key, $value) use (&$effects, $path) {
                 if (! isset($effects[$path])) $effects[$path] = [];
                 $effects[$path][$key] = $value;
@@ -98,13 +96,13 @@ class SyntheticManager
                 $meta[$key] = $value;
             };
 
-            $value = $synth->dehydrate($target, $addMeta, $addEffect);
+            $value = $synth->dehydrate($target, $addMeta, $addEffect, $initial);
 
             $meta['s'] = $synth::getKey();
 
             if (is_array($value)) {
                 foreach ($value as $key => $child) {
-                    $value[$key] = $this->dehydrate($child, $effects, $path === '' ? $key : $path.'.'.$key);
+                    $value[$key] = $this->dehydrate($child, $effects, $initial, $path === '' ? $key : $path.'.'.$key);
                 }
             }
 
@@ -112,7 +110,7 @@ class SyntheticManager
         } else {
             if (is_array($target)) {
                 foreach ($target as $key => $child) {
-                    $target[$key] = $this->dehydrate($child, $effects, $path === '' ? $key : $path.'.'.$key);
+                    $target[$key] = $this->dehydrate($child, $effects, $initial, $path === '' ? $key : $path.'.'.$key);
                 }
             }
         }

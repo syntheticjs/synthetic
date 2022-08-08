@@ -11,11 +11,10 @@ class CollectionSynth extends ArraySynth {
         return $target instanceof Collection;
     }
 
-    function dehydrate($target) {
-        return [
-            $target->all(),
-            ['class' => get_class($target)]
-        ];
+    function dehydrate($target, $addMeta) {
+        $addMeta('class', get_class($target));
+
+        return $target->all();
     }
 
     function hydrate($value, $meta) {

@@ -47,6 +47,12 @@
   function warn(msg, ...args) {
     console.warn(`[Vue warn] ${msg}`, ...args);
   }
+  var activeEffectScope;
+  function recordEffectScope(effect3, scope = activeEffectScope) {
+    if (scope && scope.active) {
+      scope.effects.push(effect3);
+    }
+  }
   var createDep = (effects) => {
     const dep = new Set(effects);
     dep.w = 0;
@@ -55,6 +61,30 @@
   };
   var wasTracked = (dep) => (dep.w & trackOpBit) > 0;
   var newTracked = (dep) => (dep.n & trackOpBit) > 0;
+  var initDepMarkers = ({ deps }) => {
+    if (deps.length) {
+      for (let i = 0; i < deps.length; i++) {
+        deps[i].w |= trackOpBit;
+      }
+    }
+  };
+  var finalizeDepMarkers = (effect3) => {
+    const { deps } = effect3;
+    if (deps.length) {
+      let ptr = 0;
+      for (let i = 0; i < deps.length; i++) {
+        const dep = deps[i];
+        if (wasTracked(dep) && !newTracked(dep)) {
+          dep.delete(effect3);
+        } else {
+          deps[ptr++] = dep;
+        }
+        dep.w &= ~trackOpBit;
+        dep.n &= ~trackOpBit;
+      }
+      deps.length = ptr;
+    }
+  };
   var targetMap = /* @__PURE__ */ new WeakMap();
   var effectTrackDepth = 0;
   var trackOpBit = 1;
@@ -62,6 +92,92 @@
   var activeEffect;
   var ITERATE_KEY = Symbol(true ? "iterate" : "");
   var MAP_KEY_ITERATE_KEY = Symbol(true ? "Map key iterate" : "");
+  var ReactiveEffect = class {
+    constructor(fn, scheduler = null, scope) {
+      this.fn = fn;
+      this.scheduler = scheduler;
+      this.active = true;
+      this.deps = [];
+      this.parent = void 0;
+      recordEffectScope(this, scope);
+    }
+    run() {
+      if (!this.active) {
+        return this.fn();
+      }
+      let parent = activeEffect;
+      let lastShouldTrack = shouldTrack;
+      while (parent) {
+        if (parent === this) {
+          return;
+        }
+        parent = parent.parent;
+      }
+      try {
+        this.parent = activeEffect;
+        activeEffect = this;
+        shouldTrack = true;
+        trackOpBit = 1 << ++effectTrackDepth;
+        if (effectTrackDepth <= maxMarkerBits) {
+          initDepMarkers(this);
+        } else {
+          cleanupEffect(this);
+        }
+        return this.fn();
+      } finally {
+        if (effectTrackDepth <= maxMarkerBits) {
+          finalizeDepMarkers(this);
+        }
+        trackOpBit = 1 << --effectTrackDepth;
+        activeEffect = this.parent;
+        shouldTrack = lastShouldTrack;
+        this.parent = void 0;
+        if (this.deferStop) {
+          this.stop();
+        }
+      }
+    }
+    stop() {
+      if (activeEffect === this) {
+        this.deferStop = true;
+      } else if (this.active) {
+        cleanupEffect(this);
+        if (this.onStop) {
+          this.onStop();
+        }
+        this.active = false;
+      }
+    }
+  };
+  function cleanupEffect(effect3) {
+    const { deps } = effect3;
+    if (deps.length) {
+      for (let i = 0; i < deps.length; i++) {
+        deps[i].delete(effect3);
+      }
+      deps.length = 0;
+    }
+  }
+  function effect(fn, options) {
+    if (fn.effect) {
+      fn = fn.effect.fn;
+    }
+    const _effect = new ReactiveEffect(fn);
+    if (options) {
+      extend(_effect, options);
+      if (options.scope)
+        recordEffectScope(_effect, options.scope);
+    }
+    if (!options || !options.lazy) {
+      _effect.run();
+    }
+    const runner = _effect.run.bind(_effect);
+    runner.effect = _effect;
+    return runner;
+  }
+  function stop(runner) {
+    runner.effect.stop();
+  }
   var shouldTrack = true;
   var trackStack = [];
   function pauseTracking() {
@@ -637,8 +753,8 @@
     return !!(value && value["__v_isShallow"]);
   }
   function toRaw(observed) {
-    const raw = observed && observed["__v_raw"];
-    return raw ? toRaw(raw) : observed;
+    const raw2 = observed && observed["__v_raw"];
+    return raw2 ? toRaw(raw2) : observed;
   }
   var toReactive = (value) => isObject(value) ? reactive(value) : value;
   var toReadonly = (value) => isObject(value) ? readonly(value) : value;
@@ -648,191 +764,39 @@
   var _a;
   _a = "__v_isReadonly";
 
-  // js/index.js
-  var reactive2 = reactive;
-  var toRaw2 = toRaw;
-  var store = /* @__PURE__ */ new Map();
-  window.synthesize = synthesize;
-  document.addEventListener("alpine:init", () => {
-    reactive2 = window.Alpine.reactive;
-    toRaw2 = window.Alpine.raw;
-  });
-  function getCsrfToken() {
-    if (document.querySelector('meta[name="csrf"]')) {
-      return document.querySelector('meta[name="csrf"]').content;
-    }
-    return window.__csrf;
+  // js/utils.js
+  function isObjecty(subject) {
+    return typeof subject === "object" && subject !== null;
   }
-  function overrideReactivity(r, e, tr) {
-    reactive2 = r;
-    effect = e;
-    toRaw2 = tr;
-    return synthesize;
+  function isObject2(subject) {
+    return isObjecty(subject) && !isArray2(subject);
   }
-  function synthesize({ snapshot, effects }) {
-    snapshot = toRaw2(snapshot);
-    effects = toRaw2(effects);
-    let symbol = Symbol();
-    let target = {
-      effects,
-      snapshot,
-      loading: reactive2({ state: false }),
-      dirty: reactive2({ state: false }),
-      errors: reactive2({ state: {} })
-    };
-    store.set(symbol, target);
-    let canonical = extractData(deepClone(snapshot.data), symbol);
-    let ephemeral = extractDataAndDecorate(deepClone(snapshot.data), symbol);
-    target.canonical = canonical;
-    target.ephemeral = ephemeral;
-    target.reactive = reactive2(ephemeral);
-    return target.reactive;
+  function isArray2(subject) {
+    return Array.isArray(subject);
   }
-  function extractDataAndDecorate(payload, symbol) {
-    return extractData(payload, symbol, (value, meta, symbol2, path) => {
-      let thing = decorate(value, {
-        get $loading() {
-          return store.get(symbol2).loading.state;
-        },
-        get $dirty() {
-          return !deeplyEqual(
-            dataGet(store.get(symbol2).reactive, path),
-            dataGet(store.get(symbol2).canonical, path)
-          );
-        },
-        get $errors() {
-          let errors = {};
-          Object.entries(store.get(symbol2).errors.state).forEach(([key, value2]) => {
-            errors[key] = value2[0];
-          });
-          return errors;
-        },
-        __get(property) {
-          if (typeof property === "symbol")
-            return;
-          if ([
-            "__v_isRef",
-            "__v_isReadonly",
-            "__v_raw",
-            "__v_skip",
-            "toJSON",
-            "then",
-            "_x_interceptor",
-            "init"
-          ].includes(property))
-            return;
-          let effects = store.get(symbol2).effects[path];
-          let methods = effects["methods"] || [];
-          for (let i = 0; i < methods.length; i++) {
-            if (methods[i][0] === property) {
-              let func = new Function([], "return " + methods[i][1]);
-              let boundFunc = func.bind(dataGet(store.get(symbol2).reactive, path));
-              return boundFunc();
-            }
-          }
-          let method = property;
-          return async (...params) => {
-            return await callMethod(symbol2, path, method, params);
-          };
-        }
-      });
-      return thing;
-    });
+  function isFunction2(subject) {
+    return typeof subject === "function";
   }
-  function extractData(payload, symbol, decorate2 = (i) => i, path = "") {
-    let value = isSynthetic(payload) ? payload[0] : payload;
-    let meta = isSynthetic(payload) ? payload[1] : void 0;
-    if (isObjecty(value)) {
-      Object.entries(value).forEach(([key, iValue]) => {
-        value[key] = extractData(iValue, symbol, decorate2, path === "" ? key : `${path}.${key}`);
-      });
-    }
-    return meta !== void 0 ? decorate2(value, meta, symbol, path) : value;
+  function isPrimitive(subject) {
+    return typeof subject !== "object" || subject === null;
   }
-  function isSynthetic(payload) {
-    return Array.isArray(payload) && payload.length === 2 && typeof payload[1] === "object" && Object.keys(payload[1]).includes("s");
+  function deepClone(obj) {
+    return JSON.parse(JSON.stringify(obj));
   }
-  async function callMethod(symbol, path, method, params) {
-    let result = await requestMethodCall(symbol, path, method, params);
-    return result;
+  function deeplyEqual(a, b) {
+    return JSON.stringify(a) === JSON.stringify(b);
   }
-  var requestTargetQueue = /* @__PURE__ */ new Map();
-  function requestMethodCall(symbol, path, method, params) {
-    if (!requestTargetQueue.has(symbol)) {
-      requestTargetQueue.set(symbol, { calls: [], receivers: [] });
-    }
-    triggerSend();
-    return new Promise((resolve, reject) => {
-      let queue = requestTargetQueue.get(symbol);
-      queue.calls.push({
-        path,
-        method,
-        params,
-        handleReturn(value) {
-          resolve(value);
-        },
-        handleError(value) {
-          reject(value);
-        }
-      });
-    });
+  function each(subject, callback) {
+    Object.entries(subject).forEach(([key, value]) => callback(key, value));
   }
-  var requestBufferTimeout;
-  function triggerSend() {
-    if (requestBufferTimeout)
-      return;
-    requestBufferTimeout = setTimeout(() => {
-      sendMethodCall();
-      requestBufferTimeout = void 0;
-    }, 5);
-  }
-  async function sendMethodCall() {
-    let payload = [];
-    let receivers = [];
-    requestTargetQueue.forEach((request2, symbol) => {
-      let target = store.get(symbol);
-      let propertiesDiff = diff(target.canonical, target.ephemeral);
-      payload.push({
-        snapshot: target.snapshot,
-        diff: propertiesDiff,
-        calls: request2.calls.map((i) => ({
-          path: i.path,
-          method: i.method,
-          params: i.params
-        }))
-      });
-      target.loading.state = true;
-      receivers.push((snapshot, effects) => {
-        mergeNewSnapshot(symbol, snapshot, effects);
-        for (let i = 0; i < effects.returns.length; i++) {
-          request2.calls[i].handleReturn(effects.returns[i]);
-        }
-        if (effects[""]["html"]) {
-          Alpine.morph(document.getElementById(effects[""]["id"]), effects[""]["html"]);
-        }
-        target.errors.state = effects.errors;
-        target.loading.state = false;
-      });
-    });
-    requestTargetQueue.clear();
-    let request = await fetch("/synthetic/update", {
-      method: "POST",
-      body: JSON.stringify({
-        _token: getCsrfToken(),
-        targets: payload
-      }),
-      headers: { "Content-type": "application/json" }
-    });
-    if (request.ok) {
-      let response = await request.json();
-      for (let i = 0; i < response.length; i++) {
-        let { snapshot, effects } = response[i];
-        receivers[i](snapshot, effects);
-      }
-    } else {
-      let html = await request.text();
-      showHtmlModal(html);
-    }
+  function dataGet(object, key) {
+    if (key === "")
+      return object;
+    return key.split(".").reduce((carry, i) => {
+      if (carry === void 0)
+        return void 0;
+      return carry[i];
+    }, object);
   }
   function diff(left, right, diffs = {}, path = "") {
     if (left === right)
@@ -841,7 +805,7 @@
       diffs[path] = right;
       return diffs;
     }
-    if (isLeafy(left) || isLeafy(right)) {
+    if (isPrimitive(left) || isPrimitive(right)) {
       diffs[path] = right;
       return diffs;
     }
@@ -855,72 +819,8 @@
     });
     return diffs;
   }
-  function isLeafy(subject) {
-    return typeof subject !== "object" || subject === null;
-  }
-  function deeplyEqual(a, b) {
-    return JSON.stringify(a) === JSON.stringify(b);
-  }
-  function isObjecty(subject) {
-    return typeof subject === "object" && subject !== null;
-  }
-  function isObject2(subject) {
-    return isObjecty(subject) && !isArray2(subject);
-  }
-  function isArray2(subject) {
-    return Array.isArray(subject);
-  }
-  function deepClone(obj) {
-    return JSON.parse(JSON.stringify(obj));
-  }
-  function mergeNewSnapshot(symbol, snapshot, effects) {
-    let target = store.get(symbol);
-    target.snapshot = snapshot;
-    target.effects = effects;
-    target.canonical = extractData(deepClone(snapshot.data), symbol);
-    let newData = extractData(deepClone(snapshot.data), symbol);
-    Object.entries(target.ephemeral).forEach(([key, value]) => {
-      if (JSON.stringify(target.ephemeral[key]) !== JSON.stringify(newData[key])) {
-        target.reactive[key] = newData[key];
-      }
-    });
-  }
-  function decorate(object, decorator) {
-    return new Proxy(object, {
-      get(target, property, receiver) {
-        if (property === "__target")
-          return target;
-        let got = Reflect.get(decorator, property, receiver);
-        if (got !== void 0)
-          return got;
-        got = Reflect.get(target, property, receiver);
-        if (got !== void 0)
-          return got;
-        if ("__get" in decorator) {
-          return decorator.__get(property);
-        }
-      },
-      set(target, property, value) {
-        if (property in decorator) {
-          decorator[property] = value;
-        } else if (property in target || property === "__v_isRef") {
-          target[property] = value;
-        } else if ("__set" in decorator && !["then"].includes(property)) {
-          decorator.__set(property, value);
-        }
-        return true;
-      }
-    });
-  }
-  function dataGet(object, key) {
-    if (key === "")
-      return object;
-    return key.split(".").reduce((carry, i) => {
-      if (carry === void 0)
-        return void 0;
-      return carry[i];
-    }, object);
-  }
+
+  // js/modal.js
   function showHtmlModal(html) {
     let page = document.createElement("html");
     page.innerHTML = html;
@@ -962,5 +862,379 @@
   function hideHtmlModal(modal) {
     modal.outerHTML = "";
     document.body.style.overflow = "visible";
+  }
+
+  // js/events.js
+  var listeners = [];
+  function on(name, callback) {
+    if (!listeners[name])
+      listeners[name] = [];
+    listeners[name].push(callback);
+  }
+  function trigger2(name, ...params) {
+    let callbacks = listeners[name] || [];
+    let finishers = [];
+    for (let i = 0; i < callbacks.length; i++) {
+      let finisher = callbacks[i](...params);
+      if (isFunction2(finisher))
+        finishers.push(finisher);
+    }
+    return (result) => {
+      let latest = result;
+      for (let i = 0; i < finishers.length; i++) {
+        latest = finishers[i](latest);
+      }
+      return latest;
+    };
+  }
+
+  // js/features/jsMethods.js
+  function jsMethods_default() {
+    on("effects", (target, effects, path) => {
+      let decorator = dataGet(target.ephemeral, path).__decorator;
+      let methods = effects["js"] || [];
+      each(methods, (name, expression) => {
+        let func = new Function([], "return " + expression);
+        let boundFunc = func.bind(dataGet(target.reactive, path));
+        let run = boundFunc();
+        Object.defineProperty(decorator, name, { value: run, enumerable: false });
+      });
+    });
+  }
+
+  // js/features/redirect.js
+  function redirect_default() {
+    on("effects", (target, effects) => {
+      if (!effects["redirect"])
+        return;
+      let url = effects["redirect"];
+      window.location.href = url;
+    });
+  }
+
+  // js/features/loading.js
+  function loading_default() {
+    on("new", (target) => {
+      target.__loading = reactive2({ state: false });
+    });
+    on("request", (target, payload) => {
+      target.__loading.state = true;
+      return () => target.__loading.state = false;
+    });
+    on("decorate", (target, path) => {
+      return (decorator) => {
+        Object.defineProperty(decorator, "$loading", { get() {
+          return target.__loading.state;
+        } });
+        return decorator;
+      };
+    });
+  }
+
+  // js/features/polling.js
+  function polling_default() {
+    on("decorate", (target, path) => {
+      return (decorator) => {
+        Object.defineProperty(decorator, "$poll", { value: () => {
+          syncronizedInterval(2500, () => {
+            target.ephemeral.$commit();
+          });
+        } });
+        return decorator;
+      };
+    });
+  }
+  var clocks = [];
+  function syncronizedInterval(ms, callback) {
+    if (!clocks[ms]) {
+      let clock = {
+        timer: setInterval(() => each(clock.callbacks, (key, value) => value()), ms),
+        callbacks: []
+      };
+      clocks[ms] = clock;
+    }
+    clocks[ms].callbacks.push(callback);
+  }
+
+  // js/features/errors.js
+  function errors_default() {
+    on("new", (target, path) => {
+      target.__errors = reactive2({ state: [] });
+    });
+    on("decorate", (target, path) => {
+      return (decorator) => {
+        Object.defineProperty(decorator, "$errors", { get() {
+          let errors = {};
+          Object.entries(target.__errors.state).forEach(([key, value]) => {
+            errors[key] = value[0];
+          });
+          return errors;
+        } });
+        return decorator;
+      };
+    });
+    on("effects", (target, effects, path) => {
+      let errors = effects["errors"] || [];
+      target.__errors.state = errors;
+    });
+  }
+
+  // js/features/dirty.js
+  function dirty_default() {
+    on("new", (target) => {
+      target.__dirty = reactive2({ state: 0 });
+    });
+    on("request", (target, payload) => {
+      return () => target.__dirty.state = +new Date();
+    });
+    on("decorate", (target, path) => {
+      return (decorator) => {
+        Object.defineProperty(decorator, "$dirty", { get() {
+          let throwaway = target.__dirty.state;
+          let thing1 = dataGet(target.canonical, path);
+          let thing2 = dataGet(target.reactive, path);
+          return !deeplyEqual(thing1, thing2);
+        } });
+        return decorator;
+      };
+    });
+  }
+
+  // js/features/index.js
+  jsMethods_default();
+  redirect_default();
+  loading_default();
+  polling_default();
+  errors_default();
+  dirty_default();
+
+  // js/index.js
+  var reactive2 = reactive;
+  var release = stop;
+  var effect2 = effect;
+  var raw = toRaw;
+  var store = /* @__PURE__ */ new Map();
+  window.synthetic = synthetic;
+  function synthetic(provided) {
+    if (typeof provided === "string")
+      return newUp(provided);
+    let target = {
+      effects: raw(provided.effects),
+      snapshot: raw(provided.snapshot)
+    };
+    let symbol = Symbol();
+    store.set(symbol, target);
+    let canonical = extractData(deepClone(target.snapshot.data), symbol);
+    let ephemeral = extractDataAndDecorate(deepClone(target.snapshot.data), symbol);
+    target.canonical = canonical;
+    target.ephemeral = ephemeral;
+    target.reactive = reactive2(ephemeral);
+    trigger2("new", target);
+    processEffects(target);
+    return target.reactive;
+  }
+  async function newUp(name) {
+    return synthetic(await requestNew(name));
+  }
+  function extractDataAndDecorate(payload, symbol) {
+    return extractData(payload, symbol, (value, meta, symbol2, path) => {
+      let target = store.get(symbol2);
+      let finish = trigger2("decorate", target, path);
+      return decorate(value, finish({
+        async $commit() {
+          return await requestCommit(symbol2);
+        },
+        __get(property) {
+          if (typeof property === "symbol")
+            return;
+          if ([
+            "__v_isRef",
+            "__v_isReadonly",
+            "__v_raw",
+            "__v_skip",
+            "toJSON",
+            "then",
+            "_x_interceptor",
+            "init"
+          ].includes(property))
+            return;
+          let method = property;
+          return async (...params) => {
+            return await callMethod(symbol2, path, method, params);
+          };
+        }
+      }));
+    });
+  }
+  function extractData(payload, symbol, decorate2 = (i) => i, path = "") {
+    let value = isSynthetic(payload) ? payload[0] : payload;
+    let meta = isSynthetic(payload) ? payload[1] : void 0;
+    if (isObjecty(value)) {
+      Object.entries(value).forEach(([key, iValue]) => {
+        value[key] = extractData(iValue, symbol, decorate2, path === "" ? key : `${path}.${key}`);
+      });
+    }
+    return meta !== void 0 ? decorate2(value, meta, symbol, path) : value;
+  }
+  function isSynthetic(subject) {
+    return Array.isArray(subject) && subject.length === 2 && typeof subject[1] === "object" && Object.keys(subject[1]).includes("s");
+  }
+  async function callMethod(symbol, path, method, params) {
+    let result = await requestMethodCall(symbol, path, method, params);
+    return result;
+  }
+  var requestTargetQueue = /* @__PURE__ */ new Map();
+  function requestMethodCall(symbol, path, method, params) {
+    requestCommit(symbol);
+    return new Promise((resolve, reject) => {
+      let queue = requestTargetQueue.get(symbol);
+      queue.calls.push({
+        path,
+        method,
+        params,
+        handleReturn(value) {
+          resolve(value);
+        }
+      });
+    });
+  }
+  function requestCommit(symbol) {
+    if (!requestTargetQueue.has(symbol)) {
+      requestTargetQueue.set(symbol, { calls: [], receivers: [] });
+    }
+    triggerSend();
+    return new Promise((resolve, reject) => {
+      let queue = requestTargetQueue.get(symbol);
+      queue.handleResponse = () => resolve();
+    });
+  }
+  var requestBufferTimeout;
+  function triggerSend() {
+    if (requestBufferTimeout)
+      return;
+    requestBufferTimeout = setTimeout(() => {
+      sendMethodCall();
+      requestBufferTimeout = void 0;
+    }, 5);
+  }
+  async function sendMethodCall() {
+    let payload = [];
+    let receivers = [];
+    requestTargetQueue.forEach((request2, symbol) => {
+      let target = store.get(symbol);
+      let propertiesDiff = diff(target.canonical, target.ephemeral);
+      let targetPaylaod = {
+        snapshot: target.snapshot,
+        diff: propertiesDiff,
+        calls: request2.calls.map((i) => ({
+          path: i.path,
+          method: i.method,
+          params: i.params
+        }))
+      };
+      payload.push(targetPaylaod);
+      let finish = trigger2("request", target, targetPaylaod);
+      receivers.push((snapshot, effects) => {
+        mergeNewSnapshot(symbol, snapshot, effects);
+        processEffects(target);
+        for (let i = 0; i < request2.calls.length; i++) {
+          let { path, handleReturn } = request2.calls[i];
+          let iEffects = effects.find((i2, iPath) => iPath === path);
+          if (iEffects && iEffects["return"]) {
+            handleReturn(iEffects["return"]);
+          } else {
+            handleReturn(void 0);
+          }
+        }
+        finish();
+        request2.handleResponse();
+      });
+    });
+    requestTargetQueue.clear();
+    let request = await fetch("/synthetic/update", {
+      method: "POST",
+      body: JSON.stringify({
+        _token: getCsrfToken(),
+        targets: payload
+      }),
+      headers: { "Content-type": "application/json" }
+    });
+    if (request.ok) {
+      let response = await request.json();
+      for (let i = 0; i < response.length; i++) {
+        let { snapshot, effects } = response[i];
+        receivers[i](snapshot, effects);
+      }
+    } else {
+      let html = await request.text();
+      showHtmlModal(html);
+    }
+  }
+  async function requestNew(name) {
+    let request = await fetch("/synthetic/new", {
+      method: "POST",
+      body: JSON.stringify({
+        _token: getCsrfToken(),
+        name
+      }),
+      headers: { "Content-type": "application/json" }
+    });
+    if (request.ok) {
+      return await request.json();
+    } else {
+      let html = await request.text();
+      showHtmlModal(html);
+    }
+  }
+  function getCsrfToken() {
+    if (document.querySelector('meta[name="csrf"]')) {
+      return document.querySelector('meta[name="csrf"]').content;
+    }
+    return window.__csrf;
+  }
+  function mergeNewSnapshot(symbol, snapshot, effects) {
+    let target = store.get(symbol);
+    target.snapshot = snapshot;
+    target.effects = effects;
+    target.canonical = extractData(deepClone(snapshot.data), symbol);
+    let newData = extractData(deepClone(snapshot.data), symbol);
+    Object.entries(target.ephemeral).forEach(([key, value]) => {
+      if (!deeplyEqual(target.ephemeral[key], newData[key])) {
+        target.reactive[key] = newData[key];
+      }
+    });
+  }
+  function decorate(object, decorator) {
+    return new Proxy(object, {
+      get(target, property, receiver) {
+        if (property === "__target")
+          return target;
+        if (property === "__decorator")
+          return decorator;
+        let got = Reflect.get(decorator, property, receiver);
+        if (got !== void 0)
+          return got;
+        got = Reflect.get(target, property, receiver);
+        if (got !== void 0)
+          return got;
+        if ("__get" in decorator) {
+          return decorator.__get(property);
+        }
+      },
+      set(target, property, value) {
+        if (property in decorator) {
+          decorator[property] = value;
+        } else if (property in target || property === "__v_isRef") {
+          target[property] = value;
+        } else if ("__set" in decorator && !["then"].includes(property)) {
+          decorator.__set(property, value);
+        }
+        return true;
+      }
+    });
+  }
+  function processEffects(target) {
+    let effects = target.effects;
+    each(effects, (key, value) => trigger2("effects", target, value, key));
   }
 })();

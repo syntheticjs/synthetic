@@ -9,8 +9,8 @@ class ArraySynth extends Synth {
         return is_array($target);
     }
 
-    function dehydrate($target) {
-        return [$target, []];
+    function dehydrate($target, $addMeta) {
+        return $target;
     }
 
     function hydrate($value, $meta) {

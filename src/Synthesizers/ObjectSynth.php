@@ -4,8 +4,10 @@ namespace Synthetic\Synthesizers;
 
 use ReflectionClass;
 use ReflectionMethod;
+use ReflectionObject;
 use ReflectionProperty;
-use Synthetic\Synthetic;
+use Synthetic\Component;
+use Synthetic\Synthesizable;
 
 class ObjectSynth extends Synth {
     public static $key = 'obj';
@@ -14,8 +16,8 @@ class ObjectSynth extends Synth {
         return is_object($target);
     }
 
-    function dehydrate($target, $addMeta, $addEffect) {
-        $finish = app('synthetic')->trigger('dehydrate', $target, $addMeta, $addEffect);
+    function dehydrate($target, $addMeta, $addEffect, $initial) {
+        $finish = app('synthetic')->trigger('dehydrate', $target, $addMeta, $addEffect, $initial);
 
         $this->ensureSynthetic($target);
 
@@ -33,10 +35,15 @@ class ObjectSynth extends Synth {
             $properties[$property->getName()] = $property->getValue($target);
         }
 
-        $addMeta('class', get_class($target));
+        $addMeta('class', $this->getClass($target));
         $addMeta('computed', $deps);
 
         return $finish($properties);
+    }
+
+    public function getClass($target)
+    {
+        return get_class($target);
     }
 
     function hydrate($value, $meta) {
@@ -83,7 +90,8 @@ class ObjectSynth extends Synth {
 
     function ensureSynthetic($target) {
         abort_unless(
-            in_array(Synthetic::class, class_uses($target)),
+            $target instanceof Component,
+            // in_array(Synthesizable::class, class_uses($target)),
             419,
             'You can only synthesize a class that implements the Synthetic interface.'
         );

@@ -28,9 +28,9 @@ let store = new Map
  * either a full snapshot, rendered on the backend, or they can
  * pass a string identifier and request a snapshot via fetch.
  */
-window.synthesize = synthesize
+window.synthetic = synthetic
 
-export function synthesize(provided) {
+export function synthetic(provided) {
     if (typeof provided === 'string') return newUp(provided)
 
     // This "target" will be the object representing all the state for this synthetic.
@@ -68,7 +68,7 @@ export function synthesize(provided) {
  * an initial synthetic snapshot on the server this is necessary.
  */
 async function newUp(name) {
-    return synthesize(await requestNew(name))
+    return synthetic(await requestNew(name))
 }
 
 /**

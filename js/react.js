@@ -1,4 +1,4 @@
-import { effect, synthesize } from './index'
+import { effect, synthetic } from './index'
 import { useState, useEffect } from 'react'
 import { isObjecty } from './utils'
 
@@ -12,7 +12,7 @@ export function useSynthetic(raw) {
     let setTick = useState(0)[1]
     let rerender = () => setTick(+new Date())
 
-    let [syntheticObj] = useState(() => synthesize(raw))
+    let [syntheticObj] = useState(() => synthetic(raw))
 
     useEffect(() => {
         let effectRef = effect(() => {
