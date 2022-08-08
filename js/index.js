@@ -242,20 +242,15 @@ async function sendMethodCall() {
             for (let i = 0; i < request.calls.length; i++) {
                 let { path, handleReturn } = request.calls[i];
 
-                let effectValues = Object.values(effects).find(([iPath, i]) => {
-                    return iPath === path
+                let forReturn = undefined
+
+                if (effects) Object.entries(effects).forEach(([iPath, iEffects]) => {
+                    if (path === iPath) {
+                        if (iEffects['return'] !== undefined) forReturn = iEffects['return']
+                    }
                 })
 
-                let iEffects = effectValues && effectValues[1]
-
-                if (iEffects && iEffects['return']) {
-                    handleReturn(iEffects['return'])
-                } else {
-                    // Should I return "null" here because PHP has notion of undefined?
-                    // And this way if someone deliberately returns "null" it would
-                    // be accurate.
-                    handleReturn(undefined)
-                }
+                handleReturn(forReturn)
             }
 
             finish()

@@ -1147,15 +1147,15 @@
         processEffects(target);
         for (let i = 0; i < request2.calls.length; i++) {
           let { path, handleReturn } = request2.calls[i];
-          let effectValues = Object.values(effects).find(([iPath, i2]) => {
-            return iPath === path;
-          });
-          let iEffects = effectValues && effectValues[1];
-          if (iEffects && iEffects["return"]) {
-            handleReturn(iEffects["return"]);
-          } else {
-            handleReturn(void 0);
-          }
+          let forReturn = void 0;
+          if (effects)
+            Object.entries(effects).forEach(([iPath, iEffects]) => {
+              if (path === iPath) {
+                if (iEffects["return"] !== void 0)
+                  forReturn = iEffects["return"];
+              }
+            });
+          handleReturn(forReturn);
         }
         finish();
         request2.handleResponse();
