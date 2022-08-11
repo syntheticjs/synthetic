@@ -3,11 +3,6 @@
 namespace Synthetic\Synthesizers;
 
 use Synthetic\AnonymousSynthetic;
-use Synthetic\Synthetic;
-use Laravel\SerializableClosure\Contracts\Serializable;
-use ReflectionClass;
-use ReflectionObject;
-use ReflectionProperty;
 use Laravel\SerializableClosure\SerializableClosure;
 
 class VirtualSynth {

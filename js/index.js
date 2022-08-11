@@ -157,7 +157,7 @@ function extractData(payload, symbol, decorate = i => i, path = '') {
         })
     }
 
-    return meta !== undefined
+    return (meta !== undefined && isObjecty(value))
         ? decorate(value, meta, symbol, path)
         : value
 }

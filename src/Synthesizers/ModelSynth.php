@@ -18,7 +18,7 @@ class ModelSynth extends Synth {
         return $target instanceof Model;
     }
 
-    function dehydrate($target) {
+    function dehydrate($target, $addMeta, $addEffect, $initial) {
         $value = $this->getSerializedPropertyValue($target);
 
         $attributes = $target->getAttributes();
@@ -27,15 +27,12 @@ class ModelSynth extends Synth {
             $attributes[$relation] = $target->getRelationValue($relation);
         }
 
-        return [
-            $attributes,
-            [
-                'connection' => $value->connection,
-                'relations' => $value->relations,
-                'class' => $value->class,
-                'key' => $value->id,
-            ],
-        ];
+        $addMeta('connection', $value->connection);
+        $addMeta('relations', $value->relations);
+        $addMeta('class', $value->class);
+        $addMeta('key', $value->id);
+
+        return $attributes;
     }
 
     function hydrate($value, $meta) {
@@ -53,11 +50,11 @@ class ModelSynth extends Synth {
         return $this->getRestoredPropertyValue($identifier);
     }
 
-    function get($target, $key) {
+    function &get($target, $key) {
         $target->getAttribute($key);
     }
 
-    function set($target, $key, $value) {
+    function set(&$target, $key, $value) {
         $target->setAttribute($key, $value);
     }
 
@@ -66,7 +63,7 @@ class ModelSynth extends Synth {
         return ['save'];
     }
 
-    function call($target, $method, $params) {
+    function call($target, $method, $params, $addEffect) {
         if ($method === 'save') {
             $models = $this->validate(
                 $target->getAttributes(),

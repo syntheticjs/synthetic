@@ -17,7 +17,7 @@ class SyntheticServiceProvider extends ServiceProvider
     {
         $this->app->alias(SyntheticManager::class, 'synthetic');
         $this->app->singleton(SyntheticManager::class);
-        AnonymousSynth::registerAnonymousCacheClassAutoloader();
+        // AnonymousSynth::registerAnonymousCacheClassAutoloader();
     }
 
     public function boot()

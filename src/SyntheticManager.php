@@ -4,10 +4,11 @@ namespace Synthetic;
 
 use Closure;
 use Synthetic\LifecycleHooks;
-use Synthetic\Synthesizers\AnonymousSynth;
 use Synthetic\Synthesizers\ArraySynth;
 use Synthetic\Synthesizers\ModelSynth;
+use Synthetic\Synthesizers\CarbonSynth;
 use Synthetic\Synthesizers\ObjectSynth;
+use Synthetic\Synthesizers\AnonymousSynth;
 use Synthetic\Synthesizers\CollectionSynth;
 use Synthetic\Synthesizers\StringableSynth;
 
@@ -16,6 +17,7 @@ class SyntheticManager
     use SyntheticValidation, SyntheticTesting;
 
     protected $synthesizers = [
+        CarbonSynth::class,
         CollectionSynth::class,
         ModelSynth::class,
         StringableSynth::class,
@@ -82,7 +84,7 @@ class SyntheticManager
         return $root;
     }
 
-    function dehydrate($target, &$effects, $initial, $path = '') {
+    function dehydrate($target, &$effects, $initial, $annotationsFromParent = [], $path = '') {
         $synth = $this->synth($target);
 
         if ($synth) {
@@ -96,13 +98,17 @@ class SyntheticManager
                 $meta[$key] = $value;
             };
 
-            $value = $synth->dehydrate($target, $addMeta, $addEffect, $initial);
+            $annotations = $this->getAnnotations($target);
+
+            $value = $synth->dehydrate($target, $addMeta, $addEffect, $annotations, $annotationsFromParent, $initial);
 
             $meta['s'] = $synth::getKey();
 
             if (is_array($value)) {
                 foreach ($value as $key => $child) {
-                    $value[$key] = $this->dehydrate($child, $effects, $initial, $path === '' ? $key : $path.'.'.$key);
+                    $annotationsFromParent = $annotations[$key] ?? [];
+
+                    $value[$key] = $this->dehydrate($child, $effects, $initial, $annotationsFromParent, $path === '' ? $key : $path.'.'.$key);
                 }
             }
 
@@ -150,7 +156,6 @@ class SyntheticManager
             $target =& $this->dataGet($root, $parentKey);
 
             LifecycleHooks::updating($root, $path, $rawValue);
-            LifecycleHooks::updatingSelf($target, $key, $rawValue);
 
             $value = $this->hydrate($newValue, $path);
 
@@ -161,7 +166,6 @@ class SyntheticManager
             }
 
             LifecycleHooks::updated($root, $path, $value);
-            LifecycleHooks::updatedSelf($target, $key, $value);
         }
     }
 
@@ -265,5 +269,34 @@ class SyntheticManager
         if (! isset($this->listeners[$name])) $this->listeners[$name] = [];
 
         $this->listeners[$name][] = $callback;
+    }
+
+    function getAnnotations($target) {
+        if (! is_object($target)) return [];
+
+        return collect()
+            ->concat((new \ReflectionClass($target))->getProperties())
+            ->concat((new \ReflectionClass($target))->getMethods())
+            ->filter(function ($subject) use ($target) {
+                if ($subject->class !== get_class($target)) return false;
+                if ($subject->getDocComment() === false) return false;
+                return true;
+            })
+            ->mapWithKeys(function ($subject) {
+                return [$subject->getName() => $this->parseAnnotations($subject->getDocComment())];
+            })->toArray();
+    }
+
+    function parseAnnotations($raw) {
+        return str($raw)
+            ->matchAll('/\@([^\*]+)/')
+            ->mapWithKeys(function ($line) {
+                $segments = explode(' ', trim($line));
+
+                $annotation = array_shift($segments);
+
+                return [$annotation => $segments];
+            })
+            ->toArray();
     }
 }
