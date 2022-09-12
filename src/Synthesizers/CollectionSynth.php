@@ -11,8 +11,8 @@ class CollectionSynth extends ArraySynth {
         return $target instanceof Collection;
     }
 
-    function dehydrate($target, $addMeta) {
-        $addMeta('class', get_class($target));
+    function dehydrate($target, $context) {
+        $context->addMeta('class', get_class($target));
 
         return $target->all();
     }

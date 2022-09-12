@@ -37,14 +37,14 @@ class AnonymousSynth extends ObjectSynth
             && str(get_class($target))->startsWith('SyntheticCache');
     }
 
-    function dehydrate($target, $addMeta, $addEffect, $annotations, $annotationsFromParent, $initial) {
+    function dehydrate($target, $context) {
         if ($this->isAnonymousClass($target)) {
             $cacheClass = $this->getAnonymousCacheClass($target);
 
             $target = new $cacheClass;
         }
 
-        return parent::dehydrate($target, $addMeta, $addEffect, $annotations, $annotationsFromParent, $initial);
+        return parent::dehydrate($target, $context);
     }
 
     function getAnonymousCacheClass($target) {

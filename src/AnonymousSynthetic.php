@@ -2,10 +2,8 @@
 
 namespace Synthetic;
 
-class AnonymousSynthetic
+class AnonymousSynthetic extends Component
 {
-    use Synthetic;
-
     public $properties;
     public $methods;
 

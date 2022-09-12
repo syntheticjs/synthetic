@@ -33,5 +33,4 @@ class LifecycleHooks
 
         if (method_exists($target, 'updatedSelf')) $target->updatedSelf($key, $value);
     }
-
 }

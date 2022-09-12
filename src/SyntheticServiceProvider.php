@@ -5,10 +5,10 @@ namespace Synthetic;
 use Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull;
 use Illuminate\Foundation\Http\Middleware\TrimStrings;
 use Illuminate\Foundation\Http\Events\RequestHandled;
+use Synthetic\Synthesizers\AnonymousSynth;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Blade;
-use Synthetic\Synthesizers\AnonymousSynth;
 use Synthetic\SyntheticManager;
 
 class SyntheticServiceProvider extends ServiceProvider
@@ -76,6 +76,7 @@ class SyntheticServiceProvider extends ServiceProvider
     function features()
     {
         foreach ([
+            \Synthetic\Features\SupportComputedProperties::class,
             \Synthetic\Features\SupportRedirects::class,
             \Synthetic\Features\SupportJsMethods::class,
         ] as $feature) {
@@ -112,6 +113,6 @@ class SyntheticServiceProvider extends ServiceProvider
             }
 
             return $responses;
-        })->middleware('web');
+        })->middleware('web')->name('synthetic.update');
     }
 }

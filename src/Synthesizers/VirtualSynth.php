@@ -17,7 +17,7 @@ class VirtualSynth {
         return array_keys($target->getMethods());
     }
 
-    function dehydrate($target) {
+    function dehydrate($target, $context) {
         $properties = $target->getProperties();
         $methods = $target->getMethods();
 
@@ -27,17 +27,16 @@ class VirtualSynth {
             return array_flip(array_keys($uses));
         });
 
-        return [$properties, [
-            'synth' => 'anms',
-            'methods' => array_map(function ($closure) use ($target) {
-                // $closure->bindTo($target);
-                $thing = new SerializableClosure($closure);
-                // $thing->transformUseVariablesUsing(function ($hey) {
-                //     dd($hey);
-                // });
-                return serialize($thing);
-            }, $methods)
-        ]];
+        $context->addMeta('methods', array_map(function ($closure) use ($target) {
+            // $closure->bindTo($target);
+            $thing = new SerializableClosure($closure);
+            // $thing->transformUseVariablesUsing(function ($hey) {
+            //     dd($hey);
+            // });
+            return serialize($thing);
+        }, $methods));
+
+        return $properties;
     }
 
     function hydrate($value, $meta) {
@@ -64,11 +63,7 @@ class VirtualSynth {
         return $target;
     }
 
-    function update($target, $newValue, $meta) {
-        //
-    }
-
-    function callMethod($target, $method, $params) {
+    function call($target, $method, $params) {
         return $target->$method(...$params);
     }
 }

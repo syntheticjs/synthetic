@@ -1,7 +1,9 @@
 import { reactive as r, effect as e, toRaw as tr, stop as s, pauseTracking, enableTracking } from '@vue/reactivity'
-import { each, deeplyEqual, isObjecty, deepClone, diff, dataGet } from './utils'
+import { each, deeplyEqual, isObjecty, deepClone, diff, dataGet, isObject } from './utils'
 import { showHtmlModal } from './modal'
-import { trigger } from './events'
+import { on, trigger } from './events'
+
+export { on, trigger }
 
 /**
  * The Alpine build will need to use it's own reactivity hooks,
@@ -37,12 +39,16 @@ let store = new Map
  */
 window.synthetic = synthetic
 
+// @todo - do better
+window.syntheticOn = on
+
 export function synthetic(provided) {
     if (typeof provided === 'string') return newUp(provided)
 
     // This "target" will be the object representing all the state for this synthetic.
     // Anytime you need to interect with this synthetic, you will need this object.
     let target = {
+        methods: provided.effects['methods'] || [],
         effects: raw(provided.effects),
         snapshot: raw(provided.snapshot),
     }
@@ -83,62 +89,64 @@ async function newUp(name) {
  * that users interact with. Things like "post.$errors" & "form.$loading"
  */
 function extractDataAndDecorate(payload, symbol) {
-    return extractData(payload, symbol, (value, meta, symbol, path) => {
+    return extractData(payload, symbol, (object, meta, symbol, path) => {
         let target = store.get(symbol)
 
-        let finish = trigger('decorate', target, path)
+        let decorator = {}
 
-        return decorate(value, finish({
-            $watch(path, callback) {
-                let firstTime = true
-                let old = undefined
+        let addProp = (key, value, options = {}) => {
+            let base = { enumerable: false, configurable: true, ...options }
 
-                effect(() => {
-                    let value = dataGet(target.reactive, path)
-
-                    if (firstTime) {
-                        firstTime = false
-                        return
-                    }
-
-                    pauseTracking()
-
-                    callback(value, old)
-
-                    old = value
-
-                    enableTracking()
+            if (isObject(value) && deeplyEqual(Object.keys(value), ['get']) || deeplyEqual(Object.keys(value), ['get', 'set'])) {
+                Object.defineProperty(object, key, {
+                    get: value.get,
+                    set: value.set,
+                    ...base,
                 })
-            },
-
-            $watchEffect(callback) {
-                effect(callback)
-            },
-
-            async $commit() {
-                return await requestCommit(symbol)
-            },
-
-            __get(property) {
-                // This is a "magic" getter (like in PHP). It acts as a trap for any property
-                // or method that is being accessed, but doesn't exist. We're using it here
-                // to call server methods without the knowledge of their names beforehand.
-
-                // First we'll ignore any properties that will be accessed but we don't care about.
-                if (typeof property === 'symbol') return
-                if ([
-                    '__v_isRef', '__v_isReadonly', '__v_raw', '__v_skip', 'toJSON', 'then', '_x_interceptor', 'init',
-                ].includes(property)) return
-
-                // We will assume the user wants to call a method
-                // on the component who's name we don't know.
-                let method = property
-
-                return async (...params) => {
-                    return await callMethod(symbol, path, method, params)
-                }
+            } else {
+                Object.defineProperty(object, key, {
+                    value,
+                    ...base,
+                })
             }
-        }))
+        }
+
+        let finish = trigger('decorate', target, path, addProp, decorator, symbol)
+
+        addProp('__target', { get() { return target }})
+        addProp('$watch', (path, callback) => {
+            let firstTime = true
+            let old = undefined
+
+            effect(() => {
+                let value = dataGet(target.reactive, path)
+
+                if (firstTime) {
+                    firstTime = false
+                    return
+                }
+
+                pauseTracking()
+
+                callback(value, old)
+
+                old = value
+
+                enableTracking()
+            })
+        })
+        addProp('$watchEffect', (callback) => effect(callback))
+        addProp('$refresh', async () => await requestCommit(symbol))
+        addProp('$commit', async (callback) => {
+            return await requestCommit(symbol)
+        })
+
+        // Apply all the decorator descriptors to the target object.
+        each(Object.getOwnPropertyDescriptors(decorator), (key, value) => {
+            Object.defineProperty(object, key, value)
+        })
+
+        return object
     })
 }
 
@@ -173,7 +181,7 @@ function isSynthetic(subject) {
         && Object.keys(subject[1]).includes('s')
 }
 
-async function callMethod(symbol, path, method, params) {
+export async function callMethod(symbol, path, method, params) {
     let result = await requestMethodCall(symbol, path, method, params)
 
     return result
@@ -241,6 +249,12 @@ function triggerSend() {
  * store a new snapshot, and handle any side effects.
  */
 async function sendMethodCall() {
+    requestTargetQueue.forEach((request, symbol) => {
+        let target = store.get(symbol)
+
+        trigger('request.before', target)
+    })
+
     let payload = []
     let receivers = []
 
@@ -261,7 +275,7 @@ async function sendMethodCall() {
 
         payload.push(targetPaylaod)
 
-        let finish = trigger('request', target, targetPaylaod)
+        let finish = trigger('target.request', target, targetPaylaod)
 
         receivers.push((snapshot, effects) => {
             mergeNewSnapshot(symbol, snapshot, effects)
@@ -290,6 +304,8 @@ async function sendMethodCall() {
 
     requestTargetQueue.clear()
 
+    let finish = trigger('request', payload)
+
     let request = await fetch('/synthetic/update', {
         method: 'POST',
         body: JSON.stringify({
@@ -307,11 +323,17 @@ async function sendMethodCall() {
 
             receivers[i](snapshot, effects)
         }
+
+        trigger('response.success')
     } else {
         let html = await request.text()
 
         showHtmlModal(html)
+
+        trigger('response.failure')
     }
+
+    finish()
 }
 
 async function requestNew(name) {
@@ -369,8 +391,9 @@ function mergeNewSnapshot(symbol, snapshot, effects) {
 /**
  * This method decorates the target's raw data with new behavior.
  * We're using a proxy as a trap to intercept gets and sets.
+ * Going to leave this here for now, but avoiding proxies right now.
  */
-function decorate(object, decorator) {
+function __decorate(object, decorator) {
     return new Proxy(object, {
         // These expose the decorator properties as enumerable and such
         // This is sometimes what you want and sometimes what you don't want
@@ -388,7 +411,6 @@ function decorate(object, decorator) {
         // },
 
         get(target, property, receiver) {
-            if (property === '__target') return target
             if (property === '__decorator') return decorator
 
             let got = Reflect.get(decorator, property, receiver)
@@ -423,25 +445,14 @@ function processEffects(target) {
     each(effects, (key, value) => trigger('effects', target, value, key))
 }
 
-// Leaving this here in case I determine that this is a better idea.
-// function decorateWithoutProxy(object, symbol, path) {
-//     let target = store.get(symbol)
+function getDecoratePropertyFunction(decorator) {
+    return key => {
 
-//     let methods = target.methods[path] || []
-//     let methodDescriptors = {}
-//     methods.forEach(method => {
-//         methodDescriptors[method] = { get() {
-//             return async (...params) => {
-//                 return await callMethod(symbol, path, method, params)
-//             }
-//         }}
-//     })
+    }
+    // Apply all the decorator descriptors to the target object.
+    each(Object.getOwnPropertyDescriptors(decorator), (key, value) => {
+        Object.defineProperty(object,key, value)
+    })
 
-//     Object.defineProperties(object, {
-//         $commit: { value: () => {
-//             //
-//         }},
-
-//         ...methodDescriptors
-//     })
-// }
+    return object
+}

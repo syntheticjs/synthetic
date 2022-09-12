@@ -6,11 +6,13 @@ use JsonSerializable;
 use Illuminate\Contracts\Support\Jsonable;
 
 class Component implements Jsonable, JsonSerializable  {
+    public $__props;
+
     public function validate($rules = null, $messages = [], $attributes = []) {
         return app('synthetic')->validate($this, $rules, $messages, $attributes);
     }
 
-    public function jsonSerialize() {
+    public function jsonSerialize(): mixed {
         return $this->toJson();
     }
 

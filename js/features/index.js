@@ -1,4 +1,4 @@
-import jsMethods from './jsMethods'
+import methods from './methods'
 import prefetch from './prefetch'
 import redirect from './redirect'
 import loading from './loading'
@@ -6,7 +6,7 @@ import polling from './polling'
 import errors from './errors'
 import dirty from './dirty'
 
-jsMethods()
+methods()
 prefetch()
 redirect()
 loading()

@@ -2,15 +2,14 @@
 
 namespace Synthetic;
 
-use Closure;
-use Synthetic\LifecycleHooks;
-use Synthetic\Synthesizers\ArraySynth;
-use Synthetic\Synthesizers\ModelSynth;
-use Synthetic\Synthesizers\CarbonSynth;
-use Synthetic\Synthesizers\ObjectSynth;
-use Synthetic\Synthesizers\AnonymousSynth;
-use Synthetic\Synthesizers\CollectionSynth;
 use Synthetic\Synthesizers\StringableSynth;
+use Synthetic\Synthesizers\CollectionSynth;
+use Synthetic\Synthesizers\AnonymousSynth;
+use Synthetic\Synthesizers\ObjectSynth;
+use Synthetic\Synthesizers\CarbonSynth;
+use Synthetic\Synthesizers\ArraySynth;
+use Synthetic\LifecycleHooks;
+use Closure;
 
 class SyntheticManager
 {
@@ -19,7 +18,6 @@ class SyntheticManager
     protected $synthesizers = [
         CarbonSynth::class,
         CollectionSynth::class,
-        ModelSynth::class,
         StringableSynth::class,
         AnonymousSynth::class,
         ObjectSynth::class,
@@ -28,7 +26,9 @@ class SyntheticManager
 
     public function registerSynth($synthClass)
     {
-        array_unshift($this->synthesizers, $synthClass);
+        foreach ((array) $synthClass as $class) {
+            array_unshift($this->synthesizers, $class);
+        }
     }
 
     protected $metasByPath = [];
@@ -38,7 +38,7 @@ class SyntheticManager
         return $this->synthesize(new $name);
     }
 
-    function synthesize($target)
+    function synthesize($target, $props = [])
     {
         $effects = [];
 
@@ -88,25 +88,29 @@ class SyntheticManager
         $synth = $this->synth($target);
 
         if ($synth) {
-            $addEffect = function ($key, $value) use (&$effects, $path) {
-                if (! isset($effects[$path])) $effects[$path] = [];
-                $effects[$path][$key] = $value;
-            };
+            $context = new DehydrationContext($target, $initial, $annotationsFromParent);
 
-            $meta = [];
-            $addMeta = function ($key, $value) use (&$meta) {
-                $meta[$key] = $value;
-            };
+            $finish = app('synthetic')->trigger('dehydrate', $synth, $target, $context);
 
-            $annotations = $this->getAnnotations($target);
+            $methods = $synth->methods($target);
+            if ($methods) $context->addEffect('methods', $methods);
 
-            $value = $synth->dehydrate($target, $addMeta, $addEffect, $annotations, $annotationsFromParent, $initial);
+            $value = $synth->dehydrate($target, $context);
+
+            $value = $finish($value);
+
+            [$meta, $iEffects] = $context->retrieve();
 
             $meta['s'] = $synth::getKey();
 
+            foreach ($iEffects as $key => $effect) {
+                if (! isset($effects[$path])) $effects[$path] = [];
+                $effects[$path][$key] = $effect;
+            }
+
             if (is_array($value)) {
                 foreach ($value as $key => $child) {
-                    $annotationsFromParent = $annotations[$key] ?? [];
+                    $annotationsFromParent = $context->annotations[$key] ?? [];
 
                     $value[$key] = $this->dehydrate($child, $effects, $initial, $annotationsFromParent, $path === '' ? $key : $path.'.'.$key);
                 }
@@ -137,7 +141,11 @@ class SyntheticManager
                 }
             }
 
-            return $synth->hydrate($rawValue, $meta);
+            $finish = app('synthetic')->trigger('hydrate', $synth, $rawValue, $meta);
+
+            $return = $synth->hydrate($rawValue, $meta);
+
+            return $finish($return);
         }
 
         return $data;
@@ -145,6 +153,8 @@ class SyntheticManager
 
     function applyDiff($root, $diff) {
         foreach ($diff as $path => $newValue) {
+            $this->trigger('applyDiff', $root, $path, $newValue);
+
             $rawValue = $newValue;
 
             if (isset($this->metasByPath[$path])) {
@@ -185,7 +195,17 @@ class SyntheticManager
                 $effects[$path][$key] = $value;
             };
 
+            $synth = $this->synth($target);
+
+            if (! in_array($method, $synth->methods($target))) {
+                throw new \Exception('Method call not allowed: ['.$method.']');
+            }
+
+            $finish = app('synthetic')->trigger('call', $synth, $target, $method, $params, $addEffect);
+
             $return = $this->synth($target)->call($target, $method, $params, $addEffect);
+
+            $return = $finish($return);
 
             $return !== null && $addEffect('return', $return);
         }
@@ -245,7 +265,7 @@ class SyntheticManager
 
     protected $listeners = [];
 
-    function trigger($name, ...$params) {
+    function trigger($name, &...$params) {
         $finishers = [];
 
         foreach ($this->listeners[$name] ?? [] as $callback) {
@@ -256,7 +276,7 @@ class SyntheticManager
             }
         }
 
-        return function (&$forward) use (&$finishers) {
+        return function (&$forward = null) use (&$finishers) {
             $latest = $forward;
             foreach ($finishers as $finisher) {
                 $latest = $finisher($latest);
@@ -271,32 +291,11 @@ class SyntheticManager
         $this->listeners[$name][] = $callback;
     }
 
-    function getAnnotations($target) {
-        if (! is_object($target)) return [];
+    function off($name, $callback) {
+        $index = array_search($callback, $this->listeners[$name]);
 
-        return collect()
-            ->concat((new \ReflectionClass($target))->getProperties())
-            ->concat((new \ReflectionClass($target))->getMethods())
-            ->filter(function ($subject) use ($target) {
-                if ($subject->class !== get_class($target)) return false;
-                if ($subject->getDocComment() === false) return false;
-                return true;
-            })
-            ->mapWithKeys(function ($subject) {
-                return [$subject->getName() => $this->parseAnnotations($subject->getDocComment())];
-            })->toArray();
-    }
+        if ($index === false) return;
 
-    function parseAnnotations($raw) {
-        return str($raw)
-            ->matchAll('/\@([^\*]+)/')
-            ->mapWithKeys(function ($line) {
-                $segments = explode(' ', trim($line));
-
-                $annotation = array_shift($segments);
-
-                return [$annotation => $segments];
-            })
-            ->toArray();
+        unset($this->listeners[$name][$index]);
     }
 }

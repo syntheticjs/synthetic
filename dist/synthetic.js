@@ -793,14 +793,14 @@
   function each(subject, callback) {
     Object.entries(subject).forEach(([key, value]) => callback(key, value));
   }
-  function dataGet(object, key) {
+  function dataGet(object2, key) {
     if (key === "")
-      return object;
+      return object2;
     return key.split(".").reduce((carry, i) => {
       if (carry === void 0)
         return void 0;
       return carry[i];
-    }, object);
+    }, object2);
   }
   function diff(left, right, diffs = {}, path = "") {
     if (left === right)
@@ -892,16 +892,31 @@
     };
   }
 
-  // js/features/jsMethods.js
-  function jsMethods_default() {
-    on("effects", (target, effects, path) => {
-      let decorator = dataGet(target.ephemeral, path).__decorator;
+  // js/features/methods.js
+  function methods_default() {
+    on("decorate", (target, path, addProp, decorator, symbol) => {
+      let effects = target.effects[path];
+      if (!effects)
+        return;
+      let methods = effects["methods"] || [];
+      methods.forEach((method) => {
+        addProp(method, async (...params) => {
+          if (params.length === 1 && params[0] instanceof Event) {
+            params = [];
+          }
+          return await callMethod(symbol, path, method, params);
+        });
+      });
+    });
+    on("decorate", (target, path, addProp) => {
+      let effects = target.effects[path];
+      if (!effects)
+        return;
       let methods = effects["js"] || [];
       each(methods, (name, expression) => {
-        let func = new Function([], "return " + expression);
-        let boundFunc = func.bind(dataGet(target.reactive, path));
-        let run = boundFunc();
-        Object.defineProperty(decorator, name, { value: run, enumerable: false });
+        let func = new Function([], expression);
+        let bound = func.bind(dataGet(target.reactive, path));
+        addProp(name, () => bound());
       });
     });
   }
@@ -925,31 +940,26 @@
     on("new", (target) => {
       target.__loading = reactive2({ state: false });
     });
-    on("request", (target, payload) => {
+    on("target.request", (target, payload) => {
       target.__loading.state = true;
       return () => target.__loading.state = false;
     });
-    on("decorate", (target, path) => {
-      return (decorator) => {
-        Object.defineProperty(decorator, "$loading", { get() {
-          return target.__loading.state;
-        } });
-        return decorator;
-      };
+    on("decorate", (target, path, addProp, decorator, symbol) => {
+      addProp("$loading", { get() {
+        return target.__loading.state;
+      } });
     });
   }
 
   // js/features/polling.js
   function polling_default() {
-    on("decorate", (target, path) => {
-      return (decorator) => {
-        Object.defineProperty(decorator, "$poll", { value: () => {
-          syncronizedInterval(2500, () => {
-            target.ephemeral.$commit();
-          });
-        } });
-        return decorator;
-      };
+    on("decorate", (target, path, addProp, decorator, symbol) => {
+      addProp("$poll", (callback) => {
+        syncronizedInterval(2500, () => {
+          callback();
+          target.ephemeral.$commit();
+        });
+      });
     });
   }
   var clocks = [];
@@ -992,7 +1002,7 @@
     on("new", (target) => {
       target.__dirty = reactive2({ state: 0 });
     });
-    on("request", (target, payload) => {
+    on("target.request", (target, payload) => {
       return () => target.__dirty.state = +new Date();
     });
     on("decorate", (target, path) => {
@@ -1009,7 +1019,7 @@
   }
 
   // js/features/index.js
-  jsMethods_default();
+  methods_default();
   prefetch_default();
   redirect_default();
   loading_default();
@@ -1030,10 +1040,12 @@
   });
   var store = /* @__PURE__ */ new Map();
   window.synthetic = synthetic;
+  window.syntheticOn = on;
   function synthetic(provided) {
     if (typeof provided === "string")
       return newUp(provided);
     let target = {
+      methods: provided.effects["methods"] || [],
       effects: raw(provided.effects),
       snapshot: raw(provided.snapshot)
     };
@@ -1052,62 +1064,63 @@
     return synthetic(await requestNew(name));
   }
   function extractDataAndDecorate(payload, symbol) {
-    return extractData(payload, symbol, (value, meta, symbol2, path) => {
+    return extractData(payload, symbol, (object2, meta, symbol2, path) => {
       let target = store.get(symbol2);
-      let finish = trigger2("decorate", target, path);
-      return decorate(value, finish({
-        $watch(path2, callback) {
-          let firstTime = true;
-          let old = void 0;
-          effect2(() => {
-            let value2 = dataGet(target.reactive, path2);
-            if (firstTime) {
-              firstTime = false;
-              return;
-            }
-            pauseTracking();
-            callback(value2, old);
-            old = value2;
-            enableTracking();
+      let decorator = {};
+      let addProp = (key, value, options = {}) => {
+        let base = { enumerable: false, configurable: true, ...options };
+        if (isObject2(value) && deeplyEqual(Object.keys(value), ["get"]) || deeplyEqual(Object.keys(value), ["get", "set"])) {
+          Object.defineProperty(object2, key, {
+            get: value.get,
+            set: value.set,
+            ...base
           });
-        },
-        $watchEffect(callback) {
-          effect2(callback);
-        },
-        async $commit() {
-          return await requestCommit(symbol2);
-        },
-        __get(property) {
-          if (typeof property === "symbol")
-            return;
-          if ([
-            "__v_isRef",
-            "__v_isReadonly",
-            "__v_raw",
-            "__v_skip",
-            "toJSON",
-            "then",
-            "_x_interceptor",
-            "init"
-          ].includes(property))
-            return;
-          let method = property;
-          return async (...params) => {
-            return await callMethod(symbol2, path, method, params);
-          };
+        } else {
+          Object.defineProperty(object2, key, {
+            value,
+            ...base
+          });
         }
-      }));
+      };
+      let finish = trigger2("decorate", target, path, addProp, decorator, symbol2);
+      addProp("__target", { get() {
+        return target;
+      } });
+      addProp("$watch", (path2, callback) => {
+        let firstTime = true;
+        let old = void 0;
+        effect2(() => {
+          let value = dataGet(target.reactive, path2);
+          if (firstTime) {
+            firstTime = false;
+            return;
+          }
+          pauseTracking();
+          callback(value, old);
+          old = value;
+          enableTracking();
+        });
+      });
+      addProp("$watchEffect", (callback) => effect2(callback));
+      addProp("$refresh", async () => await requestCommit(symbol2));
+      addProp("$commit", async (callback) => {
+        return await requestCommit(symbol2);
+      });
+      each(Object.getOwnPropertyDescriptors(decorator), (key, value) => {
+        Object.defineProperty(object2, key, value);
+      });
+      return object2;
     });
   }
-  function extractData(payload, symbol, decorate2 = (i) => i, path = "") {
+  function extractData(payload, symbol, decorate = (i) => i, path = "") {
     let value = isSynthetic(payload) ? payload[0] : payload;
     let meta = isSynthetic(payload) ? payload[1] : void 0;
     if (isObjecty(value)) {
       Object.entries(value).forEach(([key, iValue]) => {
-        value[key] = extractData(iValue, symbol, decorate2, path === "" ? key : `${path}.${key}`);
+        value[key] = extractData(iValue, symbol, decorate, path === "" ? key : `${path}.${key}`);
       });
     }
-    return meta !== void 0 && isObjecty(value) ? decorate2(value, meta, symbol, path) : value;
+    return meta !== void 0 && isObjecty(value) ? decorate(value, meta, symbol, path) : value;
   }
   function isSynthetic(subject) {
     return Array.isArray(subject) && subject.length === 2 && typeof subject[1] === "object" && Object.keys(subject[1]).includes("s");
@@ -1151,6 +1164,10 @@
     }, 5);
   }
   async function sendMethodCall() {
+    requestTargetQueue.forEach((request2, symbol) => {
+      let target = store.get(symbol);
+      trigger2("request.before", target);
+    });
     let payload = [];
     let receivers = [];
     requestTargetQueue.forEach((request2, symbol) => {
@@ -1166,7 +1183,7 @@
         }))
       };
       payload.push(targetPaylaod);
-      let finish = trigger2("request", target, targetPaylaod);
+      let finish2 = trigger2("target.request", target, targetPaylaod);
       receivers.push((snapshot, effects) => {
         mergeNewSnapshot(symbol, snapshot, effects);
         processEffects(target);
@@ -1182,11 +1199,12 @@
             });
           handleReturn(forReturn);
         }
-        finish();
+        finish2();
         request2.handleResponse();
       });
     });
     requestTargetQueue.clear();
+    let finish = trigger2("request", payload);
     let request = await fetch("/synthetic/update", {
       method: "POST",
       body: JSON.stringify({
@@ -1201,10 +1219,13 @@
         let { snapshot, effects } = response[i];
         receivers[i](snapshot, effects);
       }
+      trigger2("response.success");
     } else {
       let html = await request.text();
       showHtmlModal(html);
+      trigger2("response.failure");
     }
+    finish();
   }
   async function requestNew(name) {
     let request = await fetch("/synthetic/new", {
@@ -1237,35 +1258,6 @@
     Object.entries(target.ephemeral).forEach(([key, value]) => {
       if (!deeplyEqual(target.ephemeral[key], newData[key])) {
         target.reactive[key] = newData[key];
-      }
-    });
-  }
-  function decorate(object, decorator) {
-    return new Proxy(object, {
-      get(target, property, receiver) {
-        if (property === "__target")
-          return target;
-        if (property === "__decorator")
-          return decorator;
-        let got = Reflect.get(decorator, property, receiver);
-        if (got !== void 0)
-          return got;
-        got = Reflect.get(target, property, receiver);
-        if (got !== void 0)
-          return got;
-        if ("__get" in decorator) {
-          return decorator.__get(property);
-        }
-      },
-      set(target, property, value) {
-        if (property in decorator) {
-          decorator[property] = value;
-        } else if (property in target || property === "__v_isRef") {
-          target[property] = value;
-        } else if ("__set" in decorator && !["then"].includes(property)) {
-          decorator.__set(property, value);
-        }
-        return true;
       }
     });
   }

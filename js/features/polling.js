@@ -2,16 +2,14 @@ import { each } from "../utils"
 import { on } from "../events"
 
 export default function () {
-    on('decorate', (target, path) => {
-        return decorator => {
-            Object.defineProperty(decorator, '$poll', { value: () => {
-                syncronizedInterval(2500, () => {
-                    target.ephemeral.$commit()
-                })
-            }})
+    on('decorate', (target, path, addProp, decorator, symbol) => {
+        addProp('$poll', (callback) => {
+            syncronizedInterval(2500, () => {
+                callback()
 
-            return decorator
-        }
+                target.ephemeral.$commit()
+            })
+        })
     })
 }
 

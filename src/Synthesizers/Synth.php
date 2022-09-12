@@ -14,11 +14,7 @@ abstract class Synth {
 
     abstract static function match($target);
 
-    // abstract function dehydrate($target);
-
-    // abstract function hydrate($value, $meta);
-
-    function callables($target)
+    function methods($target)
     {
         return [];
     }

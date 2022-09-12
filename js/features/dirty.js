@@ -7,7 +7,7 @@ export default function () {
         target.__dirty = reactive({ state: 0 })
     })
 
-    on('request', (target, payload) => {
+    on('target.request', (target, payload) => {
         return () => target.__dirty.state = +new Date()
     })
 

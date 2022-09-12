@@ -9,7 +9,7 @@ class ArraySynth extends Synth {
         return is_array($target);
     }
 
-    function dehydrate($target, $addMeta) {
+    function dehydrate($target, $context) {
         return $target;
     }
 
